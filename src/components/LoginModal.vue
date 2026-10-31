@@ -73,13 +73,13 @@ const handleLogin = async (usr = username.value, pwd = password.value || 'passwo
       <!-- Credentials Form -->
       <form @submit.prevent="handleLogin()" class="login-form">
         <div class="form-group">
-          <label>Username</label>
+          <label>Username or Email Address</label>
           <div class="input-group">
             <User :size="18" class="input-icon" />
             <input 
               v-model="username" 
               type="text" 
-              placeholder="e.g. bartender or owner" 
+              placeholder="e.g. owner or mitu@fringebusiness.com" 
               required
             />
           </div>
