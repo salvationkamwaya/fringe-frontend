@@ -4,7 +4,7 @@ import { store } from '../store'
 import { 
   Wine, BookOpen, Layers, ShieldCheck, Clock, FileText, 
   LogOut, User as UserIcon, ChevronDown, Sparkles,
-  Users, Truck, BarChart3
+  Users, Truck, BarChart3, UserCheck
 } from 'lucide-vue-next'
 
 const roleLabels = {
@@ -156,6 +156,18 @@ const unitBadgeColor = computed(() => {
       >
         <ShieldCheck :size="16" />
         <span>Audit Log</span>
+      </button>
+
+      <!-- Staff & Roles (STRICTLY OWNER ONLY) -->
+      <button 
+        v-if="store.isOwner"
+        class="nav-tab owner-tab"
+        :class="{ active: store.activeModal === 'staff_management' }"
+        @click="store.activeModal = 'staff_management'"
+        title="Staff & Role Administration (Business Owner Exclusive)"
+      >
+        <UserCheck :size="16" />
+        <span>Staff & Roles</span>
       </button>
     </div>
 
@@ -366,6 +378,22 @@ const unitBadgeColor = computed(() => {
   background: rgba(245, 158, 11, 0.18);
   color: #fbbf24;
   border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.owner-tab {
+  color: #d8b4fe !important;
+  background: rgba(168, 85, 247, 0.08);
+  border: 1px dashed rgba(168, 85, 247, 0.25);
+}
+.owner-tab:hover {
+  background: rgba(168, 85, 247, 0.16) !important;
+  color: #f3e8ff !important;
+}
+.owner-tab.active {
+  background: rgba(168, 85, 247, 0.25) !important;
+  color: #f3e8ff !important;
+  border: 1px solid rgba(168, 85, 247, 0.6) !important;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.3);
 }
 
 .status-dot {

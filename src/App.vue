@@ -17,6 +17,7 @@ import StationeryReportsModal from './components/StationeryReportsModal.vue'
 import CustomersModal from './components/CustomersModal.vue'
 import SuppliersModal from './components/SuppliersModal.vue'
 import AuditTrailModal from './components/AuditTrailModal.vue'
+import StaffManagementModal from './components/StaffManagementModal.vue'
 
 const checkAuth = async () => {
   if (!store.token) {
@@ -106,6 +107,11 @@ onMounted(() => {
 
     <AuditTrailModal 
       v-if="store.activeModal === 'audit'"
+      @close="store.activeModal = null"
+    />
+
+    <StaffManagementModal 
+      v-if="store.activeModal === 'staff_management'"
       @close="store.activeModal = null"
     />
 
