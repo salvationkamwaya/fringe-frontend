@@ -2,18 +2,19 @@
 import { ref, computed } from 'vue'
 import { store } from '../store'
 import api from '../api'
-import { Banknote, Smartphone, Split, CheckCircle2, X, AlertCircle } from 'lucide-vue-next'
+import { Banknote, Smartphone, Split, CheckCircle2, X, AlertCircle, CreditCard } from 'lucide-vue-next'
 
 const emit = defineEmits(['order-completed', 'close'])
 
 const totalDue = computed(() => store.cartSubtotal)
 
-const paymentMode = ref('CASH') // 'CASH' | 'MOBILE_MONEY' | 'SPLIT'
+const paymentMode = ref(store.selectedCustomer ? 'CREDIT' : 'CASH') // 'CASH' | 'MOBILE_MONEY' | 'SPLIT' | 'CREDIT'
 const cashTendered = ref(totalDue.value)
 const mobileRef = ref('')
 const mobileAmount = ref(0)
 const splitCashAmount = ref(Math.floor(totalDue.value / 2))
 const splitMobileAmount = ref(totalDue.value - splitCashAmount.value)
+const managerPin = ref('')
 
 const loading = ref(false)
 const errorMessage = ref('')
@@ -74,14 +75,26 @@ const handlePayment = async () => {
         amount: Number(splitMobileAmount.value),
         reference: mobileRef.value || 'SPLIT-MOMO'
       })
+    } else if (paymentMode.value === 'CREDIT') {
+      if (!store.selectedCustomer) {
+        throw new Error('Please select or attach a registered customer account for credit sales.')
+      }
+      payments.push({
+        payment_method: 'CREDIT',
+        amount: totalDue.value,
+        reference: ''
+      })
     }
 
     const payload = {
       items: store.cart.map(item => ({
         product_id: item.product.id,
         quantity: item.quantity,
+        is_pack_sale: item.is_pack_sale !== undefined ? item.is_pack_sale : true
       })),
       payments,
+      customer_id: store.selectedCustomer?.id || null,
+      manager_pin: managerPin.value || null,
       tab_id: store.selectedTab?.id || null,
       shift_id: store.activeShift?.id || null,
       is_age_verified: store.isAgeVerified,
@@ -186,6 +199,16 @@ const finishSale = () => {
             <Split :size="18" />
             <span>Split Payment</span>
           </button>
+
+          <button 
+            v-if="store.activeUnit === 'stationery'"
+            class="tab-btn tab-credit" 
+            :class="{ active: paymentMode === 'CREDIT' }"
+            @click="paymentMode = 'CREDIT'"
+          >
+            <CreditCard :size="18" />
+            <span>Customer Credit</span>
+          </button>
         </div>
 
         <!-- 1. CASH MODE -->
@@ -240,7 +263,7 @@ const finishSale = () => {
         </div>
 
         <!-- 3. SPLIT MODE -->
-        <div v-else class="tender-body">
+        <div v-else-if="paymentMode === 'SPLIT'" class="tender-body">
           <div class="split-grid">
             <div class="split-col">
               <label>Cash Amount (ZMW):</label>
@@ -268,6 +291,52 @@ const finishSale = () => {
               placeholder="e.g. Ref ID"
               class="ref-input"
             />
+          </div>
+        </div>
+
+        <!-- 4. CUSTOMER CREDIT MODE (Stationery Only) -->
+        <div v-else-if="paymentMode === 'CREDIT'" class="tender-body">
+          <div v-if="store.selectedCustomer" class="credit-card-panel">
+            <div class="credit-meta-row">
+              <span class="credit-meta-lbl">Customer Account:</span>
+              <strong class="credit-meta-val">{{ store.selectedCustomer.name }}</strong>
+            </div>
+            <div class="credit-meta-row">
+              <span class="credit-meta-lbl">Current Owed Balance:</span>
+              <span class="credit-meta-val text-amber">ZMW {{ parseFloat(store.selectedCustomer.current_balance).toFixed(2) }}</span>
+            </div>
+            <div class="credit-meta-row">
+              <span class="credit-meta-lbl">Available Credit:</span>
+              <span class="credit-meta-val text-emerald">ZMW {{ parseFloat(store.selectedCustomer.available_credit).toFixed(2) }}</span>
+            </div>
+
+            <!-- Over-limit warning & PIN prompt -->
+            <div v-if="totalDue > store.selectedCustomer.available_credit" class="credit-override-alert">
+              <div class="alert-head">
+                <AlertCircle :size="16" class="text-amber" />
+                <strong>Manager Authorization Required</strong>
+              </div>
+              <p class="alert-txt">This sale (ZMW {{ totalDue.toFixed(2) }}) exceeds available credit (ZMW {{ parseFloat(store.selectedCustomer.available_credit).toFixed(2) }}). Enter Manager or Owner PIN to authorize credit override:</p>
+              <div class="pin-box">
+                <label>Manager / Owner PIN:</label>
+                <input 
+                  v-model="managerPin" 
+                  type="password" 
+                  maxlength="4" 
+                  placeholder="••••" 
+                  class="pin-input"
+                  required 
+                />
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="credit-no-customer">
+            <AlertCircle :size="24" class="text-amber" />
+            <p>No registered customer attached to this order.</p>
+            <button class="btn-attach-picker" @click="store.activeModal = 'customers'">
+              Select Registered Customer
+            </button>
           </div>
         </div>
 
@@ -636,5 +705,111 @@ const finishSale = () => {
   font-weight: 800;
   font-size: 15px;
   box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
+}
+
+/* Customer Credit Mode */
+.credit-card-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.credit-meta-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.credit-meta-lbl {
+  color: #94a3b8;
+}
+
+.credit-meta-val {
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+.credit-override-alert {
+  margin-top: 10px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.alert-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #fbbf24;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.alert-txt {
+  font-size: 12px;
+  color: #cbd5e1;
+  margin: 0 0 10px 0;
+  line-height: 1.4;
+}
+
+.pin-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pin-box label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fbbf24;
+  text-transform: uppercase;
+}
+
+.pin-input {
+  width: 100%;
+  padding: 10px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 8px;
+  color: #f8fafc;
+  font-size: 18px;
+  letter-spacing: 6px;
+  text-align: center;
+  outline: none;
+}
+
+.credit-no-customer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 24px;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.credit-no-customer p {
+  color: #94a3b8;
+  margin: 0;
+  font-size: 13px;
+}
+
+.btn-attach-picker {
+  padding: 10px 16px;
+  background: rgba(6, 182, 212, 0.2);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  border-radius: 8px;
+  color: #22d3ee;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
 </style>

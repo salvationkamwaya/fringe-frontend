@@ -3,7 +3,8 @@ import { computed } from 'vue'
 import { store } from '../store'
 import { 
   Wine, BookOpen, Layers, ShieldCheck, Clock, FileText, 
-  LogOut, User as UserIcon, ChevronDown, Sparkles
+  LogOut, User as UserIcon, ChevronDown, Sparkles,
+  Users, Truck, BarChart3
 } from 'lucide-vue-next'
 
 const roleLabels = {
@@ -69,26 +70,54 @@ const unitBadgeColor = computed(() => {
 
     <!-- Center Navigation Actions -->
     <div class="nav-center">
+      <!-- POS Counter Tab -->
       <button 
-        class="nav-tab active"
+        class="nav-tab"
+        :class="{ active: store.activeModal === null }"
         @click="store.activeModal = null"
       >
-        <Wine :size="16" />
+        <Wine v-if="store.activeUnit === 'bar'" :size="16" />
+        <BookOpen v-else :size="16" />
         <span>POS Counter</span>
       </button>
 
+      <!-- BAR SPECIFIC: Open Tabs -->
       <button 
         v-if="store.activeUnit === 'bar'"
         class="nav-tab"
+        :class="{ active: store.activeModal === 'tabs' }"
         @click="store.activeModal = 'tabs'"
       >
         <Layers :size="16" />
         <span>Open Tabs</span>
       </button>
 
+      <!-- STATIONERY SPECIFIC: Customers & Debtors -->
+      <button 
+        v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
+        class="nav-tab"
+        :class="{ active: store.activeModal === 'customers' }"
+        @click="store.activeModal = 'customers'"
+      >
+        <Users :size="16" />
+        <span>Customers & Credit</span>
+      </button>
+
+      <!-- STATIONERY SPECIFIC: Suppliers & Goods Receiving -->
+      <button 
+        v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
+        class="nav-tab"
+        :class="{ active: store.activeModal === 'suppliers' }"
+        @click="store.activeModal = 'suppliers'"
+      >
+        <Truck :size="16" />
+        <span>Suppliers (PO)</span>
+      </button>
+
+      <!-- Shift Status -->
       <button 
         class="nav-tab"
-        :class="{ 'pulse-shift': !store.activeShift }"
+        :class="{ 'pulse-shift': !store.activeShift, active: store.activeModal === 'shift' }"
         @click="store.activeModal = 'shift'"
       >
         <Clock :size="16" />
@@ -96,18 +125,33 @@ const unitBadgeColor = computed(() => {
         <span class="status-dot" :class="store.activeShift ? 'online' : 'idle'"></span>
       </button>
 
+      <!-- Bar Reports (Bar Manager or Owner) -->
       <button 
-        v-if="store.isBarManager || store.isOwner"
+        v-if="store.activeUnit === 'bar' && (store.isBarManager || store.isOwner)"
         class="nav-tab"
+        :class="{ active: store.activeModal === 'reports' }"
         @click="store.activeModal = 'reports'"
       >
         <FileText :size="16" />
-        <span>Reports</span>
+        <span>Bar Reports</span>
       </button>
 
+      <!-- Stationery Reports (Stationery Manager or Owner) -->
       <button 
-        v-if="store.isBarManager || store.isOwner"
+        v-if="(store.activeUnit === 'stationery' || store.activeUnit === 'all') && (store.isStationeryManager || store.isOwner)"
         class="nav-tab"
+        :class="{ active: store.activeModal === 'stationery_reports' }"
+        @click="store.activeModal = 'stationery_reports'"
+      >
+        <BarChart3 :size="16" />
+        <span>Stationery Reports</span>
+      </button>
+
+      <!-- Audit Trail (Managers & Owner) -->
+      <button 
+        v-if="store.isBarManager || store.isStationeryManager || store.isOwner"
+        class="nav-tab"
+        :class="{ active: store.activeModal === 'audit' }"
         @click="store.activeModal = 'audit'"
       >
         <ShieldCheck :size="16" />

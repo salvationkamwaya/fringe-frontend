@@ -13,8 +13,9 @@ export const store = reactive({
   activeShift: null,
   cart: [],
   selectedTab: null,
+  selectedCustomer: null,
   isAgeVerified: false,
-  activeModal: null, // 'login', 'age_check', 'manager_pin', 'payment', 'tabs', 'shift', 'reports', 'audit'
+  activeModal: null, // 'login', 'age_check', 'manager_pin', 'payment', 'tabs', 'shift', 'reports', 'audit', 'customers', 'suppliers', 'stationery_reports'
   pinModalConfig: {
     action: 'GENERIC_OVERRIDE',
     title: 'Manager Authorization Required',
@@ -33,13 +34,15 @@ export const store = reactive({
   isOwner: computed(() => store.user?.role === 'owner'),
   isBarManager: computed(() => ['owner', 'bar_manager'].includes(store.user?.role)),
   isStationeryManager: computed(() => ['owner', 'stationery_manager'].includes(store.user?.role)),
+  isStationery: computed(() => store.activeUnit === 'stationery'),
+  isBar: computed(() => store.activeUnit === 'bar'),
   
   cartItemCount: computed(() => {
     return store.cart.reduce((sum, item) => sum + item.quantity, 0)
   }),
 
   cartSubtotal: computed(() => {
-    return store.cart.reduce((sum, item) => sum + (parseFloat(item.product.selling_price) * item.quantity), 0)
+    return store.cart.reduce((sum, item) => sum + (parseFloat(item.unit_price) * item.quantity), 0)
   }),
 
   cartHasAlcohol: computed(() => {
@@ -119,16 +122,26 @@ export const store = reactive({
     }
   },
 
-  addToCart(product, quantity = 1) {
-    const existing = store.cart.find(item => item.product.id === product.id)
+  addToCart(product, quantity = 1, is_pack_sale = true) {
+    let unitPrice = parseFloat(product.selling_price)
+    if (product.is_pack && !is_pack_sale && product.allow_split_sale) {
+      unitPrice = parseFloat(product.split_unit_price || (unitPrice / product.pack_unit_ratio))
+    }
+
+    const existing = store.cart.find(
+      item => item.product.id === product.id && item.is_pack_sale === is_pack_sale
+    )
+
     if (existing) {
       existing.quantity += quantity
-      existing.subtotal = parseFloat(existing.product.selling_price) * existing.quantity
+      existing.subtotal = existing.unit_price * existing.quantity
     } else {
       store.cart.push({
         product,
         quantity,
-        subtotal: parseFloat(product.selling_price) * quantity,
+        is_pack_sale,
+        unit_price: unitPrice,
+        subtotal: unitPrice * quantity,
         is_alcoholic: Boolean(product.is_alcoholic),
       })
     }
@@ -139,20 +152,40 @@ export const store = reactive({
     }
   },
 
-  updateCartQuantity(productId, delta) {
-    const item = store.cart.find(i => i.product.id === productId)
-    if (!item) return
+  updateCartQuantity(target, delta, is_pack_sale = undefined) {
+    let index = -1
+    if (typeof target === 'number' && target < store.cart.length && target >= 0 && is_pack_sale === undefined) {
+      index = target
+    } else if (is_pack_sale !== undefined) {
+      index = store.cart.findIndex(i => i.product.id === target && i.is_pack_sale === is_pack_sale)
+    } else {
+      index = store.cart.findIndex(i => i.product.id === target)
+    }
+
+    if (index === -1) return
+    const item = store.cart[index]
     const newQty = item.quantity + delta
     if (newQty <= 0) {
-      store.removeFromCart(productId)
+      store.removeFromCart(index)
     } else {
       item.quantity = newQty
-      item.subtotal = parseFloat(item.product.selling_price) * newQty
+      item.subtotal = item.unit_price * newQty
     }
   },
 
-  removeFromCart(productId) {
-    store.cart = store.cart.filter(item => item.product.id !== productId)
+  removeFromCart(target, is_pack_sale = undefined) {
+    let index = -1
+    if (typeof target === 'number' && target < store.cart.length && target >= 0 && is_pack_sale === undefined) {
+      index = target
+    } else if (is_pack_sale !== undefined) {
+      index = store.cart.findIndex(i => i.product.id === target && i.is_pack_sale === is_pack_sale)
+    } else {
+      index = store.cart.findIndex(i => i.product.id === target)
+    }
+
+    if (index !== -1) {
+      store.cart.splice(index, 1)
+    }
     if (!store.cartHasAlcohol) {
       store.isAgeVerified = false
     }
@@ -161,6 +194,7 @@ export const store = reactive({
   clearCart() {
     store.cart = []
     store.selectedTab = null
+    store.selectedCustomer = null
     store.isAgeVerified = false
   },
 

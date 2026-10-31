@@ -5,6 +5,7 @@ import api from './api'
 
 import HeaderNav from './components/HeaderNav.vue'
 import BarPos from './components/BarPos.vue'
+import StationeryPos from './components/StationeryPos.vue'
 import LoginModal from './components/LoginModal.vue'
 import AgeVerificationModal from './components/AgeVerificationModal.vue'
 import ManagerPinModal from './components/ManagerPinModal.vue'
@@ -12,6 +13,9 @@ import PaymentModal from './components/PaymentModal.vue'
 import TabsDrawer from './components/TabsDrawer.vue'
 import ShiftModal from './components/ShiftModal.vue'
 import BarReportsModal from './components/BarReportsModal.vue'
+import StationeryReportsModal from './components/StationeryReportsModal.vue'
+import CustomersModal from './components/CustomersModal.vue'
+import SuppliersModal from './components/SuppliersModal.vue'
 import AuditTrailModal from './components/AuditTrailModal.vue'
 
 const checkAuth = async () => {
@@ -46,20 +50,11 @@ onMounted(() => {
 
     <!-- Main Workspace -->
     <main class="main-workspace">
-      <!-- In Phase 1, Bar POS is the primary active counter -->
-      <BarPos v-if="store.activeUnit === 'bar' || store.activeUnit === 'all'" />
+      <!-- Stationery POS View -->
+      <StationeryPos v-if="store.activeUnit === 'stationery'" />
 
-      <!-- Fallback placeholder for Stationery view (to be built in Phase 2) -->
-      <div v-else class="stationery-placeholder">
-        <div class="placeholder-card">
-          <div class="placeholder-icon">📚</div>
-          <h2>Stationery Counter View</h2>
-          <p>Stationery POS with barcode scanning and unit-to-pack conversions is scheduled for Phase 2.</p>
-          <button class="btn-switch-bar" @click="store.switchBusinessUnit('bar')">
-            Switch back to Bar & Lounge
-          </button>
-        </div>
-      </div>
+      <!-- Bar & Lounge POS View -->
+      <BarPos v-else />
     </main>
 
     <!-- Modals & Overlays -->
@@ -91,6 +86,21 @@ onMounted(() => {
 
     <BarReportsModal 
       v-if="store.activeModal === 'reports'"
+      @close="store.activeModal = null"
+    />
+
+    <StationeryReportsModal 
+      v-if="store.activeModal === 'stationery_reports'"
+      @close="store.activeModal = null"
+    />
+
+    <CustomersModal 
+      v-if="store.activeModal === 'customers'"
+      @close="store.activeModal = null"
+    />
+
+    <SuppliersModal 
+      v-if="store.activeModal === 'suppliers'"
       @close="store.activeModal = null"
     />
 
