@@ -143,10 +143,20 @@ const handleCreateStaff = async () => {
     store.showToast('Username is required.', 'warning')
     return
   }
-  if (!createForm.value.password || createForm.value.password.length < 6) {
-    store.showToast('Password must be at least 6 characters.', 'warning')
+  // Strong password validation
+  const pwd = createForm.value.password || ''
+  const missing = []
+  if (pwd.length < 8) missing.push('at least 8 characters')
+  if (!/[A-Z]/.test(pwd)) missing.push('one uppercase letter (A-Z)')
+  if (!/[a-z]/.test(pwd)) missing.push('one lowercase letter (a-z)')
+  if (!/[0-9]/.test(pwd)) missing.push('one number (0-9)')
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd)) missing.push('one special character (!@#$%^&*)')
+
+  if (missing.length > 0) {
+    store.showToast(`Weak password. Missing: ${missing.join(', ')}.`, 'error')
     return
   }
+
   if (createForm.value.pin) {
     if (!/^\d{4,6}$/.test(createForm.value.pin)) {
       store.showToast('PIN must be 4 to 6 numeric digits.', 'warning')
@@ -569,7 +579,7 @@ onMounted(() => {
 
               <!-- Password -->
               <div class="form-group">
-                <label>Login Password <span class="req">*</span> (Min 6 chars)</label>
+                <label>Login Password <span class="req">*</span> <span class="optional">(Min 8 chars, Upper, Lower, Number & Symbol)</span></label>
                 <div class="input-with-action">
                   <input 
                     v-model="createForm.password" 
