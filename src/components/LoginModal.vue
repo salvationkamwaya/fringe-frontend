@@ -1,28 +1,24 @@
 <script setup>
 import { ref } from 'vue'
 import { store } from '../store'
-import { Lock, User, KeyRound, Sparkles, X } from 'lucide-vue-next'
+import { Lock, User, KeyRound, X, RefreshCw } from 'lucide-vue-next'
 
 const username = ref('')
 const password = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
 
-const quickAccounts = [
-  { label: 'Dr. Mitu (Owner)', username: 'owner', role: 'Full Cross-Unit Access', badge: 'Owner' },
-  { label: 'Alex Banda (Bar Manager)', username: 'bar_manager', role: 'Bar Approvals & Z-Reports', badge: 'Bar Mgr' },
-  { label: 'John Mwila (Bartender)', username: 'bartender', role: 'Bar Counter POS & Tabs', badge: 'Bartender' },
-  { label: 'Sarah Tembo (Stat Mgr)', username: 'stationery_manager', role: 'Stationery Approvals', badge: 'Stat Mgr' },
-  { label: 'Grace Phiri (Stat Cashier)', username: 'stationery_cashier', role: 'Stationery Counter POS', badge: 'Cashier' },
-]
-
-const handleLogin = async (usr = username.value, pwd = password.value || 'password123') => {
+const handleLogin = async () => {
+  if (!username.value.trim() || !password.value) {
+    errorMessage.value = 'Please enter your username or email and password.'
+    return
+  }
   loading.value = true
   errorMessage.value = ''
   try {
-    await store.login(usr, pwd)
+    await store.login(username.value.trim(), password.value)
   } catch (err) {
-    errorMessage.value = err.response?.data?.error || 'Invalid credentials'
+    errorMessage.value = err.response?.data?.error || 'Invalid username or password.'
   } finally {
     loading.value = false
   }
@@ -36,42 +32,18 @@ const handleLogin = async (usr = username.value, pwd = password.value || 'passwo
         <div class="header-icon">
           <KeyRound :size="24" />
         </div>
-        <div>
-          <h2 class="modal-title">Sign In to Fringe POS</h2>
-          <p class="modal-subtitle">Select a role or enter your credentials</p>
+        <div class="header-text">
+          <div class="brand-tag">FRINGE BUSINESS SYSTEM</div>
+          <h2 class="modal-title">Sign In</h2>
+          <p class="modal-subtitle">Enter your credentials to access your terminal</p>
         </div>
-        <button v-if="store.isAuthenticated" class="btn-close" @click="store.activeModal = null">
+        <button v-if="store.isAuthenticated" class="btn-close" @click="store.activeModal = null" title="Close">
           <X :size="18" />
         </button>
       </div>
 
-      <!-- Quick Role Selection for Seamless Pair Programming & Demo -->
-      <div class="quick-roles-section">
-        <div class="section-title">
-          <Sparkles :size="14" />
-          <span>Quick Switch Accounts (Development Sandbox)</span>
-        </div>
-        <div class="quick-grid">
-          <button 
-            v-for="acc in quickAccounts" 
-            :key="acc.username"
-            class="quick-card"
-            :disabled="loading"
-            @click="handleLogin(acc.username, 'password123')"
-          >
-            <div class="quick-badge">{{ acc.badge }}</div>
-            <div class="quick-name">{{ acc.label }}</div>
-            <div class="quick-role">{{ acc.role }}</div>
-          </button>
-        </div>
-      </div>
-
-      <div class="divider">
-        <span>OR ENTER CREDENTIALS</span>
-      </div>
-
       <!-- Credentials Form -->
-      <form @submit.prevent="handleLogin()" class="login-form">
+      <form @submit.prevent="handleLogin" class="login-form">
         <div class="form-group">
           <label>Username or Email Address</label>
           <div class="input-group">
@@ -80,6 +52,7 @@ const handleLogin = async (usr = username.value, pwd = password.value || 'passwo
               v-model="username" 
               type="text" 
               placeholder="e.g. owner or mitu@fringebusiness.com" 
+              autocomplete="username"
               required
             />
           </div>
@@ -93,6 +66,7 @@ const handleLogin = async (usr = username.value, pwd = password.value || 'passwo
               v-model="password" 
               type="password" 
               placeholder="••••••••" 
+              autocomplete="current-password"
               required
             />
           </div>
@@ -103,7 +77,8 @@ const handleLogin = async (usr = username.value, pwd = password.value || 'passwo
         </div>
 
         <button type="submit" class="btn-submit" :disabled="loading">
-          {{ loading ? 'Signing in...' : 'Sign In to Counter' }}
+          <RefreshCw v-if="loading" :size="16" class="spin-anim" />
+          <span>{{ loading ? 'Signing in...' : 'Sign In' }}</span>
         </button>
       </form>
     </div>
@@ -114,7 +89,7 @@ const handleLogin = async (usr = username.value, pwd = password.value || 'passwo
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(4, 6, 12, 0.85);
+  background: rgba(4, 6, 12, 0.88);
   backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
@@ -125,41 +100,59 @@ const handleLogin = async (usr = username.value, pwd = password.value || 'passwo
 
 .modal-card {
   width: 100%;
-  max-width: 540px;
+  max-width: 420px;
   background: #111827;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 20px;
+  border-radius: 18px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-  padding: 28px;
+  padding: 32px 28px;
+  position: relative;
 }
 
 .modal-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
   position: relative;
-  margin-bottom: 24px;
+  margin-bottom: 26px;
 }
 
 .header-icon {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: rgba(245, 158, 11, 0.15);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.1));
   color: #f59e0b;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  flex-shrink: 0;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #f59e0b;
+  margin-bottom: 4px;
 }
 
 .modal-title {
-  font-size: 20px;
+  margin: 0;
+  font-size: 22px;
   font-weight: 800;
   color: #f8fafc;
+  line-height: 1.2;
 }
 
 .modal-subtitle {
+  margin: 4px 0 0;
   font-size: 13px;
   color: #94a3b8;
 }
@@ -169,101 +162,25 @@ const handleLogin = async (usr = username.value, pwd = password.value || 'passwo
   top: 0;
   right: 0;
   background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: #94a3b8;
   border-radius: 8px;
   padding: 6px;
-}
-
-.quick-roles-section {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  padding: 16px;
-  margin-bottom: 20px;
-}
-
-.section-title {
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #fbbf24;
-  margin-bottom: 12px;
-}
-
-.quick-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
-}
-
-.quick-card {
-  background: rgba(30, 41, 59, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 10px;
-  text-align: left;
+  justify-content: center;
   transition: all 0.2s ease;
 }
-
-.quick-card:hover {
-  background: rgba(245, 158, 11, 0.15);
-  border-color: #f59e0b;
-  transform: translateY(-2px);
-}
-
-.quick-badge {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 800;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #e2e8f0;
-  margin-bottom: 4px;
-}
-
-.quick-name {
-  font-size: 12px;
-  font-weight: 700;
-  color: #f8fafc;
-  line-height: 1.2;
-}
-
-.quick-role {
-  font-size: 10px;
-  color: #94a3b8;
-  margin-top: 2px;
-}
-
-.divider {
-  display: flex;
-  align-items: center;
-  text-align: center;
-  margin: 20px 0;
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-
-.divider::before, .divider::after {
-  content: '';
-  flex: 1;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.divider span {
-  padding: 0 12px;
+.btn-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .form-group label {
@@ -284,6 +201,7 @@ const handleLogin = async (usr = username.value, pwd = password.value || 'passwo
   position: absolute;
   left: 14px;
   color: #64748b;
+  pointer-events: none;
 }
 
 .input-group input {
@@ -295,10 +213,12 @@ const handleLogin = async (usr = username.value, pwd = password.value || 'passwo
   color: #f8fafc;
   font-size: 14px;
   outline: none;
+  transition: all 0.2s ease;
 }
 
 .input-group input:focus {
   border-color: #f59e0b;
+  background: #131d35;
   box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
 }
 
@@ -309,21 +229,42 @@ const handleLogin = async (usr = username.value, pwd = password.value || 'passwo
   padding: 10px 14px;
   border-radius: 8px;
   font-size: 13px;
+  line-height: 1.4;
 }
 
 .btn-submit {
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border: 1px solid rgba(245, 158, 11, 0.5);
   color: #fff;
   font-weight: 700;
   font-size: 15px;
-  padding: 14px;
-  border-radius: 12px;
+  padding: 13px;
+  border-radius: 10px;
   box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
   transition: all 0.2s ease;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .btn-submit:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45);
+}
+
+.btn-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.spin-anim {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>
