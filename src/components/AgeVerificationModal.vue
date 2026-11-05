@@ -29,18 +29,29 @@ const cancelVerification = () => {
 
       <div class="badge-mandatory">
         <AlertTriangle :size="14" />
-        <span>NON-BYPASSABLE LEGAL CHECK</span>
+        <span>TANZANIA STATUTORY COMPLIANCE • NON-BYPASSABLE CHECK</span>
       </div>
 
       <h2 class="title">Mandatory Age Verification (18+)</h2>
       <p class="subtitle">
-        The current cart contains alcoholic items governed by Zambian Liquor Licensing laws.
-        Sales without age verification are strictly prohibited by system architecture and cannot be overridden by any role.
+        Alcohol sales are strictly regulated under <strong>The Intoxicating Liquors Act, Cap. 28 [R.E. 2002] (Sections 49 & 50)</strong> and the <strong>Law of the Child Act, 2009</strong> of the United Republic of Tanzania.
+        Serving or selling alcohol to persons under 18 is a punishable legal offence.
       </p>
+
+      <!-- Statutory ID Requirements Callout -->
+      <div class="statute-box">
+        <div class="statute-title">Valid Government Photographic ID Required:</div>
+        <div class="id-chips">
+          <span class="id-chip">NIDA National ID (Taifa)</span>
+          <span class="id-chip">Voter Card (Mpiga Kura)</span>
+          <span class="id-chip">Driving Licence (Udereva)</span>
+          <span class="id-chip">Valid Passport</span>
+        </div>
+      </div>
 
       <!-- Alcoholic Items Triggering this Check -->
       <div class="items-summary">
-        <div class="items-header">Restricted Items in Cart:</div>
+        <div class="items-header">Restricted Alcoholic Items in Cart:</div>
         <div class="items-list">
           <div v-for="item in alcoholicItems" :key="item.product.id" class="item-row">
             <span class="item-qty">{{ item.quantity }}x</span>
@@ -54,7 +65,7 @@ const cancelVerification = () => {
         <div class="checkbox-wrapper">
           <input type="checkbox" id="certify-age" checked disabled />
           <label for="certify-age">
-            I confirm that valid government-issued photographic identification has been inspected and the customer is verified 18 years of age or older.
+            I certify that a valid Tanzanian Government-issued photographic ID has been presented, inspected, and the customer is verified to be 18 years of age or older.
           </label>
         </div>
       </div>
@@ -138,7 +149,42 @@ const cancelVerification = () => {
   font-size: 13px;
   color: #94a3b8;
   line-height: 1.5;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+}
+
+.statute-box {
+  width: 100%;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px dashed rgba(239, 68, 68, 0.35);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.statute-title {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #fca5a5;
+  margin-bottom: 8px;
+  letter-spacing: 0.05em;
+}
+
+.id-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.id-chip {
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+  padding: 3px 8px;
+  border-radius: 6px;
 }
 
 .items-summary {

@@ -3,7 +3,7 @@ import { onMounted } from 'vue'
 import { store } from './store'
 import api from './api'
 
-import HeaderNav from './components/HeaderNav.vue'
+import SidebarNav from './components/SidebarNav.vue'
 import BarPos from './components/BarPos.vue'
 import StationeryPos from './components/StationeryPos.vue'
 import LoginModal from './components/LoginModal.vue'
@@ -46,10 +46,10 @@ onMounted(() => {
 
 <template>
   <div class="app-layout">
-    <!-- Top Navigation Header -->
-    <HeaderNav />
+    <!-- Vertical Role Sidebar (Left) -->
+    <SidebarNav />
 
-    <!-- Main Workspace -->
+    <!-- Main Workspace (Right) -->
     <main class="main-workspace">
       <!-- Stationery POS View -->
       <StationeryPos v-if="store.activeUnit === 'stationery'" />
@@ -126,15 +126,22 @@ onMounted(() => {
 
 <style scoped>
 .app-layout {
-  min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  overflow: hidden;
   background: #090d16;
 }
 
 .main-workspace {
   flex: 1;
+  height: 100vh;
+  overflow: hidden;
   position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .stationery-placeholder {

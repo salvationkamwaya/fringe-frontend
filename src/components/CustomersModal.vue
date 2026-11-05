@@ -129,7 +129,7 @@ const submitRepayment = async () => {
 
   try {
     const res = await api.post(`/pos/customers/${selectedCustomer.value.id}/record_payment/`, paymentForm.value)
-    store.showToast(`Repayment of ZMW ${paymentForm.value.amount} recorded for ${selectedCustomer.value.name}!`, 'success')
+    store.showToast(`Repayment of TSH ${paymentForm.value.amount} recorded for ${selectedCustomer.value.name}!`, 'success')
     showPaymentModal.value = false
     await fetchCustomers()
     await fetchAgingReport()
@@ -260,15 +260,15 @@ const openStatementDialog = async (cust) => {
               <div class="financials-strip">
                 <div class="fin-box">
                   <span class="fin-label">Credit Limit</span>
-                  <span class="fin-val">ZMW {{ parseFloat(cust.credit_limit).toFixed(2) }}</span>
+                  <span class="fin-val">TSH {{ parseFloat(cust.credit_limit).toFixed(2) }}</span>
                 </div>
                 <div class="fin-box">
                   <span class="fin-label">Amount Owed</span>
-                  <span class="fin-val fin-debt">ZMW {{ parseFloat(cust.current_balance).toFixed(2) }}</span>
+                  <span class="fin-val fin-debt">TSH {{ parseFloat(cust.current_balance).toFixed(2) }}</span>
                 </div>
                 <div class="fin-box">
                   <span class="fin-label">Available</span>
-                  <span class="fin-val fin-avail">ZMW {{ parseFloat(cust.available_credit).toFixed(2) }}</span>
+                  <span class="fin-val fin-avail">TSH {{ parseFloat(cust.available_credit).toFixed(2) }}</span>
                 </div>
               </div>
 
@@ -302,31 +302,31 @@ const openStatementDialog = async (cust) => {
           <div class="aging-kpis-grid">
             <div class="kpi-card kpi-current">
               <span class="kpi-label">Current (0-30 Days)</span>
-              <div class="kpi-value">ZMW {{ agingData.summary.total_current }}</div>
+              <div class="kpi-value">TSH {{ agingData.summary.total_current }}</div>
               <span class="kpi-sub">Within standard term</span>
             </div>
 
             <div class="kpi-card kpi-30">
               <span class="kpi-label">31 - 60 Days</span>
-              <div class="kpi-value">ZMW {{ agingData.summary.total_31_60 }}</div>
+              <div class="kpi-value">TSH {{ agingData.summary.total_31_60 }}</div>
               <span class="kpi-sub">Due for reminder</span>
             </div>
 
             <div class="kpi-card kpi-60">
               <span class="kpi-label">61 - 90 Days</span>
-              <div class="kpi-value">ZMW {{ agingData.summary.total_61_90 }}</div>
+              <div class="kpi-value">TSH {{ agingData.summary.total_61_90 }}</div>
               <span class="kpi-sub">Critical overdue</span>
             </div>
 
             <div class="kpi-card kpi-90">
               <span class="kpi-label">90+ Days (Delinquent)</span>
-              <div class="kpi-value">ZMW {{ agingData.summary.total_90_plus }}</div>
+              <div class="kpi-value">TSH {{ agingData.summary.total_90_plus }}</div>
               <span class="kpi-sub">Account hold review</span>
             </div>
 
             <div class="kpi-card kpi-grand">
               <span class="kpi-label">Grand Total Debtors</span>
-              <div class="kpi-value text-cyan">ZMW {{ agingData.summary.grand_total_debt }}</div>
+              <div class="kpi-value text-cyan">TSH {{ agingData.summary.grand_total_debt }}</div>
               <span class="kpi-sub">{{ agingData.summary.debtors_count }} Outstanding Accounts</span>
             </div>
           </div>
@@ -355,12 +355,12 @@ const openStatementDialog = async (cust) => {
                     </div>
                   </td>
                   <td>{{ d.phone || 'N/A' }}</td>
-                  <td class="text-right">ZMW {{ parseFloat(d.credit_limit).toFixed(2) }}</td>
-                  <td class="text-right text-emerald">ZMW {{ parseFloat(d.current_0_30).toFixed(2) }}</td>
-                  <td class="text-right text-yellow">ZMW {{ parseFloat(d.aging_31_60).toFixed(2) }}</td>
-                  <td class="text-right text-orange">ZMW {{ parseFloat(d.aging_61_90).toFixed(2) }}</td>
-                  <td class="text-right text-rose">ZMW {{ parseFloat(d.aging_90_plus).toFixed(2) }}</td>
-                  <td class="text-right font-bold text-white">ZMW {{ parseFloat(d.total_balance).toFixed(2) }}</td>
+                  <td class="text-right">TSH {{ parseFloat(d.credit_limit).toFixed(2) }}</td>
+                  <td class="text-right text-emerald">TSH {{ parseFloat(d.current_0_30).toFixed(2) }}</td>
+                  <td class="text-right text-yellow">TSH {{ parseFloat(d.aging_31_60).toFixed(2) }}</td>
+                  <td class="text-right text-orange">TSH {{ parseFloat(d.aging_61_90).toFixed(2) }}</td>
+                  <td class="text-right text-rose">TSH {{ parseFloat(d.aging_90_plus).toFixed(2) }}</td>
+                  <td class="text-right font-bold text-white">TSH {{ parseFloat(d.total_balance).toFixed(2) }}</td>
                   <td class="text-center">
                     <button 
                       class="btn-table-action" 
@@ -414,7 +414,7 @@ const openStatementDialog = async (cust) => {
               <input v-model="regForm.email" type="email" placeholder="e.g. accounts@client.zm" class="form-input" />
             </div>
             <div class="form-row">
-              <label>Approved Credit Limit (ZMW) *</label>
+              <label>Approved Credit Limit (TSH) *</label>
               <input v-model="regForm.credit_limit" type="number" step="0.01" min="0" required class="form-input" />
             </div>
           </div>
@@ -450,7 +450,7 @@ const openStatementDialog = async (cust) => {
 
         <div class="debt-status-banner">
           <span>Current Amount Due:</span>
-          <strong>ZMW {{ parseFloat(selectedCustomer?.current_balance || 0).toFixed(2) }}</strong>
+          <strong>TSH {{ parseFloat(selectedCustomer?.current_balance || 0).toFixed(2) }}</strong>
         </div>
 
         <form @submit.prevent="submitRepayment" class="inner-form">
@@ -460,7 +460,7 @@ const openStatementDialog = async (cust) => {
           </div>
 
           <div class="form-row">
-            <label>Payment Amount Received (ZMW) *</label>
+            <label>Payment Amount Received (TSH) *</label>
             <input 
               v-model="paymentForm.amount" 
               type="number" 
@@ -522,15 +522,15 @@ const openStatementDialog = async (cust) => {
         <div class="statement-summary">
           <div class="stat-box">
             <span>Credit Limit:</span>
-            <strong>ZMW {{ parseFloat(customerStatement?.customer?.credit_limit || 0).toFixed(2) }}</strong>
+            <strong>TSH {{ parseFloat(customerStatement?.customer?.credit_limit || 0).toFixed(2) }}</strong>
           </div>
           <div class="stat-box">
             <span>Current Balance Due:</span>
-            <strong class="text-rose">ZMW {{ parseFloat(customerStatement?.customer?.current_balance || 0).toFixed(2) }}</strong>
+            <strong class="text-rose">TSH {{ parseFloat(customerStatement?.customer?.current_balance || 0).toFixed(2) }}</strong>
           </div>
           <div class="stat-box">
             <span>Available Credit:</span>
-            <strong class="text-emerald">ZMW {{ parseFloat(customerStatement?.customer?.available_credit || 0).toFixed(2) }}</strong>
+            <strong class="text-emerald">TSH {{ parseFloat(customerStatement?.customer?.available_credit || 0).toFixed(2) }}</strong>
           </div>
         </div>
 
@@ -559,9 +559,9 @@ const openStatementDialog = async (cust) => {
                 </td>
                 <td>{{ t.payment_method || '-' }} {{ t.reference ? `(${t.reference})` : '' }}</td>
                 <td class="text-right font-bold" :class="t.transaction_type === 'CREDIT_SALE' ? 'text-amber' : 'text-emerald'">
-                  {{ t.transaction_type === 'CREDIT_SALE' ? '+' : '-' }} ZMW {{ parseFloat(t.amount).toFixed(2) }}
+                  {{ t.transaction_type === 'CREDIT_SALE' ? '+' : '-' }} TSH {{ parseFloat(t.amount).toFixed(2) }}
                 </td>
-                <td class="text-right text-white">ZMW {{ parseFloat(t.balance_after).toFixed(2) }}</td>
+                <td class="text-right text-white">TSH {{ parseFloat(t.balance_after).toFixed(2) }}</td>
                 <td>{{ t.recorded_by_name || 'Cashier' }}</td>
               </tr>
 

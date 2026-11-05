@@ -4,7 +4,7 @@ import { store } from '../store'
 import api from '../api'
 import { 
   Wine, Beer, GlassWater, Sparkles, Search, Plus, Minus, 
-  Trash2, AlertTriangle, ShieldAlert, CreditCard, Banknote, 
+  Trash2, AlertTriangle, ShieldAlert, ShieldCheck, CreditCard, Banknote, 
   Smartphone, Split, Layers, Percent, CheckCircle
 } from 'lucide-vue-next'
 
@@ -74,8 +74,21 @@ const requestVoidItem = (item) => {
   }
 }
 
+const handleDrinkClick = (drink) => {
+  if (!store.canRecordSales) {
+    store.showToast('Sales recording is strictly reserved for frontline Bartenders. Managers and Owners perform oversight and reporting only.', 'warning')
+    return
+  }
+  store.addToCart(drink)
+}
+
 // Initiating checkout with mandatory age check intercept
 const handleProceedToPayment = (mode = 'CASH') => {
+  if (!store.canRecordSales) {
+    store.showToast('Sales recording is strictly reserved for frontline Bartenders. Managers and Owners perform oversight and reporting only.', 'warning')
+    return
+  }
+
   if (store.cart.length === 0) {
     store.showToast('Cart is empty. Add drinks to proceed.', 'warning')
     return
@@ -151,7 +164,7 @@ onMounted(() => {
             :key="drink.id"
             class="drink-card"
             :class="{ 'card-alcohol': drink.is_alcoholic }"
-            @click="store.addToCart(drink)"
+            @click="handleDrinkClick(drink)"
           >
             <!-- Alcoholic 18+ Warning Badge -->
             <div v-if="drink.is_alcoholic" class="alcohol-pill" title="Age 18+ Required">
@@ -166,7 +179,7 @@ onMounted(() => {
 
             <div class="drink-footer">
               <div class="price-tag">
-                <span class="currency">ZMW</span>
+                <span class="currency">TSH</span>
                 <span class="amount">{{ parseFloat(drink.selling_price).toFixed(2) }}</span>
               </div>
 
@@ -206,6 +219,18 @@ onMounted(() => {
         </button>
       </div>
 
+      <!-- Management Oversight Banner -->
+      <div v-if="!store.canRecordSales" class="management-oversight-banner">
+        <ShieldCheck :size="20" class="oversight-icon" />
+        <div class="oversight-text">
+          <div class="oversight-title">Management Oversight Mode</div>
+          <div class="oversight-desc">
+            Signed in as <strong>{{ store.user?.first_name || store.user?.username }} ({{ store.user?.role?.toUpperCase() }})</strong>.
+            Sales recording is reserved for frontline Bartenders. Use the left sidebar to access Reports, Stock, Shift Oversight, and Audits.
+          </div>
+        </div>
+      </div>
+
       <!-- Alcohol Mandatory Warning in Cart -->
       <div v-if="store.cartHasAlcohol" class="alcohol-cart-warning">
         <ShieldAlert :size="18" class="warning-icon" />
@@ -232,7 +257,7 @@ onMounted(() => {
               <span class="item-title">{{ item.product.name }}</span>
               <span v-if="item.product.is_alcoholic" class="mini-alcohol-badge">18+</span>
             </div>
-            <div class="item-subprice">ZMW {{ parseFloat(item.product.selling_price).toFixed(2) }} each</div>
+            <div class="item-subprice">TSH {{ parseFloat(item.product.selling_price).toFixed(2) }} each</div>
           </div>
 
           <!-- Quantity Stepper -->
@@ -248,7 +273,7 @@ onMounted(() => {
 
           <!-- Line Subtotal -->
           <div class="item-subtotal">
-            ZMW {{ (parseFloat(item.product.selling_price) * item.quantity).toFixed(2) }}
+            TSH {{ (parseFloat(item.product.selling_price) * item.quantity).toFixed(2) }}
           </div>
 
           <!-- Void Button -->
@@ -267,11 +292,11 @@ onMounted(() => {
         <div class="summary-breakdown">
           <div class="summary-row">
             <span>Subtotal:</span>
-            <span>ZMW {{ store.cartSubtotal.toFixed(2) }}</span>
+            <span>TSH {{ store.cartSubtotal.toFixed(2) }}</span>
           </div>
           <div class="summary-row total-row">
             <span>Total Due:</span>
-            <span class="total-val">ZMW {{ store.cartSubtotal.toFixed(2) }}</span>
+            <span class="total-val">TSH {{ store.cartSubtotal.toFixed(2) }}</span>
           </div>
         </div>
 
@@ -279,7 +304,8 @@ onMounted(() => {
         <div class="checkout-actions">
           <button 
             class="btn-pay btn-cash"
-            :disabled="store.cart.length === 0"
+            :disabled="store.cart.length === 0 || !store.canRecordSales"
+            :title="!store.canRecordSales ? 'Frontline Bartender role required to record sales' : 'Pay Cash'"
             @click="handleProceedToPayment('CASH')"
           >
             <Banknote :size="20" />
@@ -288,7 +314,8 @@ onMounted(() => {
 
           <button 
             class="btn-pay btn-momo"
-            :disabled="store.cart.length === 0"
+            :disabled="store.cart.length === 0 || !store.canRecordSales"
+            :title="!store.canRecordSales ? 'Frontline Bartender role required to record sales' : 'Mobile Money'"
             @click="handleProceedToPayment('MOBILE_MONEY')"
           >
             <Smartphone :size="20" />
@@ -297,7 +324,8 @@ onMounted(() => {
 
           <button 
             class="btn-pay btn-split"
-            :disabled="store.cart.length === 0"
+            :disabled="store.cart.length === 0 || !store.canRecordSales"
+            :title="!store.canRecordSales ? 'Frontline Bartender role required to record sales' : 'Split Tender'"
             @click="handleProceedToPayment('SPLIT')"
           >
             <Split :size="20" />
@@ -306,6 +334,7 @@ onMounted(() => {
 
           <button 
             class="btn-tab-action"
+            :disabled="!store.canRecordSales && !store.isBarManager"
             @click="store.activeModal = 'tabs'"
           >
             <Layers :size="18" />
@@ -320,7 +349,7 @@ onMounted(() => {
 <style scoped>
 .pos-container {
   display: flex;
-  height: calc(100vh - 68px);
+  height: 100%;
   overflow: hidden;
   background: #090d16;
 }
@@ -573,6 +602,39 @@ onMounted(() => {
 
 .btn-clear-cart:hover {
   background: rgba(239, 68, 68, 0.3);
+}
+
+.management-oversight-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(59, 130, 246, 0.12);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 12px 16px;
+  color: #bfdbfe;
+}
+
+.management-oversight-banner .oversight-icon {
+  color: #60a5fa;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.oversight-text {
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.oversight-title {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #93c5fd;
+  margin-bottom: 2px;
+}
+
+.oversight-desc {
+  color: #cbd5e1;
 }
 
 .alcohol-cart-warning {

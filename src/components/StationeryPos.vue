@@ -5,7 +5,7 @@ import api from '../api'
 import { 
   Search, Barcode, ShoppingCart, Trash2, Plus, Minus, 
   Package, Layers, UserCheck, AlertTriangle, CheckCircle2,
-  Sparkles, CreditCard, ChevronRight, X, UserPlus, BookOpen
+  Sparkles, CreditCard, ChevronRight, X, UserPlus, BookOpen, ShieldCheck
 } from 'lucide-vue-next'
 
 const products = ref([])
@@ -65,8 +65,23 @@ const filteredProducts = computed(() => {
   })
 })
 
+// Add product to cart with role enforcement
+const handleAddToCart = (prod, qty = 1, isPack = true) => {
+  if (!store.canRecordSales) {
+    store.showToast('Sales recording is strictly reserved for frontline Stationery Cashiers. Managers and Owners perform oversight and reporting only.', 'warning')
+    return
+  }
+  store.addToCart(prod, qty, isPack)
+}
+
 // Barcode scan handler (Enter key on barcode input)
 const handleBarcodeScan = () => {
+  if (!store.canRecordSales) {
+    store.showToast('Sales recording is strictly reserved for frontline Stationery Cashiers. Managers and Owners perform oversight and reporting only.', 'warning')
+    barcodeInput.value = ''
+    return
+  }
+
   const code = barcodeInput.value.trim()
   if (!code) return
 
@@ -109,6 +124,11 @@ const removeCustomer = () => {
 
 // Proceed to payment
 const proceedToCheckout = () => {
+  if (!store.canRecordSales) {
+    store.showToast('Sales recording is strictly reserved for frontline Stationery Cashiers. Managers and Owners perform oversight and reporting only.', 'warning')
+    return
+  }
+
   if (store.cart.length === 0) return
   if (!store.activeShift) {
     store.showToast('Please open a register shift before processing sales.', 'warning')
@@ -215,14 +235,14 @@ const proceedToCheckout = () => {
             <div class="price-breakdown">
               <div class="pack-price-row">
                 <span class="price-label">{{ prod.is_pack ? `${prod.pack_name || 'Pack'}:` : 'Price:' }}</span>
-                <span class="price-amount">ZMW {{ parseFloat(prod.selling_price).toFixed(2) }}</span>
+                <span class="price-amount">TSH {{ parseFloat(prod.selling_price).toFixed(2) }}</span>
               </div>
 
               <!-- Split Unit Price if applicable -->
               <div v-if="prod.is_pack && prod.allow_split_sale" class="unit-price-row">
                 <span class="price-label">Single {{ prod.unit_name || 'Piece' }}:</span>
                 <span class="unit-amount">
-                  ZMW {{ parseFloat(prod.split_unit_price || (prod.selling_price / prod.pack_unit_ratio)).toFixed(2) }}
+                  TSH {{ parseFloat(prod.split_unit_price || (prod.selling_price / prod.pack_unit_ratio)).toFixed(2) }}
                 </span>
               </div>
             </div>
@@ -245,7 +265,7 @@ const proceedToCheckout = () => {
               <template v-if="prod.is_pack && prod.allow_split_sale">
                 <button 
                   class="btn-action btn-pack" 
-                  @click="store.addToCart(prod, 1, true)"
+                  @click="handleAddToCart(prod, 1, true)"
                   title="Add 1 full pack to cart"
                 >
                   <Package :size="14" />
@@ -253,7 +273,7 @@ const proceedToCheckout = () => {
                 </button>
                 <button 
                   class="btn-action btn-unit" 
-                  @click="store.addToCart(prod, 1, false)"
+                  @click="handleAddToCart(prod, 1, false)"
                   title="Sell individual piece from this pack"
                 >
                   <Layers :size="14" />
@@ -265,7 +285,7 @@ const proceedToCheckout = () => {
               <template v-else>
                 <button 
                   class="btn-action btn-standard" 
-                  @click="store.addToCart(prod, 1, true)"
+                  @click="handleAddToCart(prod, 1, true)"
                 >
                   <Plus :size="16" />
                   <span>Add to Ticket</span>
@@ -299,6 +319,18 @@ const proceedToCheckout = () => {
         </button>
       </div>
 
+      <!-- Management Oversight Banner -->
+      <div v-if="!store.canRecordSales" class="management-oversight-banner">
+        <ShieldCheck :size="20" class="oversight-icon" />
+        <div class="oversight-text">
+          <div class="oversight-title">Management Oversight Mode</div>
+          <div class="oversight-desc">
+            Signed in as <strong>{{ store.user?.first_name || store.user?.username }} ({{ store.user?.role?.toUpperCase() }})</strong>.
+            Sales recording is reserved for frontline Stationery Cashiers. Use the left sidebar to access Reports, Stock & Reorder, Debtors, Suppliers, and Approvals.
+          </div>
+        </div>
+      </div>
+
       <!-- Customer Credit Selection Bar -->
       <div class="customer-credit-bar">
         <!-- Selected Customer Card -->
@@ -314,8 +346,8 @@ const proceedToCheckout = () => {
               </button>
             </div>
             <div class="customer-financials">
-              <span class="owed-text">Owed: ZMW {{ parseFloat(store.selectedCustomer.current_balance).toFixed(2) }}</span>
-              <span class="avail-text">Avail: ZMW {{ parseFloat(store.selectedCustomer.available_credit).toFixed(2) }}</span>
+              <span class="owed-text">Owed: TSH {{ parseFloat(store.selectedCustomer.current_balance).toFixed(2) }}</span>
+              <span class="avail-text">Avail: TSH {{ parseFloat(store.selectedCustomer.available_credit).toFixed(2) }}</span>
             </div>
           </div>
         </div>
@@ -356,7 +388,7 @@ const proceedToCheckout = () => {
                   {{ item.is_pack_sale ? (item.product.pack_name || 'Pack') : (item.product.unit_name || 'Piece') }}
                 </span>
               </div>
-              <div class="row-price">ZMW {{ parseFloat(item.unit_price).toFixed(2) }} each</div>
+              <div class="row-price">TSH {{ parseFloat(item.unit_price).toFixed(2) }} each</div>
             </div>
 
             <!-- Quantity Stepper -->
@@ -372,7 +404,7 @@ const proceedToCheckout = () => {
 
             <!-- Row Subtotal -->
             <div class="row-subtotal">
-              <span>ZMW {{ parseFloat(item.subtotal).toFixed(2) }}</span>
+              <span>TSH {{ parseFloat(item.subtotal).toFixed(2) }}</span>
             </div>
 
             <!-- Remove Button -->
@@ -392,14 +424,15 @@ const proceedToCheckout = () => {
           </div>
           <div class="summary-line grand-total-line">
             <span>Total Payable:</span>
-            <span class="grand-total-amount">ZMW {{ store.cartSubtotal.toFixed(2) }}</span>
+            <span class="grand-total-amount">TSH {{ store.cartSubtotal.toFixed(2) }}</span>
           </div>
         </div>
 
         <!-- Checkout Action Button -->
         <button 
           class="btn-checkout" 
-          :disabled="store.cart.length === 0"
+          :disabled="store.cart.length === 0 || !store.canRecordSales"
+          :title="!store.canRecordSales ? 'Frontline Stationery Cashier role required to record sales' : 'Proceed to Payment'"
           @click="proceedToCheckout"
         >
           <CreditCard :size="20" />
@@ -444,9 +477,9 @@ const proceedToCheckout = () => {
               <span class="cust-contact">{{ c.contact_person }} • {{ c.phone }}</span>
             </div>
             <div class="cust-limits">
-              <span class="badge-limit">Limit: ZMW {{ parseFloat(c.credit_limit).toFixed(2) }}</span>
+              <span class="badge-limit">Limit: TSH {{ parseFloat(c.credit_limit).toFixed(2) }}</span>
               <span class="badge-balance" :class="{ 'has-debt': parseFloat(c.current_balance) > 0 }">
-                Owed: ZMW {{ parseFloat(c.current_balance).toFixed(2) }}
+                Owed: TSH {{ parseFloat(c.current_balance).toFixed(2) }}
               </span>
             </div>
           </div>
@@ -465,7 +498,7 @@ const proceedToCheckout = () => {
   display: grid;
   grid-template-columns: 1fr 420px;
   gap: 1.5rem;
-  height: calc(100vh - 75px);
+  height: 100%;
   padding: 1.25rem 1.75rem;
   overflow: hidden;
 }
@@ -821,6 +854,40 @@ const proceedToCheckout = () => {
 
 .btn-clear:hover {
   background: rgba(239, 68, 68, 0.15);
+}
+
+/* Management Oversight Banner */
+.management-oversight-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(6, 182, 212, 0.1);
+  border-bottom: 1px solid rgba(6, 182, 212, 0.25);
+  padding: 12px 16px;
+  color: #a5f3fc;
+}
+
+.management-oversight-banner .oversight-icon {
+  color: #22d3ee;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.oversight-text {
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.oversight-title {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #67e8f9;
+  margin-bottom: 2px;
+}
+
+.oversight-desc {
+  color: #cbd5e1;
 }
 
 /* Customer Credit Bar */

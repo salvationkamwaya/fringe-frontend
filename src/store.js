@@ -36,6 +36,22 @@ export const store = reactive({
   isStationeryManager: computed(() => ['owner', 'stationery_manager'].includes(store.user?.role)),
   isStationery: computed(() => store.activeUnit === 'stationery'),
   isBar: computed(() => store.activeUnit === 'bar'),
+  canRecordSales: computed(() => {
+    if (!store.user) return false
+    if (store.activeUnit === 'bar') {
+      return store.user.role === 'bartender'
+    }
+    if (store.activeUnit === 'stationery') {
+      return store.user.role === 'stationery_cashier'
+    }
+    return false
+  }),
+  isFrontlineStaff: computed(() => {
+    return ['bartender', 'stationery_cashier'].includes(store.user?.role)
+  }),
+  isManagement: computed(() => {
+    return ['owner', 'bar_manager', 'stationery_manager'].includes(store.user?.role)
+  }),
   
   cartItemCount: computed(() => {
     return store.cart.reduce((sum, item) => sum + item.quantity, 0)
@@ -66,7 +82,7 @@ export const store = reactive({
 
       store.token = token
       store.user = user
-      store.activeUnit = user.role === 'owner' ? (localStorage.getItem('fringe_active_unit') || 'bar') : user.business_unit
+      store.activeUnit = user.role === 'owner' ? (localStorage.getItem('fringe_active_unit') || 'bar') : (user.business_unit || 'bar')
 
       localStorage.setItem('fringe_token', token)
       localStorage.setItem('fringe_user', JSON.stringify(user))
@@ -77,7 +93,7 @@ export const store = reactive({
       await store.fetchActiveShift()
       return true
     } catch (err) {
-      const msg = err.response?.data?.error || 'Login failed. Please check credentials.'
+      const msg = err.response?.data?.error || (err.request ? 'Unable to connect to backend server (127.0.0.1:8000).' : 'Login failed.')
       store.showToast(msg, 'error')
       throw err
     }

@@ -1,34 +1,13 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { store } from '../store'
-import { Lock, User, KeyRound, X, RefreshCw, Eye, EyeOff, Check, AlertCircle } from 'lucide-vue-next'
+import { Lock, User, KeyRound, X, RefreshCw, Eye, EyeOff, AlertCircle } from 'lucide-vue-next'
 
 const username = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const loading = ref(false)
 const errorMessage = ref('')
-const passwordTouched = ref(false)
-
-// Strong password requirements
-const passwordRules = computed(() => {
-  const p = password.value || ''
-  return [
-    { id: 'length', label: 'At least 8 characters', met: p.length >= 8 },
-    { id: 'upper', label: 'One uppercase letter (A-Z)', met: /[A-Z]/.test(p) },
-    { id: 'lower', label: 'One lowercase letter (a-z)', met: /[a-z]/.test(p) },
-    { id: 'number', label: 'One number (0-9)', met: /[0-9]/.test(p) },
-    { id: 'special', label: 'One special character (!@#$%^&*)', met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p) }
-  ]
-})
-
-const missingRules = computed(() => {
-  return passwordRules.value.filter(r => !r.met).map(r => r.label)
-})
-
-const isPasswordStrong = computed(() => {
-  return missingRules.value.length === 0
-})
 
 const handleLogin = async () => {
   errorMessage.value = ''
@@ -43,18 +22,17 @@ const handleLogin = async () => {
     return
   }
 
-  // Strong password check
-  if (!isPasswordStrong.value) {
-    passwordTouched.value = true
-    errorMessage.value = `Password does not meet security standards. Missing: ${missingRules.value.join(', ')}.`
-    return
-  }
-
   loading.value = true
   try {
     await store.login(username.value.trim(), password.value)
   } catch (err) {
-    errorMessage.value = err.response?.data?.error || 'Invalid username or password.'
+    if (err.response) {
+      errorMessage.value = err.response.data?.error || 'Invalid username or password.'
+    } else if (err.request) {
+      errorMessage.value = 'Cannot connect to backend server. Please verify Django is running on http://127.0.0.1:8000.'
+    } else {
+      errorMessage.value = err.message || 'An unexpected error occurred.'
+    }
   } finally {
     loading.value = false
   }
@@ -98,18 +76,14 @@ const handleLogin = async () => {
         <div class="form-group">
           <div class="label-row">
             <label>Password</label>
-            <span v-if="password && isPasswordStrong" class="strength-tag strong">
-              <Check :size="12" /> Strong Password
-            </span>
           </div>
           <div class="input-group">
             <Lock :size="18" class="input-icon" />
             <input 
               v-model="password" 
               :type="showPassword ? 'text' : 'password'" 
-              placeholder="Enter strong password..." 
+              placeholder="Enter your password..." 
               autocomplete="current-password"
-              @input="passwordTouched = true"
               required
             />
             <button 
@@ -122,23 +96,6 @@ const handleLogin = async () => {
               <EyeOff v-if="showPassword" :size="18" />
               <Eye v-else :size="18" />
             </button>
-          </div>
-
-          <!-- Dynamic Password Strength Requirements Checklist -->
-          <div v-if="password.length > 0 || passwordTouched" class="password-checklist">
-            <div class="checklist-title">Password Security Requirements:</div>
-            <div class="checklist-grid">
-              <div 
-                v-for="rule in passwordRules" 
-                :key="rule.id" 
-                class="checklist-item"
-                :class="{ 'met': rule.met, 'missing': !rule.met && passwordTouched }"
-              >
-                <Check v-if="rule.met" :size="13" class="icon-met" />
-                <span v-else class="bullet-missing">&bull;</span>
-                <span>{{ rule.label }}</span>
-              </div>
-            </div>
           </div>
         </div>
 

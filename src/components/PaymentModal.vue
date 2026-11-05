@@ -63,7 +63,7 @@ const handlePayment = async () => {
     } else if (paymentMode.value === 'SPLIT') {
       const splitTotal = Number(splitCashAmount.value) + Number(splitMobileAmount.value)
       if (splitTotal < totalDue.value) {
-        throw new Error(`Split amounts sum to ZMW ${splitTotal}, but ZMW ${totalDue.value} is due.`)
+        throw new Error(`Split amounts sum to TSH ${splitTotal}, but TSH ${totalDue.value} is due.`)
       }
       payments.push({
         payment_method: 'CASH',
@@ -132,11 +132,11 @@ const finishSale = () => {
         <div class="receipt-summary">
           <div class="receipt-row">
             <span>Total Paid:</span>
-            <span class="amount">ZMW {{ completedOrder.final_amount }}</span>
+            <span class="amount">TSH {{ completedOrder.final_amount }}</span>
           </div>
           <div v-if="changeDue > 0" class="receipt-row change-row">
             <span>Change Due to Customer:</span>
-            <span class="change-amount">ZMW {{ changeDue.toFixed(2) }}</span>
+            <span class="change-amount">TSH {{ changeDue.toFixed(2) }}</span>
           </div>
           <div class="receipt-row">
             <span>Cashier:</span>
@@ -168,7 +168,7 @@ const finishSale = () => {
         <!-- Total Due Banner -->
         <div class="total-banner">
           <div class="total-label">AMOUNT DUE</div>
-          <div class="total-amount">ZMW {{ totalDue.toFixed(2) }}</div>
+          <div class="total-amount">TSH {{ totalDue.toFixed(2) }}</div>
         </div>
 
         <!-- Payment Method Tabs -->
@@ -214,7 +214,7 @@ const finishSale = () => {
         <!-- 1. CASH MODE -->
         <div v-if="paymentMode === 'CASH'" class="tender-body">
           <div class="cash-input-group">
-            <label>Cash Tendered (ZMW):</label>
+            <label>Cash Tendered (TSH):</label>
             <input 
               v-model.number="cashTendered" 
               type="number" 
@@ -227,15 +227,16 @@ const finishSale = () => {
           <!-- Quick Presets -->
           <div class="presets-grid">
             <button class="preset-btn" @click="setExactCash">Exact</button>
-            <button class="preset-btn" @click="addPresetCash(50)">50</button>
-            <button class="preset-btn" @click="addPresetCash(100)">100</button>
-            <button class="preset-btn" @click="addPresetCash(200)">200</button>
-            <button class="preset-btn" @click="addPresetCash(500)">500</button>
+            <button class="preset-btn" @click="addPresetCash(1000)">1,000</button>
+            <button class="preset-btn" @click="addPresetCash(2000)">2,000</button>
+            <button class="preset-btn" @click="addPresetCash(5000)">5,000</button>
+            <button class="preset-btn" @click="addPresetCash(10000)">10,000</button>
+            <button class="preset-btn" @click="addPresetCash(20000)">20,000</button>
           </div>
 
           <div v-if="changeDue > 0" class="change-preview">
             <span>Change to Return:</span>
-            <span class="change-val">ZMW {{ changeDue.toFixed(2) }}</span>
+            <span class="change-val">TSH {{ changeDue.toFixed(2) }}</span>
           </div>
         </div>
 
@@ -244,9 +245,10 @@ const finishSale = () => {
           <div class="form-group">
             <label>Provider:</label>
             <div class="provider-badges">
-              <span class="provider-badge airtel">Airtel Money</span>
-              <span class="provider-badge mtn">MTN MoMo</span>
-              <span class="provider-badge zamtel">Zamtel Kwacha</span>
+              <span class="provider-badge airtel">M-Pesa (Vodacom)</span>
+              <span class="provider-badge mtn">Tigo Pesa</span>
+              <span class="provider-badge zamtel">Airtel Money</span>
+              <span class="provider-badge halo">HaloPesa</span>
             </div>
           </div>
 
@@ -266,7 +268,7 @@ const finishSale = () => {
         <div v-else-if="paymentMode === 'SPLIT'" class="tender-body">
           <div class="split-grid">
             <div class="split-col">
-              <label>Cash Amount (ZMW):</label>
+              <label>Cash Amount (TSH):</label>
               <input 
                 v-model.number="splitCashAmount" 
                 type="number" 
@@ -274,7 +276,7 @@ const finishSale = () => {
               />
             </div>
             <div class="split-col">
-              <label>Mobile Money (ZMW):</label>
+              <label>Mobile Money (TSH):</label>
               <input 
                 v-model.number="splitMobileAmount" 
                 type="number" 
@@ -303,11 +305,11 @@ const finishSale = () => {
             </div>
             <div class="credit-meta-row">
               <span class="credit-meta-lbl">Current Owed Balance:</span>
-              <span class="credit-meta-val text-amber">ZMW {{ parseFloat(store.selectedCustomer.current_balance).toFixed(2) }}</span>
+              <span class="credit-meta-val text-amber">TSH {{ parseFloat(store.selectedCustomer.current_balance).toFixed(2) }}</span>
             </div>
             <div class="credit-meta-row">
               <span class="credit-meta-lbl">Available Credit:</span>
-              <span class="credit-meta-val text-emerald">ZMW {{ parseFloat(store.selectedCustomer.available_credit).toFixed(2) }}</span>
+              <span class="credit-meta-val text-emerald">TSH {{ parseFloat(store.selectedCustomer.available_credit).toFixed(2) }}</span>
             </div>
 
             <!-- Over-limit warning & PIN prompt -->
@@ -316,7 +318,7 @@ const finishSale = () => {
                 <AlertCircle :size="16" class="text-amber" />
                 <strong>Manager Authorization Required</strong>
               </div>
-              <p class="alert-txt">This sale (ZMW {{ totalDue.toFixed(2) }}) exceeds available credit (ZMW {{ parseFloat(store.selectedCustomer.available_credit).toFixed(2) }}). Enter Manager or Owner PIN to authorize credit override:</p>
+              <p class="alert-txt">This sale (TSH {{ totalDue.toFixed(2) }}) exceeds available credit (TSH {{ parseFloat(store.selectedCustomer.available_credit).toFixed(2) }}). Enter Manager or Owner PIN to authorize credit override:</p>
               <div class="pin-box">
                 <label>Manager / Owner PIN:</label>
                 <input 
@@ -350,7 +352,7 @@ const finishSale = () => {
           :disabled="loading"
           @click="handlePayment"
         >
-          {{ loading ? 'Processing Settlement...' : `Complete Sale (ZMW ${totalDue.toFixed(2)})` }}
+          {{ loading ? 'Processing Settlement...' : `Complete Sale (TSH ${totalDue.toFixed(2)})` }}
         </button>
       </div>
     </div>

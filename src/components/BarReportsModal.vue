@@ -1,15 +1,21 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { store } from '../store'
 import api from '../api'
-import { FileText, TrendingUp, AlertTriangle, Layers, DollarSign, X } from 'lucide-vue-next'
+import { 
+  FileText, TrendingUp, Layers, DollarSign, X, Download, 
+  Printer, Clock, Banknote, Smartphone, ShieldAlert, 
+  ShieldCheck, AlertTriangle, RefreshCw, BarChart3, Building
+} from 'lucide-vue-next'
 
 const emit = defineEmits(['close'])
 
-const activeTab = ref('sales') // 'sales' | 'stock' | 'profit'
+const activeTab = ref('summary') // 'summary' | 'sales' | 'stock' | 'shifts' | 'consolidated'
 const loading = ref(true)
 const reportData = ref(null)
+const consolidatedData = ref(null)
 const errorMessage = ref('')
+const searchQuery = ref('')
 
 const fetchReports = async () => {
   loading.value = true
@@ -17,11 +23,63 @@ const fetchReports = async () => {
   try {
     const response = await api.get('/pos/reports/bar/')
     reportData.value = response.data
+
+    if (store.isOwner) {
+      const conRes = await api.get('/pos/reports/consolidated/')
+      consolidatedData.value = conRes.data
+    }
   } catch (err) {
     errorMessage.value = err.response?.data?.detail || err.response?.data?.error || 'Failed to load bar reports.'
   } finally {
     loading.value = false
   }
+}
+
+const filteredProductSales = computed(() => {
+  if (!reportData.value?.product_sales) return []
+  if (!searchQuery.value) return reportData.value.product_sales
+  const q = searchQuery.value.toLowerCase()
+  return reportData.value.product_sales.filter(p => 
+    p.product__name.toLowerCase().includes(q)
+  )
+})
+
+const filteredStockOnHand = computed(() => {
+  if (!reportData.value?.stock_on_hand) return []
+  if (!searchQuery.value) return reportData.value.stock_on_hand
+  const q = searchQuery.value.toLowerCase()
+  return reportData.value.stock_on_hand.filter(s => 
+    s.name.toLowerCase().includes(q)
+  )
+})
+
+const downloadCSV = () => {
+  const token = store.token
+  const isConsolidated = activeTab.value === 'consolidated'
+  const endpoint = isConsolidated ? '/pos/reports/consolidated/?export=csv' : '/pos/reports/bar/?export=csv'
+  const defaultFilename = isConsolidated 
+    ? `fringe_consolidated_report_${new Date().toISOString().slice(0, 10)}.csv`
+    : `bar_comprehensive_report_${new Date().toISOString().slice(0, 10)}.csv`
+
+  api.get(endpoint, { responseType: 'blob' })
+    .then(res => {
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv;charset=utf-8;' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', defaultFilename)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      store.showToast('Comprehensive report downloaded as CSV.', 'success')
+    })
+    .catch(() => {
+      store.showToast('Failed to download CSV report.', 'error')
+    })
+}
+
+const printReport = () => {
+  window.print()
 }
 
 onMounted(() => {
@@ -30,23 +88,52 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="modal-overlay">
-    <div class="modal-card">
+  <div class="modal-overlay" @click.self="$emit('close')">
+    <div class="modal-card print-report-card">
+      <!-- Modal Header -->
       <div class="modal-header">
         <div class="header-left">
-          <FileText :size="24" class="header-icon" />
+          <div class="header-icon-box">
+            <FileText :size="24" />
+          </div>
           <div>
-            <h3 class="title">Bar Management Reports</h3>
-            <p class="subtitle">Real-time sales, inventory valuation, and gross margins</p>
+            <div class="branding-badge">TANZANIA STATUTORY COMPLIANCE • TSH</div>
+            <h3 class="title">Bar Management & Executive Reports</h3>
+            <p class="subtitle">Real-time revenue, gross margins, stock valuation & shift reconciliation</p>
           </div>
         </div>
-        <button class="btn-close" @click="$emit('close')">
-          <X :size="18" />
-        </button>
+
+        <div class="header-actions">
+          <button class="btn-action-icon btn-download" @click="downloadCSV" title="Download Report as CSV">
+            <Download :size="16" />
+            <span>Export CSV</span>
+          </button>
+
+          <button class="btn-action-icon btn-print" @click="printReport" title="Print or Save as PDF">
+            <Printer :size="16" />
+            <span>Print / PDF</span>
+          </button>
+
+          <button class="btn-action-icon btn-refresh" @click="fetchReports" title="Refresh Live Data">
+            <RefreshCw :size="16" :class="{ 'spin-anim': loading }" />
+          </button>
+
+          <button class="btn-close" @click="$emit('close')">
+            <X :size="18" />
+          </button>
+        </div>
       </div>
 
-      <!-- Report Tabs -->
+      <!-- Report Navigation Tabs -->
       <div class="report-tabs">
+        <button 
+          class="tab-btn" 
+          :class="{ active: activeTab === 'summary' }"
+          @click="activeTab = 'summary'"
+        >
+          <DollarSign :size="16" />
+          <span>Financials & Tenders</span>
+        </button>
         <button 
           class="tab-btn" 
           :class="{ active: activeTab === 'sales' }"
@@ -61,101 +148,388 @@ onMounted(() => {
           @click="activeTab = 'stock'"
         >
           <Layers :size="16" />
-          <span>Stock-On-Hand</span>
+          <span>Stock & Valuation</span>
         </button>
         <button 
           class="tab-btn" 
-          :class="{ active: activeTab === 'profit' }"
-          @click="activeTab = 'profit'"
+          :class="{ active: activeTab === 'shifts' }"
+          @click="activeTab = 'shifts'"
         >
-          <DollarSign :size="16" />
-          <span>Profit Snapshot</span>
+          <Clock :size="16" />
+          <span>Cashier Shifts</span>
+        </button>
+        <button 
+          v-if="store.isOwner"
+          class="tab-btn tab-consolidated" 
+          :class="{ active: activeTab === 'consolidated' }"
+          @click="activeTab = 'consolidated'"
+        >
+          <Building :size="16" />
+          <span>Consolidated (Owner)</span>
         </button>
       </div>
 
-      <div v-if="loading" class="state-msg">Generating real-time reports...</div>
-      <div v-else-if="errorMessage" class="error-banner">{{ errorMessage }}</div>
+      <!-- Loading / Error States -->
+      <div v-if="loading" class="state-msg">
+        <div class="spinner"></div>
+        <p>Compiling comprehensive Bar business reports...</p>
+      </div>
+
+      <div v-else-if="errorMessage" class="error-banner">
+        <AlertTriangle :size="18" />
+        <span>{{ errorMessage }}</span>
+      </div>
+
+      <!-- Report Body -->
       <div v-else-if="reportData" class="report-body">
         
-        <!-- 1. PRODUCT SALES BREAKDOWN -->
-        <div v-if="activeTab === 'sales'" class="table-container">
-          <table class="report-table">
-            <thead>
-              <tr>
-                <th>Product Name</th>
-                <th>Classification</th>
-                <th class="text-right">Units Sold</th>
-                <th class="text-right">Revenue (ZMW)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in reportData.product_sales" :key="item.product__id">
-                <td class="bold">{{ item.product__name }}</td>
-                <td>
-                  <span class="badge" :class="item.product__is_alcoholic ? 'badge-alcohol' : 'badge-soft'">
-                    {{ item.product__is_alcoholic ? 'Alcoholic (18+)' : 'Non-Alcoholic' }}
-                  </span>
-                </td>
-                <td class="text-right">{{ item.total_quantity }}</td>
-                <td class="text-right bold price">ZMW {{ parseFloat(item.total_revenue).toFixed(2) }}</td>
-              </tr>
-              <tr v-if="reportData.product_sales.length === 0">
-                <td colspan="4" class="empty-row">No sales recorded yet for this session.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- 2. STOCK-ON-HAND STATUS -->
-        <div v-else-if="activeTab === 'stock'" class="table-container">
-          <table class="report-table">
-            <thead>
-              <tr>
-                <th>Product Name</th>
-                <th class="text-right">Selling Price</th>
-                <th class="text-right">Cost Price</th>
-                <th class="text-right">Current Stock</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="prod in reportData.stock_on_hand" :key="prod.id">
-                <td class="bold">{{ prod.name }}</td>
-                <td class="text-right">ZMW {{ parseFloat(prod.selling_price).toFixed(2) }}</td>
-                <td class="text-right">ZMW {{ parseFloat(prod.cost_price).toFixed(2) }}</td>
-                <td class="text-right bold" :class="{ 'text-danger': Number(prod.stock_quantity) <= Number(prod.reorder_threshold) }">
-                  {{ Number(prod.stock_quantity).toFixed(0) }}
-                </td>
-                <td>
-                  <span 
-                    class="badge" 
-                    :class="Number(prod.stock_quantity) <= Number(prod.reorder_threshold) ? 'badge-danger' : 'badge-good'"
-                  >
-                    {{ Number(prod.stock_quantity) <= Number(prod.reorder_threshold) ? 'Low Stock' : 'Optimal' }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- 3. PROFIT SNAPSHOT -->
-        <div v-else-if="activeTab === 'profit'" class="profit-view">
+        <!-- 1. FINANCIAL SUMMARY & TENDERS TAB -->
+        <div v-if="activeTab === 'summary'" class="tab-pane">
+          <!-- Executive KPI Grid -->
           <div class="kpi-grid">
-            <div class="kpi-card">
+            <div class="kpi-card highlight">
               <span class="kpi-label">Total Bar Revenue</span>
-              <span class="kpi-value text-accent">ZMW {{ reportData.profit_snapshot.total_revenue }}</span>
-              <span class="kpi-desc">Gross completed drink orders</span>
+              <span class="kpi-value text-accent">TSH {{ parseFloat(reportData.summary?.total_revenue || reportData.profit_snapshot?.total_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
+              <span class="kpi-desc">{{ reportData.summary?.total_orders || 0 }} completed orders (Avg: TSH {{ reportData.summary?.avg_order_value || '0.00' }})</span>
             </div>
+
             <div class="kpi-card">
               <span class="kpi-label">Cost of Goods Sold (COGS)</span>
-              <span class="kpi-value text-muted">ZMW {{ reportData.profit_snapshot.cogs }}</span>
-              <span class="kpi-desc">Inventory purchase cost</span>
+              <span class="kpi-value text-muted">TSH {{ parseFloat(reportData.summary?.cogs || reportData.profit_snapshot?.cogs || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
+              <span class="kpi-desc">Total drink inventory cost</span>
             </div>
-            <div class="kpi-card highlight">
+
+            <div class="kpi-card success-card">
               <span class="kpi-label">Gross Profit</span>
-              <span class="kpi-value text-success">ZMW {{ reportData.profit_snapshot.gross_profit }}</span>
-              <span class="kpi-desc">Margin: {{ reportData.profit_snapshot.gross_margin_percent }}</span>
+              <span class="kpi-value text-success">TSH {{ parseFloat(reportData.summary?.gross_profit || reportData.profit_snapshot?.gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
+              <span class="kpi-desc">Profit Margin: <strong>{{ reportData.summary?.gross_margin_percent || reportData.profit_snapshot?.gross_margin_percent }}</strong></span>
+            </div>
+          </div>
+
+          <!-- Section: Payment Tenders Breakdown -->
+          <div class="content-section">
+            <div class="section-title-row">
+              <Banknote :size="18" class="text-amber" />
+              <h4>Payment Tenders Breakdown</h4>
+            </div>
+
+            <div class="tenders-grid">
+              <div class="tender-card">
+                <div class="tender-icon-box cash">
+                  <Banknote :size="20" />
+                </div>
+                <div class="tender-details">
+                  <span class="tender-type">Cash Collected</span>
+                  <strong class="tender-amount">TSH {{ parseFloat(reportData.payment_tenders?.cash_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                  <span class="tender-sub">{{ reportData.payment_tenders?.cash_count || 0 }} transactions</span>
+                </div>
+              </div>
+
+              <div class="tender-card">
+                <div class="tender-icon-box momo">
+                  <Smartphone :size="20" />
+                </div>
+                <div class="tender-details">
+                  <span class="tender-type">Mobile Money (M-Pesa / Airtel)</span>
+                  <strong class="tender-amount">TSH {{ parseFloat(reportData.payment_tenders?.mobile_money_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                  <span class="tender-sub">{{ reportData.payment_tenders?.mobile_money_count || 0 }} transactions</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section: Alcohol vs Soft Drinks Statutory Split -->
+          <div class="content-section">
+            <div class="section-title-row">
+              <ShieldCheck :size="18" class="text-blue" />
+              <h4>Tanzania Statutory Category Split</h4>
+            </div>
+
+            <div class="split-cards-grid">
+              <div class="split-card alcoholic-card">
+                <div class="split-badge">18+ RESTRICTED</div>
+                <span class="split-label">Alcoholic Beverages</span>
+                <strong class="split-val">TSH {{ parseFloat(reportData.summary?.alcoholic_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="split-desc">{{ reportData.summary?.alcoholic_count || 0 }} drinks sold with statutory age verification</span>
+              </div>
+
+              <div class="split-card soft-card">
+                <div class="split-badge soft">STANDARD</div>
+                <span class="split-label">Non-Alcoholic Beverages</span>
+                <strong class="split-val">TSH {{ parseFloat(reportData.summary?.non_alcoholic_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="split-desc">{{ reportData.summary?.non_alcoholic_count || 0 }} juices, sodas, and waters sold</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. PRODUCT SALES PERFORMANCE TAB -->
+        <div v-else-if="activeTab === 'sales'" class="tab-pane">
+          <div class="pane-toolbar">
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              placeholder="Filter drinks by name..." 
+              class="table-search-input"
+            />
+            <span class="record-counter">{{ filteredProductSales.length }} products sold</span>
+          </div>
+
+          <div class="table-container">
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th>Product Name</th>
+                  <th>Classification</th>
+                  <th class="text-right">Units Sold</th>
+                  <th class="text-right">Unit Cost</th>
+                  <th class="text-right">Selling Price</th>
+                  <th class="text-right">Total Revenue</th>
+                  <th class="text-right">Gross Profit</th>
+                  <th class="text-right">Margin %</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in filteredProductSales" :key="item.product__id">
+                  <td class="bold">{{ item.product__name }}</td>
+                  <td>
+                    <span class="badge" :class="item.product__is_alcoholic ? 'badge-alcohol' : 'badge-soft'">
+                      {{ item.product__is_alcoholic ? 'Alcoholic (18+)' : 'Non-Alcoholic' }}
+                    </span>
+                  </td>
+                  <td class="text-right">{{ item.total_quantity }}</td>
+                  <td class="text-right">TSH {{ parseFloat(item.unit_cost || 0).toFixed(2) }}</td>
+                  <td class="text-right">TSH {{ parseFloat(item.unit_price || 0).toFixed(2) }}</td>
+                  <td class="text-right bold price">TSH {{ parseFloat(item.total_revenue).toFixed(2) }}</td>
+                  <td class="text-right text-success bold">TSH {{ parseFloat(item.line_profit || 0).toFixed(2) }}</td>
+                  <td class="text-right">{{ item.margin_percent || '0.0%' }}</td>
+                </tr>
+                <tr v-if="filteredProductSales.length === 0">
+                  <td colspan="8" class="empty-row">No matching product sales recorded.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 3. STOCK-ON-HAND & VALUATION TAB -->
+        <div v-else-if="activeTab === 'stock'" class="tab-pane">
+          <!-- Stock Valuation KPIs -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <span class="kpi-label">Total Stock Units</span>
+              <span class="kpi-value text-accent">{{ reportData.inventory_valuation?.total_units || 0 }}</span>
+              <span class="kpi-desc">{{ reportData.inventory_valuation?.total_items || 0 }} catalog items</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Inventory Valuation (Cost)</span>
+              <span class="kpi-value text-muted">TSH {{ parseFloat(reportData.inventory_valuation?.valuation_at_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
+              <span class="kpi-desc">Working capital tied up</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Inventory Value (Retail)</span>
+              <span class="kpi-value text-success">TSH {{ parseFloat(reportData.inventory_valuation?.valuation_at_retail || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
+              <span class="kpi-desc">Potential Profit: TSH {{ parseFloat(reportData.inventory_valuation?.potential_gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
+            </div>
+          </div>
+
+          <div class="pane-toolbar">
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              placeholder="Search inventory items..." 
+              class="table-search-input"
+            />
+            <div class="alert-pills">
+              <span class="pill-tag low-tag">Low Stock Alerts: {{ reportData.inventory_valuation?.low_stock_count || 0 }}</span>
+              <span class="pill-tag out-tag">Out of Stock: {{ reportData.inventory_valuation?.out_of_stock_count || 0 }}</span>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th>Product Name</th>
+                  <th class="text-right">Stock Qty</th>
+                  <th class="text-right">Reorder Level</th>
+                  <th class="text-right">Cost Price</th>
+                  <th class="text-right">Selling Price</th>
+                  <th class="text-right">Value at Cost</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="prod in filteredStockOnHand" :key="prod.id">
+                  <td class="bold">{{ prod.name }}</td>
+                  <td class="text-right bold" :class="{ 'text-danger': Number(prod.stock_quantity) <= Number(prod.reorder_threshold) }">
+                    {{ Number(prod.stock_quantity).toFixed(0) }}
+                  </td>
+                  <td class="text-right">{{ prod.reorder_threshold }}</td>
+                  <td class="text-right">TSH {{ parseFloat(prod.cost_price).toFixed(2) }}</td>
+                  <td class="text-right">TSH {{ parseFloat(prod.selling_price).toFixed(2) }}</td>
+                  <td class="text-right bold">TSH {{ parseFloat(prod.valuation_cost || (prod.stock_quantity * prod.cost_price)).toFixed(2) }}</td>
+                  <td>
+                    <span 
+                      class="badge" 
+                      :class="Number(prod.stock_quantity) <= 0 ? 'badge-danger' : (Number(prod.stock_quantity) <= Number(prod.reorder_threshold) ? 'badge-warning' : 'badge-good')"
+                    >
+                      {{ prod.status || (Number(prod.stock_quantity) <= 0 ? 'Out of Stock' : (Number(prod.stock_quantity) <= Number(prod.reorder_threshold) ? 'Low Stock' : 'Optimal')) }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 4. CASHIER SHIFTS & RECONCILIATIONS TAB -->
+        <div v-else-if="activeTab === 'shifts'" class="tab-pane">
+          <div class="table-container">
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th>Shift #</th>
+                  <th>Cashier</th>
+                  <th>Started At</th>
+                  <th class="text-right">Opening Float</th>
+                  <th class="text-right">Cash Sales</th>
+                  <th class="text-right">Expected Drawer</th>
+                  <th class="text-right">Actual Counted</th>
+                  <th class="text-right">Variance</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="s in reportData.recent_shifts" :key="s.id">
+                  <td class="bold">#{{ s.id }}</td>
+                  <td>{{ s.cashier }}</td>
+                  <td>{{ s.started_at ? new Date(s.started_at).toLocaleString() : 'N/A' }}</td>
+                  <td class="text-right">TSH {{ parseFloat(s.opening_float).toFixed(2) }}</td>
+                  <td class="text-right">TSH {{ parseFloat(s.total_sales_cash).toFixed(2) }}</td>
+                  <td class="text-right bold">TSH {{ parseFloat(s.expected_cash).toFixed(2) }}</td>
+                  <td class="text-right">{{ s.counted_cash ? `TSH ${parseFloat(s.counted_cash).toFixed(2)}` : 'Pending' }}</td>
+                  <td class="text-right bold" :class="Number(s.variance) === 0 ? 'text-success' : 'text-danger'">
+                    TSH {{ parseFloat(s.variance || 0).toFixed(2) }}
+                  </td>
+                  <td>
+                    <span class="badge" :class="s.status === 'OPEN' ? 'badge-status-open' : 'badge-soft'">
+                      {{ s.status }}
+                    </span>
+                  </td>
+                </tr>
+                <tr v-if="!reportData.recent_shifts || reportData.recent_shifts.length === 0">
+                  <td colspan="9" class="empty-row">No recent shifts recorded.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 5. CONSOLIDATED BUSINESS REPORT (OWNER VIEW) -->
+        <div v-else-if="activeTab === 'consolidated' && consolidatedData" class="tab-pane">
+          <div class="consolidated-hero">
+            <div class="hero-left">
+              <Building :size="32" class="text-accent" />
+              <div>
+                <h3>The Fringe Enterprises Tanzania</h3>
+                <p>Consolidated Executive Summary • Bar & Lounge + Stationery & Retail</p>
+              </div>
+            </div>
+            <button class="btn-action-icon btn-download" @click="downloadCSV">
+              <Download :size="16" />
+              <span>Download Consolidated CSV</span>
+            </button>
+          </div>
+
+          <!-- Group Financial Totals Grid -->
+          <div class="kpi-grid">
+            <div class="kpi-card highlight">
+              <span class="kpi-label">Total Group Revenue</span>
+              <span class="kpi-value text-accent">TSH {{ parseFloat(consolidatedData.group_summary?.group_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
+              <span class="kpi-desc">Gross sales across all units</span>
+            </div>
+            <div class="kpi-card success-card">
+              <span class="kpi-label">Group Gross Profit</span>
+              <span class="kpi-value text-success">TSH {{ parseFloat(consolidatedData.group_summary?.group_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
+              <span class="kpi-desc">Group Margin: <strong>{{ consolidatedData.group_summary?.group_margin_percent }}</strong></span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-label">Total Drawer Cash</span>
+              <span class="kpi-value text-amber">TSH {{ parseFloat(consolidatedData.group_summary?.group_drawer_cash || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
+              <span class="kpi-desc">Expected cash across registers</span>
+            </div>
+          </div>
+
+          <!-- Working Capital Snapshot -->
+          <div class="working-capital-grid">
+            <div class="wc-card">
+              <span class="wc-title">Working Capital in Stock</span>
+              <strong class="wc-val">TSH {{ parseFloat(consolidatedData.group_summary?.group_inventory_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+              <span class="wc-sub">Bar + Stationery Inventory at Cost</span>
+            </div>
+            <div class="wc-card">
+              <span class="wc-title">Accounts Receivable (Debtors)</span>
+              <strong class="wc-val text-cyan">TSH {{ parseFloat(consolidatedData.group_summary?.total_receivables || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+              <span class="wc-sub">Outstanding credit customer debts</span>
+            </div>
+            <div class="wc-card">
+              <span class="wc-title">Accounts Payable (Suppliers)</span>
+              <strong class="wc-val text-danger">TSH {{ parseFloat(consolidatedData.group_summary?.total_payables || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+              <span class="wc-sub">Pending supplier liabilities</span>
+            </div>
+            <div class="wc-card highlight">
+              <span class="wc-title">Net Working Capital Position</span>
+              <strong class="wc-val text-success">TSH {{ parseFloat(consolidatedData.group_summary?.net_working_capital || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+              <span class="wc-sub">(Cash + Receivables + Stock) - Payables</span>
+            </div>
+          </div>
+
+          <!-- Cross-Unit Comparison Table -->
+          <div class="content-section">
+            <div class="section-title-row">
+              <h4>Business Unit Performance Comparison</h4>
+            </div>
+            <div class="table-container">
+              <table class="report-table">
+                <thead>
+                  <tr>
+                    <th>Business Unit</th>
+                    <th class="text-right">Gross Revenue</th>
+                    <th class="text-right">Share of Business</th>
+                    <th class="text-right">Orders</th>
+                    <th class="text-right">COGS</th>
+                    <th class="text-right">Gross Profit</th>
+                    <th class="text-right">Margin %</th>
+                    <th class="text-right">Drawer Cash</th>
+                    <th class="text-right">Stock (Cost)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="bold">Bar & Lounge</td>
+                    <td class="text-right bold">TSH {{ parseFloat(consolidatedData.units?.bar?.revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right">{{ consolidatedData.units?.bar?.share_percent }}</td>
+                    <td class="text-right">{{ consolidatedData.units?.bar?.orders_count }}</td>
+                    <td class="text-right">TSH {{ parseFloat(consolidatedData.units?.bar?.cogs || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right text-success bold">TSH {{ parseFloat(consolidatedData.units?.bar?.gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right">{{ consolidatedData.units?.bar?.gross_margin_percent }}</td>
+                    <td class="text-right">TSH {{ parseFloat(consolidatedData.units?.bar?.cash_in_drawer || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right">TSH {{ parseFloat(consolidatedData.units?.bar?.inventory_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                  </tr>
+                  <tr>
+                    <td class="bold">Stationery & Retail</td>
+                    <td class="text-right bold">TSH {{ parseFloat(consolidatedData.units?.stationery?.revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right">{{ consolidatedData.units?.stationery?.share_percent }}</td>
+                    <td class="text-right">{{ consolidatedData.units?.stationery?.orders_count }}</td>
+                    <td class="text-right">TSH {{ parseFloat(consolidatedData.units?.stationery?.cogs || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right text-success bold">TSH {{ parseFloat(consolidatedData.units?.stationery?.gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right">{{ consolidatedData.units?.stationery?.gross_margin_percent }}</td>
+                    <td class="text-right">TSH {{ parseFloat(consolidatedData.units?.stationery?.cash_in_drawer || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right">TSH {{ parseFloat(consolidatedData.units?.stationery?.inventory_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -180,8 +554,8 @@ onMounted(() => {
 
 .modal-card {
   width: 100%;
-  max-width: 680px;
-  max-height: 85vh;
+  max-width: 960px;
+  max-height: 90vh;
   background: #111827;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 24px;
@@ -195,44 +569,123 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
-.header-icon {
+.header-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.branding-badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
   color: #fbbf24;
+  margin-bottom: 2px;
 }
 
 .title {
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 800;
   color: #f8fafc;
+  margin: 0;
 }
 
 .subtitle {
   font-size: 12px;
   color: #94a3b8;
+  margin: 2px 0 0 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-action-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+}
+
+.btn-download {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+
+.btn-download:hover {
+  background: rgba(16, 185, 129, 0.25);
+}
+
+.btn-print {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
+}
+
+.btn-print:hover {
+  background: rgba(59, 130, 246, 0.25);
+}
+
+.btn-refresh:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.spin-anim {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .btn-close {
   background: rgba(255, 255, 255, 0.06);
   color: #94a3b8;
-  border-radius: 8px;
-  padding: 6px;
+  border-radius: 10px;
+  padding: 8px;
+  cursor: pointer;
 }
 
+.btn-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+/* Tabs */
 .report-tabs {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   background: rgba(255, 255, 255, 0.04);
   padding: 4px;
   border-radius: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+  overflow-x: auto;
 }
 
 .tab-btn {
@@ -240,50 +693,314 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px;
+  gap: 6px;
+  padding: 9px 12px;
   border-radius: 8px;
   background: transparent;
   color: #94a3b8;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
   transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .tab-btn.active {
   background: #f59e0b;
-  color: #111827;
+  color: #0f172a;
 }
 
+.tab-btn.tab-consolidated.active {
+  background: #3b82f6;
+  color: #fff;
+}
+
+/* Content Area */
 .report-body {
-  flex: 1;
   overflow-y: auto;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tab-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* KPI Cards */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.kpi-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kpi-card.highlight {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.kpi-card.success-card {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.kpi-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+}
+
+.kpi-value {
+  font-size: 22px;
+  font-weight: 900;
+  color: #f8fafc;
+}
+
+.text-accent { color: #fbbf24; }
+.text-muted { color: #94a3b8; }
+.text-success { color: #34d399; }
+.text-danger { color: #f87171; }
+.text-amber { color: #f59e0b; }
+.text-cyan { color: #38bdf8; }
+.text-blue { color: #60a5fa; }
+
+.kpi-desc {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+/* Content Sections */
+.content-section {
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title-row h4 {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #e2e8f0;
+  margin: 0;
+}
+
+/* Tenders Grid */
+.tenders-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.tender-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.tender-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tender-icon-box.cash {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.tender-icon-box.momo {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.tender-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.tender-type {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.tender-amount {
+  font-size: 16px;
+  color: #f8fafc;
+}
+
+.tender-sub {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* Split Cards */
+.split-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.split-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.split-card.alcoholic-card {
+  border-left: 4px solid #ef4444;
+}
+
+.split-card.soft-card {
+  border-left: 4px solid #10b981;
+}
+
+.split-badge {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  letter-spacing: 0.05em;
+}
+
+.split-badge.soft {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.split-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.split-val {
+  font-size: 18px;
+  font-weight: 900;
+  color: #f8fafc;
+}
+
+.split-desc {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* Table */
+.pane-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.table-search-input {
+  max-width: 320px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: #f8fafc;
+  font-size: 12px;
+}
+
+.record-counter {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.alert-pills {
+  display: flex;
+  gap: 8px;
+}
+
+.pill-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 9999px;
+}
+
+.low-tag {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.out-tag {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .table-container {
   overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
 }
 
 .report-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12.5px;
   text-align: left;
 }
 
 .report-table th {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(15, 23, 42, 0.9);
   color: #94a3b8;
   font-weight: 700;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  text-transform: uppercase;
-  font-size: 11px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .report-table td {
-  padding: 12px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   color: #cbd5e1;
 }
 
@@ -291,44 +1008,46 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.02);
 }
 
-.text-right {
-  text-align: right;
+.text-right { text-align: right; }
+.bold { font-weight: 700; }
+.price { color: #fbbf24; }
+
+.empty-row {
+  text-align: center;
+  color: #64748b;
+  padding: 24px;
 }
 
-.bold {
-  font-weight: 700;
-  color: #f8fafc;
-}
-
-.price {
-  color: #fbbf24;
-}
-
-.text-danger {
-  color: #f87171;
-}
-
+/* Badges */
 .badge {
   display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
   font-size: 10px;
   font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 6px;
+  letter-spacing: 0.05em;
 }
 
 .badge-alcohol {
-  background: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.15);
   color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .badge-soft {
-  background: rgba(59, 130, 246, 0.2);
+  background: rgba(59, 130, 246, 0.15);
   color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .badge-good {
-  background: rgba(16, 185, 129, 0.2);
+  background: rgba(16, 185, 129, 0.15);
   color: #34d399;
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
 }
 
 .badge-danger {
@@ -336,71 +1055,123 @@ onMounted(() => {
   color: #f87171;
 }
 
-.empty-row {
-  text-align: center;
-  color: #64748b;
-  padding: 32px;
+.badge-status-open {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
-.kpi-grid {
+/* Consolidated Section */
+.consolidated-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.hero-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hero-left h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: #93c5fd;
+  margin: 0;
+}
+
+.hero-left p {
+  font-size: 12px;
+  color: #cbd5e1;
+  margin: 2px 0 0 0;
+}
+
+.working-capital-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  margin-top: 10px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
 }
 
-.kpi-card {
-  background: rgba(255, 255, 255, 0.03);
+.wc-card {
+  background: rgba(15, 23, 42, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 18px;
+  border-radius: 12px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
+  gap: 4px;
 }
 
-.kpi-card.highlight {
-  background: rgba(16, 185, 129, 0.1);
+.wc-card.highlight {
   border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.08);
 }
 
-.kpi-label {
-  font-size: 11px;
+.wc-title {
+  font-size: 10.5px;
   font-weight: 700;
   color: #94a3b8;
   text-transform: uppercase;
-  margin-bottom: 6px;
 }
 
-.kpi-value {
-  font-size: 22px;
-  font-weight: 900;
-  margin-bottom: 4px;
+.wc-val {
+  font-size: 16px;
+  color: #f8fafc;
 }
 
-.kpi-desc {
-  font-size: 11px;
+.wc-sub {
+  font-size: 10.5px;
   color: #64748b;
 }
 
-.text-accent {
-  color: #fbbf24;
-}
-
-.text-success {
-  color: #10b981;
-}
-
-.state-msg {
-  text-align: center;
-  padding: 40px;
-  color: #94a3b8;
-}
-
-.error-banner {
-  background: rgba(239, 68, 68, 0.15);
-  color: #fca5a5;
-  padding: 14px;
-  border-radius: 10px;
-  font-size: 13px;
+/* Print Styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+  .print-report-card {
+    visibility: visible !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+  .print-report-card * {
+    visibility: visible !important;
+    color: #111827 !important;
+    box-shadow: none !important;
+  }
+  .btn-close, .report-tabs, .header-actions button, .pane-toolbar input {
+    display: none !important;
+  }
+  .kpi-card, .tender-card, .split-card, .content-section, .wc-card {
+    border: 1px solid #cbd5e1 !important;
+    background: #f8fafc !important;
+  }
+  .report-table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+  .report-table th, .report-table td {
+    border: 1px solid #cbd5e1 !important;
+    color: #000000 !important;
+    padding: 6px 8px !important;
+  }
 }
 </style>

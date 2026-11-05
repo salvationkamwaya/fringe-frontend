@@ -132,7 +132,7 @@ const submitSupplierPayment = async () => {
 
   try {
     await api.post(`/pos/purchase-orders/${selectedPO.value.id}/record_payment/`, payForm.value)
-    store.showToast(`Payment of ZMW ${payForm.value.amount} recorded for ${selectedPO.value.supplier_name}!`, 'success')
+    store.showToast(`Payment of TSH ${payForm.value.amount} recorded for ${selectedPO.value.supplier_name}!`, 'success')
     showPayPO.value = false
     await fetchData()
   } catch (err) {
@@ -222,10 +222,10 @@ const submitSupplierPayment = async () => {
                 <td>{{ new Date(po.created_at).toLocaleDateString() }}</td>
                 <td><strong>{{ po.supplier_name }}</strong></td>
                 <td>{{ po.invoice_number || '-' }}</td>
-                <td class="text-right">ZMW {{ parseFloat(po.total_cost).toFixed(2) }}</td>
-                <td class="text-right text-emerald">ZMW {{ parseFloat(po.amount_paid).toFixed(2) }}</td>
+                <td class="text-right">TSH {{ parseFloat(po.total_cost).toFixed(2) }}</td>
+                <td class="text-right text-emerald">TSH {{ parseFloat(po.amount_paid).toFixed(2) }}</td>
                 <td class="text-right font-bold" :class="parseFloat(po.balance_remaining) > 0 ? 'text-amber' : 'text-slate'">
-                  ZMW {{ parseFloat(po.balance_remaining).toFixed(2) }}
+                  TSH {{ parseFloat(po.balance_remaining).toFixed(2) }}
                 </td>
                 <td class="text-center">
                   <span 
@@ -283,7 +283,7 @@ const submitSupplierPayment = async () => {
             <div class="card-head">
               <h3>{{ sup.name }}</h3>
               <span class="payable-badge" :class="{ 'has-payable': parseFloat(sup.balance_payable) > 0 }">
-                Payable: ZMW {{ parseFloat(sup.balance_payable).toFixed(2) }}
+                Payable: TSH {{ parseFloat(sup.balance_payable).toFixed(2) }}
               </span>
             </div>
 
@@ -321,7 +321,7 @@ const submitSupplierPayment = async () => {
         <form @submit.prevent="handleCreateSupplier" class="inner-form">
           <div class="form-row">
             <label>Supplier Company / Vendor Name *</label>
-            <input v-model="supplierForm.name" type="text" placeholder="e.g. Lusaka Paper Mills" required class="form-input" />
+            <input v-model="supplierForm.name" type="text" placeholder="e.g. Dar es Salaam Paper & Stationery Supplies" required class="form-input" />
           </div>
 
           <div class="form-grid-2">
@@ -331,18 +331,18 @@ const submitSupplierPayment = async () => {
             </div>
             <div class="form-row">
               <label>Phone Number</label>
-              <input v-model="supplierForm.phone" type="text" placeholder="e.g. 0966123456" class="form-input" />
+              <input v-model="supplierForm.phone" type="text" placeholder="e.g. +255 754 123 456" class="form-input" />
             </div>
           </div>
 
           <div class="form-row">
             <label>Email Address</label>
-            <input v-model="supplierForm.email" type="email" placeholder="orders@supplier.zm" class="form-input" />
+            <input v-model="supplierForm.email" type="email" placeholder="orders@supplier.co.tz" class="form-input" />
           </div>
 
           <div class="form-row">
             <label>Physical Address</label>
-            <input v-model="supplierForm.address" type="text" placeholder="Industrial Area, Lusaka" class="form-input" />
+            <input v-model="supplierForm.address" type="text" placeholder="Kariakoo / Mikocheni Light Industrial Area, Dar es Salaam" class="form-input" />
           </div>
 
           <div class="form-actions">
@@ -376,7 +376,7 @@ const submitSupplierPayment = async () => {
               <input v-model="poForm.invoice_number" type="text" placeholder="e.g. INV-8874" class="form-input" />
             </div>
             <div class="form-row">
-              <label>Total Invoice Cost (ZMW) *</label>
+              <label>Total Invoice Cost (TSH) *</label>
               <input v-model="poForm.total_cost" type="number" step="0.01" min="0.01" required placeholder="0.00" class="form-input input-highlight" />
             </div>
           </div>
@@ -407,7 +407,7 @@ const submitSupplierPayment = async () => {
 
         <div class="debt-status-banner">
           <span>Remaining PO Balance:</span>
-          <strong>ZMW {{ parseFloat(selectedPO?.balance_remaining || 0).toFixed(2) }}</strong>
+          <strong>TSH {{ parseFloat(selectedPO?.balance_remaining || 0).toFixed(2) }}</strong>
         </div>
 
         <form @submit.prevent="submitSupplierPayment" class="inner-form">
@@ -417,7 +417,7 @@ const submitSupplierPayment = async () => {
           </div>
 
           <div class="form-row">
-            <label>Payment Amount (ZMW) *</label>
+            <label>Payment Amount (TSH) *</label>
             <input 
               v-model="payForm.amount" 
               type="number" 

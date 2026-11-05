@@ -151,7 +151,7 @@ onMounted(() => {
             </div>
             <div class="metric">
               <span class="metric-label">Total Balance</span>
-              <span class="metric-val price">ZMW {{ tab.total_amount || '0.00' }}</span>
+              <span class="metric-val price">TSH {{ tab.total_amount || '0.00' }}</span>
             </div>
           </div>
 

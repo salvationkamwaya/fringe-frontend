@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { store } from '../store'
 import api from '../api'
-import { Clock, Banknote, Smartphone, CheckCircle2, AlertTriangle, Printer, X } from 'lucide-vue-next'
+import { Clock, Banknote, Smartphone, CheckCircle2, AlertTriangle, Printer, X, ShieldCheck } from 'lucide-vue-next'
 
 const emit = defineEmits(['close'])
 
@@ -107,32 +107,32 @@ onMounted(() => {
           <div class="z-divider"></div>
           <div class="z-row">
             <span>Opening Float:</span>
-            <span>ZMW {{ zReportData.opening_float }}</span>
+            <span>TSH {{ zReportData.opening_float }}</span>
           </div>
           <div class="z-row">
             <span>Cash Sales:</span>
-            <span>ZMW {{ zReportData.total_sales_cash }}</span>
+            <span>TSH {{ zReportData.total_sales_cash }}</span>
           </div>
           <div class="z-row">
             <span>Mobile Money Sales:</span>
-            <span>ZMW {{ zReportData.total_sales_mobile }}</span>
+            <span>TSH {{ zReportData.total_sales_mobile }}</span>
           </div>
           <div class="z-row bold">
             <span>Total Gross Sales:</span>
-            <span>ZMW {{ zReportData.total_sales_gross }}</span>
+            <span>TSH {{ zReportData.total_sales_gross }}</span>
           </div>
           <div class="z-divider"></div>
           <div class="z-row">
             <span>Expected Cash:</span>
-            <span>ZMW {{ zReportData.expected_cash_in_drawer }}</span>
+            <span>TSH {{ zReportData.expected_cash_in_drawer }}</span>
           </div>
           <div class="z-row bold">
             <span>Actual Counted Cash:</span>
-            <span>ZMW {{ zReportData.counted_cash }}</span>
+            <span>TSH {{ zReportData.counted_cash }}</span>
           </div>
           <div class="z-row variance-row" :class="Number(zReportData.variance) === 0 ? 'balanced' : 'short'">
             <span>Cash Variance:</span>
-            <strong>ZMW {{ zReportData.variance }}</strong>
+            <strong>TSH {{ zReportData.variance }}</strong>
           </div>
           <div v-if="zReportData.variance_reason" class="z-note">
             Reason: {{ zReportData.variance_reason }}
@@ -148,7 +148,58 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- STATE 2: NO ACTIVE SHIFT (START SHIFT) -->
+      <!-- STATE 2: MANAGERIAL OVERSIGHT VIEW (Managers and Owner do not operate drawer) -->
+      <div v-else-if="!store.canRecordSales" class="manager-oversight-view">
+        <div class="oversight-hero">
+          <ShieldCheck :size="38" class="text-blue" />
+          <h4>Managerial Shift Oversight</h4>
+          <p>
+            Signed in as <strong>{{ store.user?.first_name || store.user?.username }} ({{ store.user?.role?.toUpperCase() }})</strong>.
+            Cash register drawers are strictly operated by frontline staff (Bartenders & Cashiers).
+          </p>
+        </div>
+
+        <div v-if="activeShift" class="active-oversight-card">
+          <div class="oversight-header-row">
+            <span class="pulse-indicator"></span>
+            <strong>Active Cashier on Duty: {{ activeShift.cashier_username || activeShift.cashier?.username || 'Frontline Staff' }}</strong>
+            <span class="badge-status-open">DRAWER OPEN</span>
+          </div>
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <span class="m-label">Opening Float</span>
+              <span class="m-val">TSH {{ activeShift.opening_float }}</span>
+            </div>
+            <div class="metric-card">
+              <span class="m-label">Cash Sales</span>
+              <span class="m-val">TSH {{ activeShift.total_sales_cash }}</span>
+            </div>
+            <div class="metric-card">
+              <span class="m-label">Mobile Money</span>
+              <span class="m-val">TSH {{ activeShift.total_sales_mobile }}</span>
+            </div>
+            <div class="metric-card highlight">
+              <span class="m-label">Expected Drawer Cash</span>
+              <span class="m-val">TSH {{ expectedCash.toFixed(2) }}</span>
+            </div>
+          </div>
+          <div class="oversight-footer-note">
+            The assigned cashier will perform physical cash count and reconcile drawer variance at shift end.
+          </div>
+        </div>
+
+        <div v-else class="empty-oversight-card">
+          <Clock :size="32" class="text-muted" />
+          <h5>No Active Frontline Shift in {{ store.activeUnit?.toUpperCase() }}</h5>
+          <p>The register drawer is currently closed. When a cashier opens their drawer with an opening float, active drawer metrics will appear here live.</p>
+        </div>
+
+        <div class="oversight-actions">
+          <button class="btn-close-oversight" @click="$emit('close')">Close Oversight</button>
+        </div>
+      </div>
+
+      <!-- STATE 3: NO ACTIVE SHIFT (FRONTLINE CASHIER OPENS DRAWER) -->
       <div v-else-if="!activeShift" class="start-shift-view">
         <div class="info-card">
           <Banknote :size="32" class="info-icon" />
@@ -157,11 +208,11 @@ onMounted(() => {
         </div>
 
         <div class="form-group">
-          <label>Starting Opening Float (ZMW):</label>
+          <label>Starting Opening Float (TSH):</label>
           <input 
             v-model.number="openingFloat" 
             type="number" 
-            step="10"
+            step="100"
             min="0"
             class="float-input"
             required
@@ -179,32 +230,32 @@ onMounted(() => {
         </button>
       </div>
 
-      <!-- STATE 3: SHIFT ACTIVE (RECONCILIATION & CLOSE) -->
+      <!-- STATE 4: SHIFT ACTIVE (FRONTLINE CASHIER CLOSES DRAWER) -->
       <div v-else class="active-shift-view">
         <!-- Live Shift Metrics -->
         <div class="metrics-grid">
           <div class="metric-card">
             <span class="m-label">Opening Float</span>
-            <span class="m-val">ZMW {{ activeShift.opening_float }}</span>
+            <span class="m-val">TSH {{ activeShift.opening_float }}</span>
           </div>
           <div class="metric-card">
             <span class="m-label">Cash Sales</span>
-            <span class="m-val">ZMW {{ activeShift.total_sales_cash }}</span>
+            <span class="m-val">TSH {{ activeShift.total_sales_cash }}</span>
           </div>
           <div class="metric-card">
             <span class="m-label">Mobile Money</span>
-            <span class="m-val">ZMW {{ activeShift.total_sales_mobile }}</span>
+            <span class="m-val">TSH {{ activeShift.total_sales_mobile }}</span>
           </div>
           <div class="metric-card highlight">
             <span class="m-label">Expected Drawer Cash</span>
-            <span class="m-val">ZMW {{ expectedCash.toFixed(2) }}</span>
+            <span class="m-val">TSH {{ expectedCash.toFixed(2) }}</span>
           </div>
         </div>
 
         <!-- Cash Count Input -->
         <div class="reconcile-card">
           <div class="form-group">
-            <label>Physical Counted Cash in Drawer (ZMW):</label>
+            <label>Physical Counted Cash in Drawer (TSH):</label>
             <input 
               v-model.number="countedCash" 
               type="number" 
@@ -221,7 +272,7 @@ onMounted(() => {
             <div class="var-title">
               {{ cashVariance === 0 ? '✓ Balanced (Zero Variance)' : cashVariance > 0 ? '▲ Cash Overage' : '▼ Cash Shortage' }}
             </div>
-            <div class="var-val">ZMW {{ cashVariance.toFixed(2) }}</div>
+            <div class="var-val">TSH {{ cashVariance.toFixed(2) }}</div>
           </div>
 
           <div v-if="cashVariance !== 0" class="form-group">
@@ -537,5 +588,138 @@ onMounted(() => {
   color: #111827;
   font-weight: 800;
   font-size: 13px;
+}
+
+/* Managerial Oversight View Styles */
+.manager-oversight-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.oversight-hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 14px;
+  padding: 18px 16px;
+}
+
+.oversight-hero h4 {
+  font-size: 16px;
+  font-weight: 800;
+  color: #93c5fd;
+  margin: 0;
+}
+
+.oversight-hero p {
+  font-size: 12.5px;
+  color: #94a3b8;
+  line-height: 1.45;
+  margin: 0;
+  max-width: 440px;
+}
+
+.active-oversight-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.oversight-header-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: #f1f5f9;
+}
+
+.pulse-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  display: inline-block;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.badge-status-open {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 800;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 3px 8px;
+  border-radius: 9999px;
+  letter-spacing: 0.05em;
+}
+
+.oversight-footer-note {
+  font-size: 11.5px;
+  color: #64748b;
+  font-style: italic;
+  text-align: center;
+}
+
+.empty-oversight-card {
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 30px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.empty-oversight-card h5 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin: 0;
+}
+
+.empty-oversight-card p {
+  font-size: 12px;
+  color: #64748b;
+  max-width: 380px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.oversight-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-close-oversight {
+  padding: 10px 20px;
+  border-radius: 10px;
+  background: #334155;
+  color: #f8fafc;
+  font-weight: 700;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.btn-close-oversight:hover {
+  background: #475569;
 }
 </style>
