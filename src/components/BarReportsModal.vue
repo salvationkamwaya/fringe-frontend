@@ -5,27 +5,70 @@ import api from '../api'
 import { 
   FileText, TrendingUp, Layers, DollarSign, X, Download, 
   Printer, Clock, Banknote, Smartphone, ShieldAlert, 
-  ShieldCheck, AlertTriangle, RefreshCw, BarChart3, Building
+  ShieldCheck, AlertTriangle, RefreshCw, BarChart3, Building,
+  Calendar, FileDown, Check
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['close'])
 
 const activeTab = ref('summary') // 'summary' | 'sales' | 'stock' | 'shifts' | 'consolidated'
 const loading = ref(true)
+const downloadingPdf = ref(false)
+const downloadingCsv = ref(false)
 const reportData = ref(null)
 const consolidatedData = ref(null)
 const errorMessage = ref('')
 const searchQuery = ref('')
 
+// Date range state
+const selectedRange = ref('all') // 'all' | 'today' | 'this_month' | 'last_month' | 'this_year' | 'last_year' | 'custom'
+const customStartDate = ref('')
+const customEndDate = ref('')
+
+const rangePresets = [
+  { id: 'all', label: 'All Time' },
+  { id: 'today', label: 'Today' },
+  { id: 'this_month', label: 'This Month' },
+  { id: 'last_month', label: 'Last Month' },
+  { id: 'this_year', label: 'This Year' },
+  { id: 'last_year', label: 'Last Year' },
+  { id: 'custom', label: 'Custom Range' },
+]
+
+const setRange = (rangeId) => {
+  selectedRange.value = rangeId
+  if (rangeId !== 'custom') {
+    fetchReports()
+  }
+}
+
+const applyCustomRange = () => {
+  if (!customStartDate.value || !customEndDate.value) {
+    store.showToast('Please select both start and end dates.', 'warning')
+    return
+  }
+  if (customStartDate.value > customEndDate.value) {
+    store.showToast('Start date cannot be after end date.', 'warning')
+    return
+  }
+  fetchReports()
+}
+
 const fetchReports = async () => {
   loading.value = true
   errorMessage.value = ''
   try {
-    const response = await api.get('/pos/reports/bar/')
+    const params = { range: selectedRange.value }
+    if (selectedRange.value === 'custom') {
+      if (customStartDate.value) params.start_date = customStartDate.value
+      if (customEndDate.value) params.end_date = customEndDate.value
+    }
+
+    const response = await api.get('/pos/reports/bar/', { params })
     reportData.value = response.data
 
     if (store.isOwner) {
-      const conRes = await api.get('/pos/reports/consolidated/')
+      const conRes = await api.get('/pos/reports/consolidated/', { params })
       consolidatedData.value = conRes.data
     }
   } catch (err) {
@@ -53,29 +96,77 @@ const filteredStockOnHand = computed(() => {
   )
 })
 
-const downloadCSV = () => {
-  const token = store.token
+const downloadPDF = async () => {
+  downloadingPdf.value = true
   const isConsolidated = activeTab.value === 'consolidated'
-  const endpoint = isConsolidated ? '/pos/reports/consolidated/?export=csv' : '/pos/reports/bar/?export=csv'
-  const defaultFilename = isConsolidated 
-    ? `fringe_consolidated_report_${new Date().toISOString().slice(0, 10)}.csv`
-    : `bar_comprehensive_report_${new Date().toISOString().slice(0, 10)}.csv`
+  const endpoint = isConsolidated ? '/pos/reports/consolidated/' : '/pos/reports/bar/'
+  const params = {
+    export: 'pdf',
+    range: selectedRange.value
+  }
+  if (selectedRange.value === 'custom') {
+    if (customStartDate.value) params.start_date = customStartDate.value
+    if (customEndDate.value) params.end_date = customEndDate.value
+  }
 
-  api.get(endpoint, { responseType: 'blob' })
-    .then(res => {
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv;charset=utf-8;' }))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', defaultFilename)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-      store.showToast('Comprehensive report downloaded as CSV.', 'success')
-    })
-    .catch(() => {
-      store.showToast('Failed to download CSV report.', 'error')
-    })
+  const dateTag = new Date().toISOString().slice(0, 10)
+  const defaultFilename = isConsolidated
+    ? `fringe_consolidated_report_${selectedRange.value}_${dateTag}.pdf`
+    : `bar_report_${selectedRange.value}_${dateTag}.pdf`
+
+  try {
+    store.showToast('Preparing PDF report...', 'info')
+    const res = await api.get(endpoint, { params, responseType: 'blob' })
+    const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', defaultFilename)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    store.showToast('Comprehensive report downloaded as PDF.', 'success')
+  } catch (err) {
+    store.showToast('Failed to download PDF report.', 'error')
+  } finally {
+    downloadingPdf.value = false
+  }
+}
+
+const downloadCSV = async () => {
+  downloadingCsv.value = true
+  const isConsolidated = activeTab.value === 'consolidated'
+  const endpoint = isConsolidated ? '/pos/reports/consolidated/' : '/pos/reports/bar/'
+  const params = {
+    export: 'csv',
+    range: selectedRange.value
+  }
+  if (selectedRange.value === 'custom') {
+    if (customStartDate.value) params.start_date = customStartDate.value
+    if (customEndDate.value) params.end_date = customEndDate.value
+  }
+
+  const dateTag = new Date().toISOString().slice(0, 10)
+  const defaultFilename = isConsolidated 
+    ? `fringe_consolidated_report_${selectedRange.value}_${dateTag}.csv`
+    : `bar_comprehensive_report_${selectedRange.value}_${dateTag}.csv`
+
+  try {
+    const res = await api.get(endpoint, { params, responseType: 'blob' })
+    const url = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv;charset=utf-8;' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', defaultFilename)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    store.showToast('Comprehensive report downloaded as CSV.', 'success')
+  } catch (err) {
+    store.showToast('Failed to download CSV report.', 'error')
+  } finally {
+    downloadingCsv.value = false
+  }
 }
 
 const printReport = () => {
@@ -104,14 +195,19 @@ onMounted(() => {
         </div>
 
         <div class="header-actions">
-          <button class="btn-action-icon btn-download" @click="downloadCSV" title="Download Report as CSV">
-            <Download :size="16" />
-            <span>Export CSV</span>
+          <button class="btn-action-icon btn-pdf" @click="downloadPDF" :disabled="downloadingPdf" title="Download Official PDF Report">
+            <FileDown :size="16" :class="{ 'spin-anim': downloadingPdf }" />
+            <span>{{ downloadingPdf ? 'Generating...' : 'Export PDF' }}</span>
+          </button>
+
+          <button class="btn-action-icon btn-download" @click="downloadCSV" :disabled="downloadingCsv" title="Download Report as CSV">
+            <Download :size="16" :class="{ 'spin-anim': downloadingCsv }" />
+            <span>{{ downloadingCsv ? 'Exporting...' : 'Export CSV' }}</span>
           </button>
 
           <button class="btn-action-icon btn-print" @click="printReport" title="Print or Save as PDF">
             <Printer :size="16" />
-            <span>Print / PDF</span>
+            <span>Print</span>
           </button>
 
           <button class="btn-action-icon btn-refresh" @click="fetchReports" title="Refresh Live Data">
@@ -121,6 +217,51 @@ onMounted(() => {
           <button class="btn-close" @click="$emit('close')">
             <X :size="18" />
           </button>
+        </div>
+      </div>
+
+      <!-- Date Range Filter Toolbar -->
+      <div class="date-range-toolbar">
+        <div class="range-presets-group">
+          <span class="range-toolbar-label">
+            <Calendar :size="14" />
+            <span>Period:</span>
+          </span>
+          <button 
+            v-for="p in rangePresets" 
+            :key="p.id" 
+            class="range-pill" 
+            :class="{ active: selectedRange === p.id }"
+            @click="setRange(p.id)"
+          >
+            {{ p.label }}
+          </button>
+        </div>
+
+        <!-- Custom Date Range Inputs -->
+        <div v-if="selectedRange === 'custom'" class="custom-range-inputs">
+          <div class="date-field">
+            <label>From:</label>
+            <input type="date" v-model="customStartDate" class="date-input" />
+          </div>
+          <div class="date-field">
+            <label>To:</label>
+            <input type="date" v-model="customEndDate" class="date-input" />
+          </div>
+          <button 
+            class="btn-apply-range" 
+            :disabled="!customStartDate || !customEndDate"
+            @click="applyCustomRange"
+          >
+            <Check :size="14" />
+            <span>Apply</span>
+          </button>
+        </div>
+
+        <!-- Active Period Indicator Badge -->
+        <div class="active-period-badge" v-if="reportData?.date_range?.label">
+          <span class="dot"></span>
+          <span class="period-text">{{ reportData.date_range.label }}</span>
         </div>
       </div>
 
@@ -631,13 +772,30 @@ onMounted(() => {
   color: #f1f5f9;
 }
 
+.btn-action-icon:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-pdf {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
+.btn-pdf:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.28);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #fca5a5;
+}
+
 .btn-download {
   background: rgba(16, 185, 129, 0.15);
   border-color: rgba(16, 185, 129, 0.3);
   color: #34d399;
 }
 
-.btn-download:hover {
+.btn-download:hover:not(:disabled) {
   background: rgba(16, 185, 129, 0.25);
 }
 
@@ -675,6 +833,147 @@ onMounted(() => {
 .btn-close:hover {
   background: rgba(239, 68, 68, 0.2);
   color: #f87171;
+}
+
+/* Date Range Filter Toolbar */
+.date-range-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 8px 14px;
+  margin-bottom: 14px;
+}
+
+.range-presets-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.range-toolbar-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: 4px;
+}
+
+.range-pill {
+  padding: 5px 12px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.range-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+.range-pill.active {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #0f172a;
+  font-weight: 800;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
+}
+
+.custom-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px dashed rgba(245, 158, 11, 0.4);
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+
+.date-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.date-field label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.date-input {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #f8fafc;
+  font-size: 11px;
+  padding: 4px 8px;
+  outline: none;
+  color-scheme: dark;
+}
+
+.date-input:focus {
+  border-color: #f59e0b;
+}
+
+.btn-apply-range {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #f59e0b;
+  color: #0f172a;
+  border: none;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-apply-range:hover:not(:disabled) {
+  background: #fbbf24;
+}
+
+.btn-apply-range:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.active-period-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 20px;
+  padding: 4px 11px;
+  font-size: 11px;
+  color: #93c5fd;
+  font-weight: 700;
+}
+
+.active-period-badge .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3b82f6;
+  box-shadow: 0 0 6px #3b82f6;
 }
 
 /* Tabs */
@@ -1157,8 +1456,18 @@ onMounted(() => {
     color: #111827 !important;
     box-shadow: none !important;
   }
-  .btn-close, .report-tabs, .header-actions button, .pane-toolbar input {
+  .btn-close, .report-tabs, .header-actions button, .pane-toolbar input, .range-presets-group, .custom-range-inputs {
     display: none !important;
+  }
+  .date-range-toolbar {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+  .active-period-badge {
+    background: transparent !important;
+    border: 1px solid #94a3b8 !important;
+    color: #000 !important;
   }
   .kpi-card, .tender-card, .split-card, .content-section, .wc-card {
     border: 1px solid #cbd5e1 !important;

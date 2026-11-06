@@ -154,7 +154,7 @@ const finishSale = () => {
       </div>
 
       <!-- ACTIVE PAYMENT FORM -->
-      <div v-else>
+      <div v-else class="payment-form-layout">
         <div class="header">
           <div>
             <h3 class="title">Settle Payment</h3>
@@ -165,195 +165,201 @@ const finishSale = () => {
           </button>
         </div>
 
-        <!-- Total Due Banner -->
-        <div class="total-banner">
-          <div class="total-label">AMOUNT DUE</div>
-          <div class="total-amount">TSH {{ totalDue.toFixed(2) }}</div>
-        </div>
-
-        <!-- Payment Method Tabs -->
-        <div class="method-tabs">
-          <button 
-            class="tab-btn" 
-            :class="{ active: paymentMode === 'CASH' }"
-            @click="paymentMode = 'CASH'"
-          >
-            <Banknote :size="18" />
-            <span>Cash</span>
-          </button>
-
-          <button 
-            class="tab-btn" 
-            :class="{ active: paymentMode === 'MOBILE_MONEY' }"
-            @click="paymentMode = 'MOBILE_MONEY'"
-          >
-            <Smartphone :size="18" />
-            <span>Mobile Money</span>
-          </button>
-
-          <button 
-            class="tab-btn" 
-            :class="{ active: paymentMode === 'SPLIT' }"
-            @click="paymentMode = 'SPLIT'"
-          >
-            <Split :size="18" />
-            <span>Split Payment</span>
-          </button>
-
-          <button 
-            v-if="store.activeUnit === 'stationery'"
-            class="tab-btn tab-credit" 
-            :class="{ active: paymentMode === 'CREDIT' }"
-            @click="paymentMode = 'CREDIT'"
-          >
-            <CreditCard :size="18" />
-            <span>Customer Credit</span>
-          </button>
-        </div>
-
-        <!-- 1. CASH MODE -->
-        <div v-if="paymentMode === 'CASH'" class="tender-body">
-          <div class="cash-input-group">
-            <label>Cash Tendered (TSH):</label>
-            <input 
-              v-model.number="cashTendered" 
-              type="number" 
-              step="1"
-              min="0"
-              class="cash-input"
-            />
+        <div class="payment-scroll-body">
+          <!-- Total Due Banner -->
+          <div class="total-banner">
+            <div class="total-label">AMOUNT DUE</div>
+            <div class="total-amount">TSH {{ totalDue.toFixed(2) }}</div>
+            <div class="total-items-count">{{ store.cartItemCount }} item(s) in order ticket</div>
           </div>
 
-          <!-- Quick Presets -->
-          <div class="presets-grid">
-            <button class="preset-btn" @click="setExactCash">Exact</button>
-            <button class="preset-btn" @click="addPresetCash(1000)">1,000</button>
-            <button class="preset-btn" @click="addPresetCash(2000)">2,000</button>
-            <button class="preset-btn" @click="addPresetCash(5000)">5,000</button>
-            <button class="preset-btn" @click="addPresetCash(10000)">10,000</button>
-            <button class="preset-btn" @click="addPresetCash(20000)">20,000</button>
+          <!-- Payment Method Tabs -->
+          <div class="method-tabs">
+            <button 
+              class="tab-btn" 
+              :class="{ active: paymentMode === 'CASH' }"
+              @click="paymentMode = 'CASH'"
+            >
+              <Banknote :size="18" />
+              <span>Cash</span>
+            </button>
+
+            <button 
+              class="tab-btn" 
+              :class="{ active: paymentMode === 'MOBILE_MONEY' }"
+              @click="paymentMode = 'MOBILE_MONEY'"
+            >
+              <Smartphone :size="18" />
+              <span>Mobile Money</span>
+            </button>
+
+            <button 
+              class="tab-btn" 
+              :class="{ active: paymentMode === 'SPLIT' }"
+              @click="paymentMode = 'SPLIT'"
+            >
+              <Split :size="18" />
+              <span>Split Payment</span>
+            </button>
+
+            <button 
+              v-if="store.activeUnit === 'stationery'"
+              class="tab-btn tab-credit" 
+              :class="{ active: paymentMode === 'CREDIT' }"
+              @click="paymentMode = 'CREDIT'"
+            >
+              <CreditCard :size="18" />
+              <span>Customer Credit</span>
+            </button>
           </div>
 
-          <div v-if="changeDue > 0" class="change-preview">
-            <span>Change to Return:</span>
-            <span class="change-val">TSH {{ changeDue.toFixed(2) }}</span>
-          </div>
-        </div>
-
-        <!-- 2. MOBILE MONEY MODE -->
-        <div v-else-if="paymentMode === 'MOBILE_MONEY'" class="tender-body">
-          <div class="form-group">
-            <label>Provider:</label>
-            <div class="provider-badges">
-              <span class="provider-badge airtel">M-Pesa (Vodacom)</span>
-              <span class="provider-badge mtn">Tigo Pesa</span>
-              <span class="provider-badge zamtel">Airtel Money</span>
-              <span class="provider-badge halo">HaloPesa</span>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Transaction Reference ID:</label>
-            <input 
-              v-model="mobileRef" 
-              type="text" 
-              placeholder="e.g. PP261031.1200.H49921"
-              class="ref-input"
-              required
-            />
-          </div>
-        </div>
-
-        <!-- 3. SPLIT MODE -->
-        <div v-else-if="paymentMode === 'SPLIT'" class="tender-body">
-          <div class="split-grid">
-            <div class="split-col">
-              <label>Cash Amount (TSH):</label>
+          <!-- 1. CASH MODE -->
+          <div v-if="paymentMode === 'CASH'" class="tender-body">
+            <div class="cash-input-group">
+              <label>Cash Tendered (TSH):</label>
               <input 
-                v-model.number="splitCashAmount" 
+                v-model.number="cashTendered" 
                 type="number" 
-                class="split-input"
+                step="1"
+                min="0"
+                class="cash-input"
               />
             </div>
-            <div class="split-col">
-              <label>Mobile Money (TSH):</label>
-              <input 
-                v-model.number="splitMobileAmount" 
-                type="number" 
-                class="split-input"
-              />
+
+            <!-- Quick Presets -->
+            <div class="presets-grid">
+              <button class="preset-btn" @click="setExactCash">Exact</button>
+              <button class="preset-btn" @click="addPresetCash(1000)">1,000</button>
+              <button class="preset-btn" @click="addPresetCash(2000)">2,000</button>
+              <button class="preset-btn" @click="addPresetCash(5000)">5,000</button>
+              <button class="preset-btn" @click="addPresetCash(10000)">10,000</button>
+              <button class="preset-btn" @click="addPresetCash(20000)">20,000</button>
+            </div>
+
+            <div v-if="changeDue > 0" class="change-preview">
+              <span>Change to Return:</span>
+              <span class="change-val">TSH {{ changeDue.toFixed(2) }}</span>
             </div>
           </div>
 
-          <div class="form-group" style="margin-top: 10px;">
-            <label>Mobile Reference (Optional):</label>
-            <input 
-              v-model="mobileRef" 
-              type="text" 
-              placeholder="e.g. Ref ID"
-              class="ref-input"
-            />
-          </div>
-        </div>
-
-        <!-- 4. CUSTOMER CREDIT MODE (Stationery Only) -->
-        <div v-else-if="paymentMode === 'CREDIT'" class="tender-body">
-          <div v-if="store.selectedCustomer" class="credit-card-panel">
-            <div class="credit-meta-row">
-              <span class="credit-meta-lbl">Customer Account:</span>
-              <strong class="credit-meta-val">{{ store.selectedCustomer.name }}</strong>
-            </div>
-            <div class="credit-meta-row">
-              <span class="credit-meta-lbl">Current Owed Balance:</span>
-              <span class="credit-meta-val text-amber">TSH {{ parseFloat(store.selectedCustomer.current_balance).toFixed(2) }}</span>
-            </div>
-            <div class="credit-meta-row">
-              <span class="credit-meta-lbl">Available Credit:</span>
-              <span class="credit-meta-val text-emerald">TSH {{ parseFloat(store.selectedCustomer.available_credit).toFixed(2) }}</span>
-            </div>
-
-            <!-- Over-limit warning & PIN prompt -->
-            <div v-if="totalDue > store.selectedCustomer.available_credit" class="credit-override-alert">
-              <div class="alert-head">
-                <AlertCircle :size="16" class="text-amber" />
-                <strong>Manager Authorization Required</strong>
+          <!-- 2. MOBILE MONEY MODE -->
+          <div v-else-if="paymentMode === 'MOBILE_MONEY'" class="tender-body">
+            <div class="form-group">
+              <label>Provider:</label>
+              <div class="provider-badges">
+                <span class="provider-badge airtel">M-Pesa (Vodacom)</span>
+                <span class="provider-badge mtn">Tigo Pesa</span>
+                <span class="provider-badge zamtel">Airtel Money</span>
+                <span class="provider-badge halo">HaloPesa</span>
               </div>
-              <p class="alert-txt">This sale (TSH {{ totalDue.toFixed(2) }}) exceeds available credit (TSH {{ parseFloat(store.selectedCustomer.available_credit).toFixed(2) }}). Enter Manager or Owner PIN to authorize credit override:</p>
-              <div class="pin-box">
-                <label>Manager / Owner PIN:</label>
+            </div>
+
+            <div class="form-group">
+              <label>Transaction Reference ID:</label>
+              <input 
+                v-model="mobileRef" 
+                type="text" 
+                placeholder="e.g. PP261031.1200.H49921"
+                class="ref-input"
+                required
+              />
+            </div>
+          </div>
+
+          <!-- 3. SPLIT MODE -->
+          <div v-else-if="paymentMode === 'SPLIT'" class="tender-body">
+            <div class="split-grid">
+              <div class="split-col">
+                <label>Cash Amount (TSH):</label>
                 <input 
-                  v-model="managerPin" 
-                  type="password" 
-                  maxlength="4" 
-                  placeholder="••••" 
-                  class="pin-input"
-                  required 
+                  v-model.number="splitCashAmount" 
+                  type="number" 
+                  class="split-input"
+                />
+              </div>
+              <div class="split-col">
+                <label>Mobile Money (TSH):</label>
+                <input 
+                  v-model.number="splitMobileAmount" 
+                  type="number" 
+                  class="split-input"
                 />
               </div>
             </div>
+
+            <div class="form-group" style="margin-top: 10px;">
+              <label>Mobile Reference (Optional):</label>
+              <input 
+                v-model="mobileRef" 
+                type="text" 
+                placeholder="e.g. Ref ID"
+                class="ref-input"
+              />
+            </div>
           </div>
 
-          <div v-else class="credit-no-customer">
-            <AlertCircle :size="24" class="text-amber" />
-            <p>No registered customer attached to this order.</p>
-            <button class="btn-attach-picker" @click="store.activeModal = 'customers'">
-              Select Registered Customer
-            </button>
+          <!-- 4. CUSTOMER CREDIT MODE (Stationery Only) -->
+          <div v-else-if="paymentMode === 'CREDIT'" class="tender-body">
+            <div v-if="store.selectedCustomer" class="credit-card-panel">
+              <div class="credit-meta-row">
+                <span class="credit-meta-lbl">Customer Account:</span>
+                <strong class="credit-meta-val">{{ store.selectedCustomer.name }}</strong>
+              </div>
+              <div class="credit-meta-row">
+                <span class="credit-meta-lbl">Current Owed Balance:</span>
+                <span class="credit-meta-val text-amber">TSH {{ parseFloat(store.selectedCustomer.current_balance).toFixed(2) }}</span>
+              </div>
+              <div class="credit-meta-row">
+                <span class="credit-meta-lbl">Available Credit:</span>
+                <span class="credit-meta-val text-emerald">TSH {{ parseFloat(store.selectedCustomer.available_credit).toFixed(2) }}</span>
+              </div>
+
+              <!-- Over-limit warning & PIN prompt -->
+              <div v-if="totalDue > store.selectedCustomer.available_credit" class="credit-override-alert">
+                <div class="alert-head">
+                  <AlertCircle :size="16" class="text-amber" />
+                  <strong>Manager Authorization Required</strong>
+                </div>
+                <p class="alert-txt">This sale (TSH {{ totalDue.toFixed(2) }}) exceeds available credit (TSH {{ parseFloat(store.selectedCustomer.available_credit).toFixed(2) }}). Enter Manager or Owner PIN to authorize credit override:</p>
+                <div class="pin-box">
+                  <label>Manager / Owner PIN:</label>
+                  <input 
+                    v-model="managerPin" 
+                    type="password" 
+                    maxlength="4" 
+                    placeholder="••••" 
+                    class="pin-input"
+                    required 
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="credit-no-customer">
+              <AlertCircle :size="24" class="text-amber" />
+              <p>No registered customer attached to this order.</p>
+              <button class="btn-attach-picker" @click="store.activeModal = 'customers'">
+                Select Registered Customer
+              </button>
+            </div>
           </div>
         </div>
 
-        <div v-if="errorMessage" class="error-msg">
-          <AlertCircle :size="16" />
-          <span>{{ errorMessage }}</span>
-        </div>
+        <!-- Sticky Footer with Complete Button -->
+        <div class="payment-footer-actions">
+          <div v-if="errorMessage" class="error-msg">
+            <AlertCircle :size="16" />
+            <span>{{ errorMessage }}</span>
+          </div>
 
-        <button 
-          class="btn-complete-pay" 
-          :disabled="loading"
-          @click="handlePayment"
-        >
-          {{ loading ? 'Processing Settlement...' : `Complete Sale (TSH ${totalDue.toFixed(2)})` }}
-        </button>
+          <button 
+            class="btn-complete-pay" 
+            :disabled="loading"
+            @click="handlePayment"
+          >
+            {{ loading ? 'Processing Settlement...' : `Complete Sale (TSH ${totalDue.toFixed(2)})` }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -370,16 +376,52 @@ const finishSale = () => {
   justify-content: center;
   z-index: 1200;
   padding: 16px;
+  overflow-y: auto;
 }
 
 .modal-card {
   width: 100%;
-  max-width: 480px;
+  max-width: 500px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
   background: #111827;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 24px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
   padding: 24px;
+  overflow: hidden;
+  position: relative;
+}
+
+.payment-form-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: calc(92vh - 48px);
+  min-height: 0;
+}
+
+.payment-scroll-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 6px;
+  min-height: 0;
+}
+
+.payment-footer-actions {
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: #111827;
+  flex-shrink: 0;
+}
+
+.total-items-count {
+  font-size: 11.5px;
+  color: #fbbf24;
+  margin-top: 4px;
+  opacity: 0.9;
+  font-weight: 700;
 }
 
 .header {

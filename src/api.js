@@ -34,8 +34,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Do not trigger global logout on login endpoint 401 (invalid credentials)
-    if (error.response && error.response.status === 401 && !error.config?.url?.includes('/auth/login/')) {
+    // Do not trigger global logout on login or password reset endpoints
+    const isPublicAuth = error.config?.url?.includes('/auth/login/') ||
+                         error.config?.url?.includes('/auth/forgot-password/') ||
+                         error.config?.url?.includes('/auth/reset-password-with-token/')
+
+    if (error.response && error.response.status === 401 && !isPublicAuth) {
       localStorage.removeItem('fringe_token')
       localStorage.removeItem('fringe_user')
       // Dispatch custom event for app reactivity

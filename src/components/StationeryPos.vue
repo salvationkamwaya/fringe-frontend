@@ -5,7 +5,7 @@ import api from '../api'
 import { 
   Search, Barcode, ShoppingCart, Trash2, Plus, Minus, 
   Package, Layers, UserCheck, AlertTriangle, CheckCircle2,
-  Sparkles, CreditCard, ChevronRight, X, UserPlus, BookOpen, ShieldCheck
+  Sparkles, CreditCard, ChevronRight, X, UserPlus, BookOpen, ShieldCheck, Boxes, Receipt
 } from 'lucide-vue-next'
 
 const products = ref([])
@@ -309,25 +309,46 @@ const proceedToCheckout = () => {
           </div>
         </div>
 
-        <button 
-          v-if="store.cart.length > 0" 
-          class="btn-clear" 
-          title="Clear all ticket items"
-          @click="store.clearCart"
-        >
-          <Trash2 :size="16" />
-        </button>
+        <div class="ticket-header-actions">
+          <button 
+            class="btn-quick-sales"
+            :title="store.isManagerOrOwner ? 'View Sales Records' : 'View My Sold Stationery & Transactions'"
+            @click="store.activeModal = 'sales_records'"
+          >
+            <Receipt :size="14" />
+            <span>{{ store.isManagerOrOwner ? 'Sales Records' : 'My Sales' }}</span>
+          </button>
+
+          <button 
+            v-if="store.cart.length > 0" 
+            class="btn-clear" 
+            title="Clear all ticket items"
+            @click="store.clearCart"
+          >
+            <Trash2 :size="16" />
+          </button>
+        </div>
       </div>
 
-      <!-- Management Oversight Banner -->
-      <div v-if="!store.canRecordSales" class="management-oversight-banner">
-        <ShieldCheck :size="20" class="oversight-icon" />
+      <!-- Role Oversight / Stock Clerk Banner -->
+      <div v-if="!store.canRecordSales" class="management-oversight-banner" :class="{ 'clerk-banner': store.isStockClerk }">
+        <Boxes v-if="store.isStockClerk" :size="20" class="oversight-icon" />
+        <ShieldCheck v-else :size="20" class="oversight-icon" />
         <div class="oversight-text">
-          <div class="oversight-title">Management Oversight Mode</div>
+          <div class="oversight-title">{{ store.isStockClerk ? 'Stock Clerk Inventory Mode' : 'Management Oversight Mode' }}</div>
           <div class="oversight-desc">
-            Signed in as <strong>{{ store.user?.first_name || store.user?.username }} ({{ store.user?.role?.toUpperCase() }})</strong>.
-            Sales recording is reserved for frontline Stationery Cashiers. Use the left sidebar to access Reports, Stock & Reorder, Debtors, Suppliers, and Approvals.
+            Signed in as <strong>@{{ store.user?.username }} ({{ store.user?.role?.toUpperCase() }})</strong>.
+            <span v-if="store.isStockClerk">
+              Inventory custody & goods receiving. Point-of-sale customer sales are handled by frontline Stationery Cashiers.
+            </span>
+            <span v-else>
+              Sales recording is reserved for frontline Stationery Cashiers. Use the left sidebar to access Reports, Stock & Reorder, Debtors, Suppliers, and Approvals.
+            </span>
           </div>
+          <button v-if="store.isStockClerk" class="btn-banner-action" @click="store.activeModal = 'stock_inventory'">
+            <Boxes :size="14" />
+            <span>Open Inventory & Stock Control</span>
+          </button>
         </div>
       </div>
 
@@ -843,6 +864,34 @@ const proceedToCheckout = () => {
   color: #64748b;
 }
 
+.ticket-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-quick-sales {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(6, 182, 212, 0.15);
+  color: #22d3ee;
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-quick-sales:hover {
+  background: rgba(6, 182, 212, 0.28);
+  border-color: #22d3ee;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
 .btn-clear {
   background: transparent;
   border: none;
@@ -888,6 +937,40 @@ const proceedToCheckout = () => {
 
 .oversight-desc {
   color: #cbd5e1;
+}
+
+.management-oversight-banner.clerk-banner {
+  background: rgba(99, 102, 241, 0.12);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+  color: #c7d2fe;
+}
+
+.management-oversight-banner.clerk-banner .oversight-icon {
+  color: #a5b4fc;
+}
+
+.management-oversight-banner.clerk-banner .oversight-title {
+  color: #c7d2fe;
+}
+
+.btn-banner-action {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #6366f1;
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-banner-action:hover {
+  background: #4f46e5;
 }
 
 /* Customer Credit Bar */

@@ -4,7 +4,8 @@ import { store } from '../store'
 import { 
   Wine, BookOpen, Layers, ShieldCheck, Clock, FileText, 
   LogOut, User as UserIcon, ChevronDown, ChevronLeft, ChevronRight,
-  Users, Truck, BarChart3, UserCheck, Coins, Sparkles
+  Users, Truck, BarChart3, UserCheck, Coins, Sparkles, Boxes, Sun, Moon, PlusCircle, Receipt,
+  Settings
 } from 'lucide-vue-next'
 
 const isCollapsed = ref(false)
@@ -72,13 +73,18 @@ const toggleCollapse = () => {
     </div>
 
     <!-- User Profile & Active Role Card -->
-    <div class="user-card" :class="{ 'user-card-collapsed': isCollapsed }">
-      <div class="user-avatar" :title="`${store.user?.first_name || store.user?.username || 'User'} (${currentRoleLabel})`">
+    <div 
+      class="user-card user-card-clickable" 
+      :class="{ 'user-card-collapsed': isCollapsed }"
+      @click="store.activeModal = 'account_settings'"
+      title="Open Account Settings & Profile"
+    >
+      <div class="user-avatar" :title="`@${store.user?.username || 'user'} (${currentRoleLabel})`">
         <span class="role-avatar-emoji">{{ currentRoleIcon }}</span>
       </div>
 
       <div v-if="!isCollapsed" class="user-info">
-        <div class="user-name">{{ store.user?.first_name || store.user?.username || 'Guest' }}</div>
+        <div class="user-name">@{{ store.user?.username || 'Guest' }}</div>
         <div class="role-tag">
           <span class="role-badge">{{ currentRoleLabel }}</span>
         </div>
@@ -130,6 +136,17 @@ const toggleCollapse = () => {
           <span v-if="!isCollapsed" class="nav-label">POS Counter</span>
         </button>
 
+        <!-- Sales Records (Accessible to Bartenders, Cashiers, Managers, Owner) -->
+        <button 
+          class="nav-item sales-nav-item" 
+          :class="{ active: store.activeModal === 'sales_records' }"
+          @click="store.activeModal = 'sales_records'"
+          :title="isCollapsed ? (store.canRecordSales ? 'My Sales' : 'Sales Records') : ''"
+        >
+          <Receipt :size="18" class="nav-icon" />
+          <span v-if="!isCollapsed" class="nav-label">{{ store.canRecordSales ? 'My Sales' : 'Sales Records' }}</span>
+        </button>
+
         <!-- BAR: Open Tabs -->
         <button 
           v-if="store.activeUnit === 'bar'"
@@ -154,9 +171,21 @@ const toggleCollapse = () => {
           <span v-if="!isCollapsed" class="nav-label">Customers & Credit</span>
         </button>
 
-        <!-- STATIONERY: Suppliers & PO -->
+        <!-- Inventory & Stock Control (Clerk, Managers, Owner) -->
         <button 
-          v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
+          v-if="store.hasInventoryAccess"
+          class="nav-item stock-nav-item"
+          :class="{ active: store.activeModal === 'stock_inventory' }"
+          @click="store.activeModal = 'stock_inventory'"
+          :title="isCollapsed ? 'Inventory & Stock Control' : ''"
+        >
+          <Boxes :size="18" class="nav-icon" />
+          <span v-if="!isCollapsed" class="nav-label">Inventory & Stock</span>
+        </button>
+
+        <!-- STATIONERY: Suppliers & PO (Accessible to Clerk, Managers, Owner) -->
+        <button 
+          v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all' || store.hasInventoryAccess"
           class="nav-item"
           :class="{ active: store.activeModal === 'suppliers' }"
           @click="store.activeModal = 'suppliers'"
@@ -190,6 +219,18 @@ const toggleCollapse = () => {
         class="menu-section"
       >
         <div v-if="!isCollapsed" class="section-title">MANAGEMENT</div>
+
+        <!-- Drink / Product Registration (Managers & Owner) -->
+        <button 
+          class="nav-item catalog-nav-item"
+          :class="{ active: store.activeModal === 'catalog_management' }"
+          @click="store.activeModal = 'catalog_management'"
+          :title="isCollapsed ? (store.activeUnit === 'bar' ? 'Register Drinks & Catalog' : 'Register Products & Catalog') : ''"
+        >
+          <Wine v-if="store.activeUnit === 'bar'" :size="18" class="nav-icon" />
+          <BookOpen v-else :size="18" class="nav-icon" />
+          <span v-if="!isCollapsed" class="nav-label">{{ store.activeUnit === 'bar' ? 'Drink Registration' : 'Product Registration' }}</span>
+        </button>
 
         <!-- Bar Reports -->
         <button 
@@ -249,6 +290,29 @@ const toggleCollapse = () => {
         <span class="currency-label">Currency:</span>
         <strong class="currency-name">TSH</strong>
       </div>
+
+      <!-- Account Settings & User Profile -->
+      <button 
+        v-if="store.isAuthenticated"
+        class="btn-account-settings" 
+        :class="{ active: store.activeModal === 'account_settings' }"
+        @click="store.activeModal = 'account_settings'" 
+        :title="isCollapsed ? 'Account Settings & Profile' : ''"
+      >
+        <Settings :size="16" class="settings-icon" />
+        <span v-if="!isCollapsed">Account Settings</span>
+      </button>
+
+      <!-- Appearance Switcher (Dark / Light Mode) -->
+      <button 
+        class="btn-theme-toggle" 
+        @click="store.toggleTheme()" 
+        :title="store.theme === 'dark' ? 'Switch to Light Appearance' : 'Switch to Dark Appearance'"
+      >
+        <Sun v-if="store.theme === 'dark'" :size="16" class="theme-icon sun-icon" />
+        <Moon v-else :size="16" class="theme-icon moon-icon" />
+        <span v-if="!isCollapsed" class="theme-label">{{ store.theme === 'dark' ? 'Light Mode' : 'Dark Mode' }}</span>
+      </button>
 
       <button 
         v-if="store.isAuthenticated" 
@@ -393,6 +457,16 @@ const toggleCollapse = () => {
   align-items: center;
   gap: 10px;
   transition: all 0.2s ease;
+}
+
+.user-card-clickable {
+  cursor: pointer;
+}
+
+.user-card-clickable:hover {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.35);
+  transform: translateY(-1px);
 }
 
 .user-card-collapsed {
@@ -670,6 +744,76 @@ const toggleCollapse = () => {
   color: #34d399;
   font-weight: 800;
   letter-spacing: 0.05em;
+}
+
+.catalog-nav-item {
+  border-left: 2px solid transparent;
+}
+.catalog-nav-item:hover, .catalog-nav-item.active {
+  border-left-color: #6366f1;
+}
+
+.btn-account-settings {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  transition: all 0.2s ease;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.btn-account-settings:hover, .btn-account-settings.active {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #a5b4fc;
+}
+
+.btn-account-settings .settings-icon {
+  color: #818cf8;
+}
+
+.btn-theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  transition: all 0.2s ease;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.btn-theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.sun-icon {
+  color: #f59e0b;
+}
+
+.moon-icon {
+  color: #818cf8;
+}
+
+.theme-label {
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .btn-logout, .btn-login {

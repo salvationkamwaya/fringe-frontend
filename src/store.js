@@ -28,12 +28,17 @@ export const store = reactive({
     message: '',
     type: 'info', // 'success', 'error', 'warning', 'info'
   },
+  theme: localStorage.getItem('fringe_theme') || 'dark', // 'dark' | 'light'
 
   // Computed Properties
   isAuthenticated: computed(() => Boolean(store.token && store.user)),
   isOwner: computed(() => store.user?.role === 'owner'),
+  isStockClerk: computed(() => store.user?.role === 'stock_clerk'),
   isBarManager: computed(() => ['owner', 'bar_manager'].includes(store.user?.role)),
   isStationeryManager: computed(() => ['owner', 'stationery_manager'].includes(store.user?.role)),
+  hasInventoryAccess: computed(() => {
+    return ['owner', 'bar_manager', 'stationery_manager', 'stock_clerk'].includes(store.user?.role)
+  }),
   isStationery: computed(() => store.activeUnit === 'stationery'),
   isBar: computed(() => store.activeUnit === 'bar'),
   canRecordSales: computed(() => {
@@ -66,6 +71,19 @@ export const store = reactive({
   }),
 
   // Actions
+  toggleTheme() {
+    store.theme = store.theme === 'dark' ? 'light' : 'dark'
+    localStorage.setItem('fringe_theme', store.theme)
+    document.documentElement.setAttribute('data-theme', store.theme)
+    store.showToast(`Switched to ${store.theme === 'light' ? 'Light' : 'Dark'} appearance mode.`, 'info')
+  },
+
+  initTheme() {
+    const saved = localStorage.getItem('fringe_theme') || 'dark'
+    store.theme = saved
+    document.documentElement.setAttribute('data-theme', saved)
+  },
+
   showToast(message, type = 'info') {
     store.toast.message = message
     store.toast.type = type

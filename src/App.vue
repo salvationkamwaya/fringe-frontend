@@ -18,6 +18,10 @@ import CustomersModal from './components/CustomersModal.vue'
 import SuppliersModal from './components/SuppliersModal.vue'
 import AuditTrailModal from './components/AuditTrailModal.vue'
 import StaffManagementModal from './components/StaffManagementModal.vue'
+import StockControlModal from './components/StockControlModal.vue'
+import CatalogManagementModal from './components/CatalogManagementModal.vue'
+import SalesRecordsModal from './components/SalesRecordsModal.vue'
+import AccountSettingsModal from './components/AccountSettingsModal.vue'
 
 const checkAuth = async () => {
   if (!store.token) {
@@ -40,6 +44,7 @@ const checkAuth = async () => {
 }
 
 onMounted(() => {
+  store.initTheme()
   checkAuth()
 })
 </script>
@@ -112,6 +117,26 @@ onMounted(() => {
 
     <StaffManagementModal 
       v-if="store.activeModal === 'staff_management'"
+      @close="store.activeModal = null"
+    />
+
+    <StockControlModal 
+      v-if="store.activeModal === 'stock_inventory'"
+      @close="store.activeModal = null"
+    />
+
+    <CatalogManagementModal 
+      v-if="store.activeModal === 'catalog_management'"
+      @close="store.activeModal = null"
+    />
+
+    <SalesRecordsModal 
+      v-if="store.activeModal === 'sales_records'"
+      @close="store.activeModal = null"
+    />
+
+    <AccountSettingsModal 
+      v-if="store.activeModal === 'account_settings'"
       @close="store.activeModal = null"
     />
 

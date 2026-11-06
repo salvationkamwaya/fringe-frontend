@@ -4,7 +4,7 @@ import { store } from '../store'
 import { 
   Wine, BookOpen, Layers, ShieldCheck, Clock, FileText, 
   LogOut, User as UserIcon, ChevronDown, Sparkles,
-  Users, Truck, BarChart3, UserCheck
+  Users, Truck, BarChart3, UserCheck, Boxes, Sun, Moon, Receipt
 } from 'lucide-vue-next'
 
 const roleLabels = {
@@ -81,6 +81,17 @@ const unitBadgeColor = computed(() => {
         <span>POS Counter</span>
       </button>
 
+      <!-- Sales Records / My Sales -->
+      <button 
+        class="nav-tab sales-tab"
+        :class="{ active: store.activeModal === 'sales_records' }"
+        @click="store.activeModal = 'sales_records'"
+        :title="store.canRecordSales ? 'My Sales Records' : 'Sales Records & History'"
+      >
+        <Receipt :size="16" />
+        <span>{{ store.canRecordSales ? 'My Sales' : 'Sales Records' }}</span>
+      </button>
+
       <!-- BAR SPECIFIC: Open Tabs -->
       <button 
         v-if="store.activeUnit === 'bar'"
@@ -105,13 +116,38 @@ const unitBadgeColor = computed(() => {
 
       <!-- STATIONERY SPECIFIC: Suppliers & Goods Receiving -->
       <button 
-        v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
+        v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all' || store.hasInventoryAccess"
         class="nav-tab"
         :class="{ active: store.activeModal === 'suppliers' }"
         @click="store.activeModal = 'suppliers'"
       >
         <Truck :size="16" />
         <span>Suppliers (PO)</span>
+      </button>
+
+      <!-- Inventory & Stock Control (Stock Clerk, Managers, Owner) -->
+      <button 
+        v-if="store.hasInventoryAccess"
+        class="nav-tab stock-tab"
+        :class="{ active: store.activeModal === 'stock_inventory' }"
+        @click="store.activeModal = 'stock_inventory'"
+        title="Live Inventory, Goods Receiving & Physical Counts"
+      >
+        <Boxes :size="16" />
+        <span>Stock Control</span>
+      </button>
+
+      <!-- Drink & Product Catalog Registration (Managers & Owner) -->
+      <button 
+        v-if="store.isBarManager || store.isStationeryManager || store.isOwner"
+        class="nav-tab catalog-tab"
+        :class="{ active: store.activeModal === 'catalog_management' }"
+        @click="store.activeModal = 'catalog_management'"
+        :title="store.activeUnit === 'bar' ? 'Drink Registration & Catalog Management' : 'Product Registration & Catalog Management'"
+      >
+        <Wine v-if="store.activeUnit === 'bar'" :size="16" />
+        <BookOpen v-else :size="16" />
+        <span>{{ store.activeUnit === 'bar' ? 'Drink Registration' : 'Product Registration' }}</span>
       </button>
 
       <!-- Shift Status -->
@@ -173,12 +209,27 @@ const unitBadgeColor = computed(() => {
 
     <!-- Right Profile & Logout -->
     <div class="nav-right">
-      <div v-if="store.user" class="user-pill">
+      <!-- Theme Appearance Switcher (Light / Dark) -->
+      <button 
+        class="btn-theme-toggle-header"
+        @click="store.toggleTheme()"
+        :title="store.theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+      >
+        <Sun v-if="store.theme === 'dark'" :size="18" class="theme-icon sun-icon" />
+        <Moon v-else :size="18" class="theme-icon moon-icon" />
+      </button>
+
+      <div 
+        v-if="store.user" 
+        class="user-pill user-pill-clickable"
+        @click="store.activeModal = 'account_settings'"
+        title="Open Account Settings & Profile"
+      >
         <div class="user-avatar">
           <UserIcon :size="16" />
         </div>
         <div class="user-details">
-          <div class="user-name">{{ store.user.first_name || store.user.username }}</div>
+          <div class="user-name">@{{ store.user.username }}</div>
           <div class="user-role">{{ currentRoleLabel }}</div>
         </div>
       </div>
@@ -421,6 +472,17 @@ const unitBadgeColor = computed(() => {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.user-pill-clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.user-pill-clickable:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.4);
+  transform: translateY(-1px);
+}
+
 .user-avatar {
   width: 32px;
   height: 32px;
@@ -476,5 +538,43 @@ const unitBadgeColor = computed(() => {
   color: #fff;
   font-weight: 700;
   font-size: 13px;
+}
+
+.catalog-tab {
+  border-bottom: 2px solid transparent;
+}
+
+.catalog-tab:hover, .catalog-tab.active {
+  border-color: #6366f1;
+  color: #a5b4fc;
+}
+
+.btn-theme-toggle-header {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-theme-toggle-header:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.sun-icon {
+  color: #f59e0b;
+}
+
+.moon-icon {
+  color: #818cf8;
 }
 </style>

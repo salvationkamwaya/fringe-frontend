@@ -5,7 +5,8 @@ import api from '../api'
 import {
   Users, UserPlus, Shield, Key, Lock, CheckCircle2,
   XCircle, AlertTriangle, Edit3, RefreshCw, Eye, EyeOff,
-  Search, Filter, X, Wine, BookOpen, Layers, Check
+  Search, Filter, X, Wine, BookOpen, Layers, Check,
+  RotateCcw, Copy
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['close'])
@@ -20,7 +21,18 @@ const filterRole = ref('all')
 const showCreateDrawer = ref(false)
 const showRoleModal = ref(false)
 const showPinModal = ref(false)
+const showResetTokenModal = ref(false)
 const activeStaff = ref(null)
+
+// Owner-Assisted Reset Token Data
+const resetTokenData = ref({
+  username: '',
+  fullName: '',
+  token: '',
+  expiresAt: '',
+  copied: false,
+  generating: false
+})
 
 // Create Form Data
 const createForm = ref({
@@ -52,7 +64,7 @@ const pinSubmitting = ref(false)
 
 // Role configurations & metadata
 const roleOptions = [
-  { value: 'owner', label: 'Owner (Dr. Mitu)', unit: null, badgeClass: 'role-owner' },
+  { value: 'owner', label: 'Business Owner', unit: null, badgeClass: 'role-owner' },
   { value: 'bar_manager', label: 'Bar Manager', unit: 'bar', badgeClass: 'role-bar-mgr' },
   { value: 'bartender', label: 'Bartender / Cashier', unit: 'bar', badgeClass: 'role-bartender' },
   { value: 'stationery_manager', label: 'Stationery Manager', unit: 'stationery', badgeClass: 'role-stat-mgr' },
@@ -280,6 +292,49 @@ const handleToggleActive = async (staff) => {
   }
 }
 
+// Generate Temporary Reset Token (Owner-Assisted Forgot Password)
+const handleGenerateResetToken = async (staff) => {
+  if (staff.role === 'owner') {
+    store.showToast('Reset tokens are for employee recovery.', 'warning')
+    return
+  }
+
+  resetTokenData.value = {
+    username: staff.username,
+    fullName: staff.first_name ? `${staff.first_name} ${staff.last_name || ''}`.trim() : staff.username,
+    token: '',
+    expiresAt: '',
+    copied: false,
+    generating: true
+  }
+  showResetTokenModal.value = true
+
+  try {
+    const res = await api.post(`/core/users/${staff.id}/generate_reset_token/`)
+    resetTokenData.value.token = res.data.token
+    resetTokenData.value.expiresAt = res.data.expires_at
+    store.showToast(`Reset Token generated for @${staff.username}`, 'success')
+  } catch (err) {
+    store.showToast(err.response?.data?.error || 'Failed to generate reset token.', 'error')
+    showResetTokenModal.value = false
+  } finally {
+    resetTokenData.value.generating = false
+  }
+}
+
+const copyResetToken = async () => {
+  try {
+    await navigator.clipboard.writeText(resetTokenData.value.token)
+    resetTokenData.value.copied = true
+    store.showToast('Reset Token copied to clipboard!', 'info')
+    setTimeout(() => {
+      resetTokenData.value.copied = false
+    }, 3000)
+  } catch (err) {
+    store.showToast(`Token: ${resetTokenData.value.token}`, 'info')
+  }
+}
+
 onMounted(() => {
   fetchUsers()
 })
@@ -313,7 +368,7 @@ onMounted(() => {
       <div v-if="!store.isOwner" class="denied-box">
         <AlertTriangle :size="32" class="denied-icon" />
         <h4>Access Restricted: Business Owner Privilege Required</h4>
-        <p>Only Dr. Mitu (Business Owner) has permission to manage staff accounts and assign roles.</p>
+        <p>Only the Business Owner has permission to manage staff accounts and assign roles.</p>
         <button class="btn-primary" @click="$emit('close')">Return to POS</button>
       </div>
 
@@ -432,7 +487,7 @@ onMounted(() => {
                     <div class="user-name-col">
                       <div class="user-fullname">
                         {{ user.first_name ? `${user.first_name} ${user.last_name || ''}` : user.username }}
-                        <span v-if="user.role === 'owner'" class="crown-tag">👑 Owner</span>
+                        <span v-if="user.role === 'owner'" class="crown-tag">👑 Business Owner</span>
                       </div>
                       <div class="user-subtext">@{{ user.username }} &bull; {{ user.email || 'No email' }}</div>
                     </div>
@@ -498,6 +553,17 @@ onMounted(() => {
                       <span>PIN</span>
                     </button>
 
+                    <!-- Owner-Assisted Reset Token -->
+                    <button 
+                      v-if="user.role !== 'owner'"
+                      class="btn-action token" 
+                      @click="handleGenerateResetToken(user)"
+                      title="Generate temporary Owner Reset Token for employee password recovery"
+                    >
+                      <RotateCcw :size="14" />
+                      <span>Token</span>
+                    </button>
+
                     <!-- Toggle Status -->
                     <button 
                       v-if="user.role !== 'owner'"
@@ -527,7 +593,7 @@ onMounted(() => {
                 <UserPlus :size="20" class="drawer-icon" />
                 <div>
                   <h4 class="drawer-title">Register New Staff Account</h4>
-                  <p class="drawer-sub">Owner Authorization: Assign role, credentials, and business unit.</p>
+                  <p class="drawer-sub">Business Owner Authorization: Assign role, credentials, and business unit.</p>
                 </div>
               </div>
               <button class="btn-close" @click="showCreateDrawer = false"><X :size="18" /></button>
@@ -718,6 +784,62 @@ onMounted(() => {
           </div>
         </div>
       </transition>
+
+      <!-- Sub-Modal: Owner-Assisted Password Reset Token Dialog -->
+      <transition name="fade">
+        <div v-if="showResetTokenModal" class="submodal-overlay" @click.self="showResetTokenModal = false">
+          <div class="submodal-card token-modal-card">
+            <div class="submodal-header">
+              <div class="submodal-title-group">
+                <RotateCcw :size="18" class="text-amber" />
+                <h4>Employee Password Reset Token</h4>
+              </div>
+              <button class="btn-close" @click="showResetTokenModal = false"><X :size="16" /></button>
+            </div>
+            <div class="submodal-body">
+              <div v-if="resetTokenData.generating" class="token-loading-box">
+                <RefreshCw :size="24" class="spin-anim text-amber" />
+                <p>Generating secure single-use token for @{{ resetTokenData.username }}...</p>
+              </div>
+              <div v-else>
+                <p class="target-user-info">
+                  Owner-issued password reset token for <strong>@{{ resetTokenData.username }}</strong> ({{ resetTokenData.fullName }}):
+                </p>
+
+                <!-- Token Display Box -->
+                <div class="token-code-card">
+                  <div class="token-code-display">
+                    <span class="token-label">RESET TOKEN:</span>
+                    <span class="token-code-text">{{ resetTokenData.token }}</span>
+                  </div>
+                  <button class="btn-copy-token" @click="copyResetToken" :title="resetTokenData.copied ? 'Copied!' : 'Copy Token'">
+                    <Check v-if="resetTokenData.copied" :size="16" class="text-emerald" />
+                    <Copy v-else :size="16" />
+                    <span>{{ resetTokenData.copied ? 'Copied!' : 'Copy Token' }}</span>
+                  </button>
+                </div>
+
+                <div class="token-instructions">
+                  <h6>Next Steps for Employee:</h6>
+                  <ol>
+                    <li>Give this token to <strong>@{{ resetTokenData.username }}</strong>.</li>
+                    <li>On the Sign In page, the employee clicks <strong>Forgot Password?</strong>.</li>
+                    <li>They choose the <strong>Owner Reset Token</strong> option.</li>
+                    <li>They enter this token along with their new password to regain access.</li>
+                  </ol>
+                  <div class="token-warning">
+                    <AlertTriangle :size="14" class="text-amber" />
+                    <span>Valid for 24 hours. Token is single-use and invalidated immediately upon password change.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="submodal-footer">
+              <button class="btn-cancel" @click="showResetTokenModal = false">Done / Close</button>
+            </div>
+          </div>
+        </div>
+      </transition>
     </div>
   </div>
 </template>
@@ -733,6 +855,7 @@ onMounted(() => {
   justify-content: center;
   z-index: 1000;
   padding: 1.5rem;
+  overflow-y: auto;
 }
 
 .modal-card {
@@ -741,7 +864,7 @@ onMounted(() => {
   border-radius: 16px;
   width: 100%;
   max-width: 1100px;
-  max-height: 90vh;
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
@@ -829,6 +952,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Stats Row */
@@ -1001,7 +1126,9 @@ onMounted(() => {
 .table-container {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  overflow: hidden;
+  overflow-y: auto;
+  max-height: 52vh;
+  min-height: 260px;
   background: rgba(0, 0, 0, 0.2);
 }
 
@@ -1012,7 +1139,10 @@ onMounted(() => {
 }
 
 .staff-table th {
-  background: rgba(255, 255, 255, 0.03);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #111827;
   padding: 0.85rem 1rem;
   font-size: 0.75rem;
   font-weight: 600;
@@ -1165,6 +1295,7 @@ onMounted(() => {
 }
 .btn-action.edit:hover { border-color: #a855f7; color: #d8b4fe; }
 .btn-action.pin:hover { border-color: #f59e0b; color: #fbbf24; }
+.btn-action.token:hover { border-color: #f59e0b; color: #fbbf24; background: rgba(245, 158, 11, 0.1); }
 .btn-action.suspend:hover { border-color: #ef4444; color: #f87171; background: rgba(239, 68, 68, 0.1); }
 .btn-action.activate:hover { border-color: #10b981; color: #34d399; background: rgba(16, 185, 129, 0.1); }
 
@@ -1431,5 +1562,103 @@ onMounted(() => {
 }
 .drawer-slide-enter-from .drawer-card, .drawer-slide-leave-to .drawer-card {
   transform: translateX(100%);
+}
+
+.token-modal-card {
+  max-width: 500px;
+}
+
+.token-code-card {
+  margin: 16px 0;
+  padding: 16px 20px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px dashed rgba(245, 158, 11, 0.4);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.token-code-display {
+  display: flex;
+  flex-direction: column;
+}
+
+.token-label {
+  font-size: 0.7rem;
+  color: #fbbf24;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.token-code-text {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 2px;
+  font-family: monospace;
+}
+
+.btn-copy-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-copy-token:hover {
+  background: rgba(245, 158, 11, 0.3);
+  color: #ffffff;
+}
+
+.token-instructions {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 12px;
+}
+
+.token-instructions h6 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin-bottom: 8px;
+}
+
+.token-instructions ol {
+  padding-left: 20px;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+.token-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.72rem;
+  color: #fbbf24;
+}
+
+.token-loading-box {
+  padding: 30px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #cbd5e1;
 }
 </style>

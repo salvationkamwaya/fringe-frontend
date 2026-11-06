@@ -5,7 +5,8 @@ import api from '../api'
 import { 
   Wine, Beer, GlassWater, Sparkles, Search, Plus, Minus, 
   Trash2, AlertTriangle, ShieldAlert, ShieldCheck, CreditCard, Banknote, 
-  Smartphone, Split, Layers, Percent, CheckCircle
+  Smartphone, Split, Layers, Percent, CheckCircle, Boxes, Receipt,
+  BookmarkCheck, X
 } from 'lucide-vue-next'
 
 const categories = ref([])
@@ -102,6 +103,52 @@ const handleProceedToPayment = (mode = 'CASH') => {
 
   // 2. Open Payment Modal
   store.activeModal = 'payment'
+}
+
+const isSavingRound = ref(false)
+
+// Save Round to Tab without requiring immediate checkout
+const handleSaveRoundToTab = async () => {
+  if (!store.canRecordSales) {
+    store.showToast('Sales recording is strictly reserved for frontline Bartenders.', 'warning')
+    return
+  }
+  if (!store.selectedTab) return
+  if (store.cart.length === 0) {
+    store.showToast('Cart is empty. Add drinks to save round to tab.', 'warning')
+    return
+  }
+
+  // Mandatory age check if alcohol is present
+  if (store.cartHasAlcohol && !store.isAgeVerified) {
+    store.activeModal = 'age_verification'
+    return
+  }
+
+  isSavingRound.value = true
+  try {
+    const payload = {
+      items: store.cart.map(item => ({
+        product_id: item.product.id,
+        quantity: item.quantity,
+        is_pack_sale: true
+      })),
+      payments: [],
+      tab_id: store.selectedTab.id,
+      shift_id: store.activeShift?.id || null,
+      is_age_verified: store.isAgeVerified,
+      discount_amount: 0
+    }
+    await api.post('/pos/orders/', payload)
+    const count = store.cartItemCount
+    const tabName = store.selectedTab.tab_name
+    store.showToast(`Round of ${count} drink(s) saved to Tab '${tabName}'!`, 'success')
+    store.clearCart()
+  } catch (err) {
+    store.showToast(err.response?.data?.error || 'Failed to save round to tab.', 'error')
+  } finally {
+    isSavingRound.value = false
+  }
 }
 
 onMounted(() => {
@@ -205,29 +252,61 @@ onMounted(() => {
             <span class="item-count">{{ store.cartItemCount }} items</span>
             <span v-if="store.selectedTab" class="tab-indicator">
               &bull; Tab: <strong>{{ store.selectedTab.tab_name }}</strong>
+              <button 
+                class="btn-deselect-tab" 
+                @click="store.selectedTab = null; store.showToast('Switched to Walk-in Cash Sale mode', 'info')" 
+                title="Deselect tab for Walk-in Cash Sale"
+              >
+                <X :size="11" />
+                <span>Walk-in</span>
+              </button>
+            </span>
+            <span v-else class="walkin-tag">
+              &bull; Walk-in Sale
             </span>
           </div>
         </div>
 
-        <button 
-          v-if="store.cart.length > 0" 
-          class="btn-clear-cart"
-          title="Clear Cart"
-          @click="store.clearCart"
-        >
-          <Trash2 :size="16" />
-        </button>
+        <div class="cart-header-actions">
+          <button 
+            class="btn-quick-sales"
+            :title="store.isManagerOrOwner ? 'View Sales Records' : 'View My Sold Drinks & Transactions'"
+            @click="store.activeModal = 'sales_records'"
+          >
+            <Receipt :size="14" />
+            <span>{{ store.isManagerOrOwner ? 'Sales Records' : 'My Sales' }}</span>
+          </button>
+
+          <button 
+            v-if="store.cart.length > 0" 
+            class="btn-clear-cart"
+            title="Clear Cart"
+            @click="store.clearCart"
+          >
+            <Trash2 :size="16" />
+          </button>
+        </div>
       </div>
 
-      <!-- Management Oversight Banner -->
-      <div v-if="!store.canRecordSales" class="management-oversight-banner">
-        <ShieldCheck :size="20" class="oversight-icon" />
+      <!-- Role Oversight / Stock Clerk Banner -->
+      <div v-if="!store.canRecordSales" class="management-oversight-banner" :class="{ 'clerk-banner': store.isStockClerk }">
+        <Boxes v-if="store.isStockClerk" :size="20" class="oversight-icon" />
+        <ShieldCheck v-else :size="20" class="oversight-icon" />
         <div class="oversight-text">
-          <div class="oversight-title">Management Oversight Mode</div>
+          <div class="oversight-title">{{ store.isStockClerk ? 'Stock Clerk Inventory Mode' : 'Management Oversight Mode' }}</div>
           <div class="oversight-desc">
-            Signed in as <strong>{{ store.user?.first_name || store.user?.username }} ({{ store.user?.role?.toUpperCase() }})</strong>.
-            Sales recording is reserved for frontline Bartenders. Use the left sidebar to access Reports, Stock, Shift Oversight, and Audits.
+            Signed in as <strong>@{{ store.user?.username }} ({{ store.user?.role?.toUpperCase() }})</strong>.
+            <span v-if="store.isStockClerk">
+              Inventory custody & goods receiving. Point-of-sale customer sales are handled by frontline Bartenders.
+            </span>
+            <span v-else>
+              Sales recording is reserved for frontline Bartenders. Use the left sidebar to access Reports, Stock, Shift Oversight, and Audits.
+            </span>
           </div>
+          <button v-if="store.isStockClerk" class="btn-banner-action" @click="store.activeModal = 'stock_inventory'">
+            <Boxes :size="14" />
+            <span>Open Inventory & Stock Control</span>
+          </button>
         </div>
       </div>
 
@@ -298,6 +377,31 @@ onMounted(() => {
             <span>Total Due:</span>
             <span class="total-val">TSH {{ store.cartSubtotal.toFixed(2) }}</span>
           </div>
+        </div>
+
+        <!-- If Tab is active: Save Round to Tab action -->
+        <div v-if="store.selectedTab" class="tab-round-box">
+          <div class="tab-round-header">
+            <div class="round-desc">
+              <BookmarkCheck :size="15" class="text-amber" />
+              <span>Target: <strong>{{ store.selectedTab.tab_name }}</strong></span>
+            </div>
+            <button 
+              class="btn-switch-walkin" 
+              @click="store.selectedTab = null; store.showToast('Switched to Walk-in Cash Sale mode', 'info')"
+              title="Deselect tab to sell to walk-in customer"
+            >
+              Switch to Walk-in
+            </button>
+          </div>
+          <button 
+            class="btn-save-round"
+            :disabled="store.cart.length === 0 || !store.canRecordSales || isSavingRound"
+            @click="handleSaveRoundToTab"
+          >
+            <BookmarkCheck :size="17" />
+            <span>{{ isSavingRound ? 'Saving to Tab...' : `Save Round to ${store.selectedTab.tab_name}` }}</span>
+          </button>
         </div>
 
         <!-- Touch Checkout Buttons -->
@@ -591,6 +695,138 @@ onMounted(() => {
   color: #fbbf24;
 }
 
+.tab-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-deselect-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-deselect-tab:hover {
+  background: rgba(239, 68, 68, 0.35);
+  color: #fff;
+}
+
+.walkin-tag {
+  color: #94a3b8;
+  font-size: 11.5px;
+}
+
+.tab-round-box {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.tab-round-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.round-desc {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #e2e8f0;
+}
+
+.round-desc strong {
+  color: #fbbf24;
+}
+
+.btn-switch-walkin {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-switch-walkin:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.btn-save-round {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+  transition: all 0.2s;
+}
+
+.btn-save-round:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.5);
+}
+
+.btn-save-round:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cart-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-quick-sales {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-quick-sales:hover {
+  background: rgba(245, 158, 11, 0.28);
+  border-color: #f59e0b;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
 .btn-clear-cart {
   padding: 6px 10px;
   border-radius: 8px;
@@ -635,6 +871,40 @@ onMounted(() => {
 
 .oversight-desc {
   color: #cbd5e1;
+}
+
+.management-oversight-banner.clerk-banner {
+  background: rgba(99, 102, 241, 0.12);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+  color: #c7d2fe;
+}
+
+.management-oversight-banner.clerk-banner .oversight-icon {
+  color: #a5b4fc;
+}
+
+.management-oversight-banner.clerk-banner .oversight-title {
+  color: #c7d2fe;
+}
+
+.btn-banner-action {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #6366f1;
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-banner-action:hover {
+  background: #4f46e5;
 }
 
 .alcohol-cart-warning {
