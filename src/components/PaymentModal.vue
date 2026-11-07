@@ -2,15 +2,17 @@
 import { ref, computed } from 'vue'
 import { store } from '../store'
 import api from '../api'
-import { Banknote, Smartphone, Split, CheckCircle2, X, AlertCircle, CreditCard } from 'lucide-vue-next'
+import { Banknote, Smartphone, Split, CheckCircle2, X, AlertCircle, CreditCard, Building2, FileText } from 'lucide-vue-next'
 
 const emit = defineEmits(['order-completed', 'close'])
 
 const totalDue = computed(() => store.cartSubtotal)
 
-const paymentMode = ref(store.selectedCustomer ? 'CREDIT' : 'CASH') // 'CASH' | 'MOBILE_MONEY' | 'SPLIT' | 'CREDIT'
+const paymentMode = ref(store.selectedCustomer ? 'CREDIT' : 'CASH') // 'CASH' | 'MOBILE_MONEY' | 'CARD' | 'TRANSFER' | 'SPLIT' | 'CREDIT'
 const cashTendered = ref(totalDue.value)
 const mobileRef = ref('')
+const cardRef = ref('')
+const bankTransferRef = ref('')
 const mobileAmount = ref(0)
 const splitCashAmount = ref(Math.floor(totalDue.value / 2))
 const splitMobileAmount = ref(totalDue.value - splitCashAmount.value)
@@ -60,6 +62,18 @@ const handlePayment = async () => {
         amount: totalDue.value,
         reference: mobileRef.value
       })
+    } else if (paymentMode.value === 'CARD') {
+      payments.push({
+        payment_method: 'CARD',
+        amount: totalDue.value,
+        reference: cardRef.value || 'POS-CARD'
+      })
+    } else if (paymentMode.value === 'TRANSFER') {
+      payments.push({
+        payment_method: 'TRANSFER',
+        amount: totalDue.value,
+        reference: bankTransferRef.value || 'BANK-TRANSFER'
+      })
     } else if (paymentMode.value === 'SPLIT') {
       const splitTotal = Number(splitCashAmount.value) + Number(splitMobileAmount.value)
       if (splitTotal < totalDue.value) {
@@ -90,7 +104,8 @@ const handlePayment = async () => {
       items: store.cart.map(item => ({
         product_id: item.product.id,
         quantity: item.quantity,
-        is_pack_sale: item.is_pack_sale !== undefined ? item.is_pack_sale : true
+        is_pack_sale: item.is_pack_sale !== undefined ? item.is_pack_sale : true,
+        unit_price: item.unit_price,
       })),
       payments,
       customer_id: store.selectedCustomer?.id || null,
@@ -99,10 +114,14 @@ const handlePayment = async () => {
       shift_id: store.activeShift?.id || null,
       is_age_verified: store.isAgeVerified,
       discount_amount: 0,
+      order_type: store.activeUnit === 'stationery' ? (store.stationeryMode || 'RETAIL') : 'RETAIL',
+      quotation_id: store.activeQuotationId || null,
     }
 
     const response = await api.post('/pos/orders/', payload)
     completedOrder.value = response.data
+    store.activeQuotationId = null
+    store.playSound('success')
     store.showToast(`Order #${response.data.order_number} Completed!`, 'success')
     emit('order-completed', response.data)
   } catch (err) {
@@ -148,6 +167,14 @@ const finishSale = () => {
           </div>
         </div>
 
+        <div v-if="completedOrder.order_number && completedOrder.order_number.includes('-WS-')" class="wholesale-action-banner">
+          <div class="ws-tag">🏢 B2B Wholesale Sale Completed</div>
+          <button class="btn-wholesale-open" @click="store.activeModal = 'wholesale_docs'">
+            <FileText :size="16" />
+            <span>Generate Wholesale Tax Invoice & Delivery Note</span>
+          </button>
+        </div>
+
         <button class="btn-new-sale" @click="finishSale">
           Start Next Sale
         </button>
@@ -191,6 +218,24 @@ const finishSale = () => {
             >
               <Smartphone :size="18" />
               <span>Mobile Money</span>
+            </button>
+
+            <button 
+              class="tab-btn" 
+              :class="{ active: paymentMode === 'CARD' }"
+              @click="paymentMode = 'CARD'"
+            >
+              <CreditCard :size="18" />
+              <span>Bank Card</span>
+            </button>
+
+            <button 
+              class="tab-btn" 
+              :class="{ active: paymentMode === 'TRANSFER' }"
+              @click="paymentMode = 'TRANSFER'"
+            >
+              <Building2 :size="18" />
+              <span>Bank Transfer</span>
             </button>
 
             <button 
@@ -263,6 +308,38 @@ const finishSale = () => {
                 class="ref-input"
                 required
               />
+            </div>
+          </div>
+
+          <!-- CARD MODE -->
+          <div v-else-if="paymentMode === 'CARD'" class="tender-body">
+            <div class="form-group">
+              <label>Bank Card Terminal (POS) Reference / Slip #:</label>
+              <input 
+                v-model="cardRef" 
+                type="text" 
+                placeholder="e.g. VISA-CRDB-9281 or Slip Approval #"
+                class="ref-input"
+              />
+            </div>
+            <div class="card-hint">
+              <span>Card terminal receipt should be filed with the end-of-shift register reconciliation.</span>
+            </div>
+          </div>
+
+          <!-- BANK TRANSFER MODE -->
+          <div v-else-if="paymentMode === 'TRANSFER'" class="tender-body">
+            <div class="form-group">
+              <label>Bank Wire / EFT Reference / Cheque #:</label>
+              <input 
+                v-model="bankTransferRef" 
+                type="text" 
+                placeholder="e.g. EFT-CRDB-829103 or Cheque #"
+                class="ref-input"
+              />
+            </div>
+            <div class="card-hint">
+              <span>Wholesale direct bank deposits require bank notification or slip copy.</span>
             </div>
           </div>
 
@@ -855,5 +932,50 @@ const finishSale = () => {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.wholesale-action-banner {
+  background: rgba(37, 99, 235, 0.12);
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.ws-tag {
+  font-size: 12px;
+  font-weight: 700;
+  color: #93c5fd;
+}
+
+.btn-wholesale-open {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.btn-wholesale-open:hover {
+  background: #1d4ed8;
+}
+
+.card-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 6px;
+  font-style: italic;
 }
 </style>

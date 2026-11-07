@@ -5,7 +5,8 @@ import api from '../api'
 import { 
   Search, Barcode, ShoppingCart, Trash2, Plus, Minus, 
   Package, Layers, UserCheck, AlertTriangle, CheckCircle2,
-  Sparkles, CreditCard, ChevronRight, X, UserPlus, BookOpen, ShieldCheck, Boxes, Receipt
+  Sparkles, CreditCard, ChevronRight, X, UserPlus, BookOpen, ShieldCheck, Boxes, Receipt,
+  PauseCircle, PlayCircle, Clock, FileText, RotateCcw, DollarSign, Truck, FileSpreadsheet, Building
 } from 'lucide-vue-next'
 
 const products = ref([])
@@ -18,6 +19,21 @@ const loading = ref(false)
 
 const showCustomerPicker = ref(false)
 const customerSearch = ref('')
+
+// Hold Sale Drawer & Notes Modal
+const showHeldSalesDrawer = ref(false)
+const showHoldNoteModal = ref(false)
+const holdCustomNote = ref('')
+
+// Selling mode toggle (Retail vs Wholesale)
+const setSellingMode = (mode) => {
+  store.stationeryMode = mode
+  if (mode === 'WHOLESALE') {
+    store.showToast('🏢 Wholesale B2B Mode Active. 15% wholesale tier pricing applied. Registered customer required.', 'info')
+  } else {
+    store.showToast('🛒 Retail Walk-in Mode Active. Standard retail counter pricing applied.', 'info')
+  }
+}
 
 // Fetch catalog and categories for Stationery
 const fetchCatalog = async () => {
@@ -65,13 +81,59 @@ const filteredProducts = computed(() => {
   })
 })
 
-// Add product to cart with role enforcement
+// Add product to cart with role enforcement & wholesale pricing
 const handleAddToCart = (prod, qty = 1, isPack = true) => {
   if (!store.canRecordSales) {
     store.showToast('Sales recording is strictly reserved for frontline Stationery Cashiers. Managers and Owners perform oversight and reporting only.', 'warning')
     return
   }
-  store.addToCart(prod, qty, isPack)
+
+  // Calculate price (Wholesale 15% discount if wholesale mode is active)
+  let customPrice = null
+  if (store.stationeryMode === 'WHOLESALE') {
+    if (isPack) {
+      customPrice = parseFloat((parseFloat(prod.selling_price) * 0.85).toFixed(2))
+    } else if (prod.allow_split_sale) {
+      const baseSplit = prod.split_unit_price || (prod.selling_price / prod.pack_unit_ratio)
+      customPrice = parseFloat((parseFloat(baseSplit) * 0.85).toFixed(2))
+    }
+  }
+
+  store.addToCart(prod, qty, isPack, customPrice)
+}
+
+// Hold sale handlers
+const openHoldDialog = () => {
+  if (store.cart.length === 0) {
+    store.showToast('Order ticket is empty. Nothing to suspend.', 'warning')
+    return
+  }
+  holdCustomNote.value = store.selectedCustomer ? `Order for ${store.selectedCustomer.name}` : ''
+  showHoldNoteModal.value = true
+}
+
+const confirmHoldSale = () => {
+  store.holdCurrentSale(holdCustomNote.value)
+  showHoldNoteModal.value = false
+  holdCustomNote.value = ''
+}
+
+const resumeSale = (heldId) => {
+  store.resumeHeldSale(heldId)
+  showHeldSalesDrawer.value = false
+}
+
+const discardSale = (heldId) => {
+  store.discardHeldSale(heldId)
+}
+
+// Save current cart as quotation
+const saveAsQuotation = () => {
+  if (store.cart.length === 0) {
+    store.showToast('Add items to cart before creating a quotation.', 'warning')
+    return
+  }
+  store.activeModal = 'quotations'
 }
 
 // Barcode scan handler (Enter key on barcode input)
@@ -91,8 +153,7 @@ const handleBarcodeScan = () => {
   )
 
   if (found) {
-    // Default to pack sale if is_pack, or piece
-    store.addToCart(found, 1, true)
+    handleAddToCart(found, 1, true)
     store.showToast(`Scanned: ${found.name}`, 'success')
     barcodeInput.value = ''
   } else {
@@ -130,6 +191,14 @@ const proceedToCheckout = () => {
   }
 
   if (store.cart.length === 0) return
+
+  // F5 Wholesale mode requires selecting a registered customer
+  if (store.stationeryMode === 'WHOLESALE' && !store.selectedCustomer) {
+    store.showToast('Wholesale orders require selecting a registered customer (school, business, or shop).', 'warning')
+    showCustomerPicker.value = true
+    return
+  }
+
   if (!store.activeShift) {
     store.showToast('Please open a register shift before processing sales.', 'warning')
     store.activeModal = 'shift'
@@ -143,6 +212,69 @@ const proceedToCheckout = () => {
   <div class="stationery-workspace">
     <!-- LEFT PANEL: Catalog, Search & Barcode -->
     <section class="catalog-section">
+      <!-- SELLING MODE TOGGLE & QUICK ACTIONS TOOLBAR -->
+      <div class="pos-top-toolbar">
+        <div class="selling-mode-toggle">
+          <button 
+            class="mode-btn" 
+            :class="{ active: store.stationeryMode === 'RETAIL' }"
+            @click="setSellingMode('RETAIL')"
+          >
+            <ShoppingCart :size="15" />
+            <span>Walk-in Retail</span>
+          </button>
+          <button 
+            class="mode-btn wholesale-btn" 
+            :class="{ active: store.stationeryMode === 'WHOLESALE' }"
+            @click="setSellingMode('WHOLESALE')"
+          >
+            <Building :size="15" />
+            <span>Wholesale B2B (15% Off)</span>
+          </button>
+        </div>
+
+        <div class="quick-nav-actions">
+          <button class="btn-quick-nav" @click="store.activeModal = 'quotations'" title="Wholesale Quotations">
+            <FileText :size="14" class="text-indigo" />
+            <span>Quotations</span>
+          </button>
+          <button class="btn-quick-nav" @click="store.activeModal = 'stationery_returns'" title="Sales Returns & Refunds">
+            <RotateCcw :size="14" class="text-rose" />
+            <span>Returns</span>
+          </button>
+          <button class="btn-quick-nav" @click="store.activeModal = 'expenses'" title="Operating Expenses">
+            <DollarSign :size="14" class="text-amber" />
+            <span>Expenses</span>
+          </button>
+          <button class="btn-quick-nav" @click="store.activeModal = 'barcode_labels'" title="Print Barcode Labels">
+            <Barcode :size="14" class="text-amber" />
+            <span>Barcodes</span>
+          </button>
+          <button class="btn-quick-nav" @click="store.activeModal = 'product_import'" title="Bulk Import Products">
+            <FileSpreadsheet :size="14" class="text-emerald" />
+            <span>Import</span>
+          </button>
+          <button class="btn-quick-nav" @click="store.activeModal = 'wholesale_docs'" title="Wholesale Tax Invoices & Delivery Notes">
+            <Truck :size="14" class="text-blue" />
+            <span>Invoices</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- WHOLESALE MODE ALERT BANNER -->
+      <div v-if="store.stationeryMode === 'WHOLESALE'" class="wholesale-banner">
+        <Building :size="18" class="text-blue" />
+        <div class="ws-banner-text">
+          <strong>Wholesale Selling Mode Active:</strong> Automatic 15% wholesale tier pricing is applied.
+          <span v-if="!store.selectedCustomer" class="ws-alert-highlight">
+            Attach a registered customer before checkout.
+          </span>
+          <span v-else>
+            Invoiced to: <strong>{{ store.selectedCustomer.name }}</strong>.
+          </span>
+        </div>
+      </div>
+
       <!-- Search & Barcode Header Bar -->
       <div class="search-toolbar">
         <!-- Live Search Input -->
@@ -233,7 +365,14 @@ const proceedToCheckout = () => {
 
             <!-- Pricing Breakdown -->
             <div class="price-breakdown">
-              <div class="pack-price-row">
+              <div v-if="store.stationeryMode === 'WHOLESALE'" class="wholesale-price-box">
+                <div class="ws-tag-pill">WHOLESALE 15% OFF</div>
+                <div class="ws-price-row">
+                  <span class="price-amount text-blue">TSH {{ (parseFloat(prod.selling_price) * 0.85).toFixed(2) }}</span>
+                  <span class="retail-cross">TSH {{ parseFloat(prod.selling_price).toFixed(2) }}</span>
+                </div>
+              </div>
+              <div v-else class="pack-price-row">
                 <span class="price-label">{{ prod.is_pack ? `${prod.pack_name || 'Pack'}:` : 'Price:' }}</span>
                 <span class="price-amount">TSH {{ parseFloat(prod.selling_price).toFixed(2) }}</span>
               </div>
@@ -242,7 +381,7 @@ const proceedToCheckout = () => {
               <div v-if="prod.is_pack && prod.allow_split_sale" class="unit-price-row">
                 <span class="price-label">Single {{ prod.unit_name || 'Piece' }}:</span>
                 <span class="unit-amount">
-                  TSH {{ parseFloat(prod.split_unit_price || (prod.selling_price / prod.pack_unit_ratio)).toFixed(2) }}
+                  TSH {{ (store.stationeryMode === 'WHOLESALE' ? ((prod.split_unit_price || (prod.selling_price / prod.pack_unit_ratio)) * 0.85) : (prod.split_unit_price || (prod.selling_price / prod.pack_unit_ratio))).toFixed(2) }}
                 </span>
               </div>
             </div>
@@ -310,13 +449,46 @@ const proceedToCheckout = () => {
         </div>
 
         <div class="ticket-header-actions">
+          <!-- Held Sales Drawer Button -->
+          <button 
+            class="btn-ticket-nav"
+            :class="{ 'has-held-badge': store.currentUnitHeldSales.length > 0 }"
+            :title="`View ${store.currentUnitHeldSales.length} Suspended / Held Tickets`"
+            @click="showHeldSalesDrawer = true"
+          >
+            <Clock :size="13" />
+            <span>Held ({{ store.currentUnitHeldSales.length }})</span>
+          </button>
+
+          <!-- Hold Current Sale Button -->
+          <button 
+            v-if="store.cart.length > 0 && store.canRecordSales"
+            class="btn-ticket-nav btn-hold"
+            title="Suspend / Hold current order ticket"
+            @click="openHoldDialog"
+          >
+            <PauseCircle :size="13" />
+            <span>Hold</span>
+          </button>
+
+          <!-- Create Quotation from Cart -->
+          <button 
+            v-if="store.cart.length > 0"
+            class="btn-ticket-nav btn-quote"
+            title="Save current cart items as formal Quotation"
+            @click="saveAsQuotation"
+          >
+            <FileText :size="13" />
+            <span>Quote</span>
+          </button>
+
           <button 
             class="btn-quick-sales"
             :title="store.isManagerOrOwner ? 'View Sales Records' : 'View My Sold Stationery & Transactions'"
             @click="store.activeModal = 'sales_records'"
           >
             <Receipt :size="14" />
-            <span>{{ store.isManagerOrOwner ? 'Sales Records' : 'My Sales' }}</span>
+            <span>{{ store.isManagerOrOwner ? 'Sales' : 'My Sales' }}</span>
           </button>
 
           <button 
@@ -511,6 +683,102 @@ const proceedToCheckout = () => {
         </div>
       </div>
     </div>
+
+    <!-- HOLD NOTE MODAL -->
+    <div v-if="showHoldNoteModal" class="modal-backdrop" @click.self="showHoldNoteModal = false">
+      <div class="hold-dialog-card">
+        <div class="hold-dialog-header">
+          <div class="dialog-title">
+            <PauseCircle :size="20" class="text-amber" />
+            <h3>Hold Current Sale Ticket</h3>
+          </div>
+          <button class="btn-close-modal" @click="showHoldNoteModal = false">
+            <X :size="18" />
+          </button>
+        </div>
+        <div class="hold-dialog-body">
+          <p class="dialog-desc">This ticket will be safely parked so you can serve the next customer. You can resume it anytime.</p>
+          <label class="field-label">Note or Customer Reference (Optional):</label>
+          <input 
+            v-model="holdCustomNote" 
+            type="text" 
+            placeholder="e.g. Customer fetching cash, or School rep name..." 
+            class="styled-hold-input"
+            @keyup.enter="confirmHoldSale"
+          />
+        </div>
+        <div class="hold-dialog-footer">
+          <button class="btn-cancel-modal" @click="showHoldNoteModal = false">Cancel</button>
+          <button class="btn-confirm-hold" @click="confirmHoldSale">
+            <PauseCircle :size="16" />
+            <span>Confirm & Hold Sale</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HELD TICKETS DRAWER / MODAL -->
+    <div v-if="showHeldSalesDrawer" class="modal-backdrop" @click.self="showHeldSalesDrawer = false">
+      <div class="held-tickets-modal">
+        <div class="held-header">
+          <div class="held-title-box">
+            <Clock :size="20" class="text-amber" />
+            <div>
+              <h3>Suspended & Held Tickets</h3>
+              <p class="subtitle">{{ store.currentUnitHeldSales.length }} order ticket(s) currently parked</p>
+            </div>
+          </div>
+          <button class="btn-close-modal" @click="showHeldSalesDrawer = false">
+            <X :size="18" />
+          </button>
+        </div>
+
+        <div class="held-body-scroll">
+          <div v-if="store.currentUnitHeldSales.length === 0" class="held-empty-state">
+            <Clock :size="40" class="text-muted" />
+            <h4>No Held Tickets</h4>
+            <p>When you hold a sale, it will be kept safely here until you are ready to resume.</p>
+          </div>
+
+          <div v-else class="held-cards-grid">
+            <div v-for="s in store.currentUnitHeldSales" :key="s.id" class="held-ticket-card">
+              <div class="card-top-row">
+                <span class="held-id">{{ s.id }}</span>
+                <span class="held-time">{{ new Date(s.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
+              </div>
+
+              <div class="held-note-box">
+                <strong class="note-text">{{ s.note }}</strong>
+                <span v-if="s.customer" class="cust-tag">{{ s.customer.name }}</span>
+              </div>
+
+              <div class="held-items-preview">
+                <span class="item-count">{{ s.itemCount }} item(s):</span>
+                <span class="items-summary-text">
+                  {{ s.items.map(i => `${i.quantity}x ${i.product.name}`).slice(0, 3).join(', ') }}
+                  <template v-if="s.items.length > 3">...</template>
+                </span>
+              </div>
+
+              <div class="held-total-row">
+                <span class="total-lbl">Total Payable:</span>
+                <span class="total-val">TSH {{ parseFloat(s.total).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
+              </div>
+
+              <div class="held-actions">
+                <button class="btn-resume-ticket" @click="resumeSale(s.id)">
+                  <PlayCircle :size="15" />
+                  <span>Resume Ticket</span>
+                </button>
+                <button class="btn-discard-ticket" @click="discardSale(s.id)" title="Discard suspended ticket">
+                  <Trash2 :size="15" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -530,6 +798,418 @@ const proceedToCheckout = () => {
   flex-direction: column;
   gap: 1rem;
   overflow: hidden;
+}
+
+/* TOP TOOLBAR: SELLING MODE & QUICK ACTIONS */
+.pos-top-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.selling-mode-toggle {
+  display: flex;
+  background: rgba(15, 23, 42, 0.6);
+  padding: 0.25rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 0.35rem;
+}
+
+.mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.825rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-btn.active {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.wholesale-btn.active {
+  background: rgba(59, 130, 246, 0.25) !important;
+  color: #60a5fa !important;
+}
+
+.quick-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.btn-quick-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(30, 41, 59, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.775rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-quick-nav:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.text-indigo { color: #818cf8; }
+.text-rose { color: #fb7185; }
+.text-amber { color: #fbbf24; }
+.text-emerald { color: #34d399; }
+.text-blue { color: #60a5fa; }
+
+/* WHOLESALE ALERT BANNER */
+.wholesale-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(37, 99, 235, 0.12);
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+}
+
+.ws-banner-text {
+  font-size: 0.825rem;
+  color: #bfdbfe;
+}
+
+.ws-alert-highlight {
+  color: #facc15;
+  font-weight: 600;
+  margin-left: 0.35rem;
+}
+
+/* WHOLESALE PRICING IN CARDS */
+.wholesale-price-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.ws-tag-pill {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #60a5fa;
+  background: rgba(37, 99, 235, 0.2);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.ws-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.retail-cross {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-decoration: line-through;
+}
+
+/* TICKET HEADER BUTTONS */
+.btn-ticket-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  padding: 0.4rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-ticket-nav:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+}
+
+.has-held-badge {
+  background: rgba(245, 158, 11, 0.2) !important;
+  color: #fbbf24 !important;
+  border-color: #f59e0b !important;
+}
+
+.btn-hold {
+  color: #fbbf24;
+}
+
+.btn-quote {
+  color: #818cf8;
+}
+
+/* HOLD SALE MODAL */
+.hold-dialog-card {
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 480px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.hold-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dialog-title h3 {
+  font-size: 1.1rem;
+  color: #f1f5f9;
+  margin: 0;
+}
+
+.hold-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dialog-desc {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.field-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.styled-hold-input {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: white;
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.styled-hold-input:focus { border-color: #f59e0b; }
+
+.hold-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.btn-cancel-modal {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-confirm-hold {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #d97706;
+  color: white;
+  border: none;
+  padding: 0.55rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-confirm-hold:hover { background: #b45309; }
+
+/* HELD TICKETS MODAL */
+.held-tickets-modal {
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 650px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.held-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.held-title-box {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.held-title-box h3 {
+  font-size: 1.15rem;
+  color: #f1f5f9;
+  margin: 0;
+}
+
+.held-body-scroll {
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.held-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+  color: #64748b;
+}
+
+.held-empty-state h4 {
+  color: #cbd5e1;
+  margin: 0.75rem 0 0.25rem;
+}
+
+.held-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.held-ticket-card {
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.held-id {
+  font-family: monospace;
+  font-weight: 700;
+  color: #fbbf24;
+  font-size: 0.9rem;
+}
+
+.held-time {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.held-note-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.note-text {
+  font-size: 0.9rem;
+  color: #f1f5f9;
+}
+
+.cust-tag {
+  background: rgba(6, 182, 212, 0.15);
+  color: #22d3ee;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.725rem;
+}
+
+.held-items-preview {
+  font-size: 0.785rem;
+  color: #94a3b8;
+}
+
+.held-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.5);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  margin-top: 0.25rem;
+}
+
+.total-lbl { font-size: 0.8rem; color: #94a3b8; }
+.total-val { font-size: 0.95rem; font-weight: 800; color: #38bdf8; }
+
+.held-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.btn-resume-ticket {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: #0284c7;
+  color: white;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.825rem;
+  cursor: pointer;
+}
+
+.btn-resume-ticket:hover { background: #0369a1; }
+
+.btn-discard-ticket {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
 .search-toolbar {

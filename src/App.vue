@@ -22,8 +22,15 @@ import StockControlModal from './components/StockControlModal.vue'
 import CatalogManagementModal from './components/CatalogManagementModal.vue'
 import SalesRecordsModal from './components/SalesRecordsModal.vue'
 import AccountSettingsModal from './components/AccountSettingsModal.vue'
+import ExpensesModal from './components/ExpensesModal.vue'
+import QuotationsModal from './components/QuotationsModal.vue'
+import StationeryReturnsModal from './components/StationeryReturnsModal.vue'
+import WholesaleDocumentsModal from './components/WholesaleDocumentsModal.vue'
+import ProductImportModal from './components/ProductImportModal.vue'
+import BarcodeLabelsModal from './components/BarcodeLabelsModal.vue'
 import IdleTimeoutModal from './components/IdleTimeoutModal.vue'
 import { initIdleTracker } from './idleTracker'
+import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-vue-next'
 
 const checkAuth = async () => {
   if (!store.token) {
@@ -34,6 +41,10 @@ const checkAuth = async () => {
   try {
     const response = await api.get('/auth/me/')
     store.user = response.data.user
+    if (store.user.role !== 'owner' && store.user.business_unit) {
+      store.activeUnit = store.user.business_unit
+      localStorage.setItem('fringe_active_unit', store.activeUnit)
+    }
     localStorage.setItem('fringe_user', JSON.stringify(response.data.user))
     await store.fetchActiveShift()
   } catch (err) {
@@ -143,13 +154,55 @@ onMounted(() => {
       @close="store.activeModal = null"
     />
 
+    <ExpensesModal 
+      v-if="store.activeModal === 'expenses'"
+      @close="store.activeModal = null"
+    />
+
+    <QuotationsModal 
+      v-if="store.activeModal === 'quotations'"
+      @close="store.activeModal = null"
+    />
+
+    <StationeryReturnsModal 
+      v-if="store.activeModal === 'stationery_returns'"
+      @close="store.activeModal = null"
+    />
+
+    <WholesaleDocumentsModal 
+      v-if="store.activeModal === 'wholesale_docs'"
+      @close="store.activeModal = null"
+    />
+
+    <ProductImportModal 
+      v-if="store.activeModal === 'product_import'"
+      @close="store.activeModal = null"
+    />
+
+    <BarcodeLabelsModal 
+      v-if="store.activeModal === 'barcode_labels'"
+      @close="store.activeModal = null"
+    />
+
     <!-- Inactivity Auto-Logout Warning Overlay -->
     <IdleTimeoutModal v-if="store.isIdleWarningActive" />
 
-    <!-- Global Toast Notifications -->
-    <transition name="toast-fade">
-      <div v-if="store.toast.show" class="toast" :class="`toast-${store.toast.type}`">
-        {{ store.toast.message }}
+    <!-- Global Rich Toast Notifications -->
+    <transition name="toast-slide">
+      <div v-if="store.toast.show" class="toast-card" :class="`toast-${store.toast.type}`">
+        <div class="toast-icon-box">
+          <CheckCircle2 v-if="store.toast.type === 'success'" :size="18" />
+          <AlertCircle v-else-if="store.toast.type === 'error'" :size="18" />
+          <AlertTriangle v-else-if="store.toast.type === 'warning'" :size="18" />
+          <Info v-else :size="18" />
+        </div>
+        <div class="toast-body">
+          <div class="toast-title">{{ store.toast.title }}</div>
+          <div class="toast-message">{{ store.toast.message }}</div>
+        </div>
+        <button class="btn-toast-close" @click="store.dismissToast" title="Dismiss notification">
+          <X :size="14" />
+        </button>
       </div>
     </transition>
   </div>
@@ -220,52 +273,161 @@ onMounted(() => {
   font-size: 14px;
 }
 
-/* Global Toast */
-.toast {
+/* Global Rich Toast Notifications */
+.toast-card {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  padding: 14px 20px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 700;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  z-index: 2000;
-  max-width: 400px;
+  min-width: 300px;
+  max-width: 440px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  z-index: 2500;
+  animation: toast-slide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.toast-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-title {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+
+.toast-message {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.btn-toast-close {
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-toast-close:hover {
+  opacity: 1;
+}
+
+/* Toast Color Themes */
 .toast-success {
-  background: #065f46;
-  border: 1px solid #10b981;
-  color: #a7f3d0;
+  background: rgba(6, 78, 59, 0.95);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  color: #ecfdf5;
+}
+.toast-success .toast-icon-box {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+}
+.toast-success .toast-title {
+  color: #6ee7b7;
 }
 
 .toast-error {
-  background: #881337;
-  border: 1px solid #f43f5e;
-  color: #fecdd3;
+  background: rgba(136, 19, 55, 0.95);
+  border: 1px solid rgba(244, 63, 94, 0.5);
+  color: #fff1f2;
+}
+.toast-error .toast-icon-box {
+  background: rgba(244, 63, 94, 0.25);
+  color: #fb7185;
+}
+.toast-error .toast-title {
+  color: #fda4af;
 }
 
 .toast-warning {
-  background: #78350f;
-  border: 1px solid #f59e0b;
+  background: rgba(120, 53, 15, 0.95);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #fffbeb;
+}
+.toast-warning .toast-icon-box {
+  background: rgba(245, 158, 11, 0.25);
+  color: #fbbf24;
+}
+.toast-warning .toast-title {
   color: #fde68a;
 }
 
 .toast-info {
-  background: #1e293b;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  color: #eff6ff;
+}
+.toast-info .toast-icon-box {
+  background: rgba(59, 130, 246, 0.25);
+  color: #60a5fa;
+}
+.toast-info .toast-title {
+  color: #93c5fd;
+}
+
+/* Light Theme Toast Styles */
+:root[data-theme="light"] .toast-success {
+  background: #ffffff;
+  border: 1px solid #10b981;
+  color: #064e3b;
+  box-shadow: 0 16px 36px -4px rgba(16, 185, 129, 0.2), 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+:root[data-theme="light"] .toast-error {
+  background: #ffffff;
+  border: 1px solid #f43f5e;
+  color: #881337;
+  box-shadow: 0 16px 36px -4px rgba(244, 63, 94, 0.2), 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+:root[data-theme="light"] .toast-warning {
+  background: #ffffff;
+  border: 1px solid #f59e0b;
+  color: #78350f;
+  box-shadow: 0 16px 36px -4px rgba(245, 158, 11, 0.2), 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+:root[data-theme="light"] .toast-info {
+  background: #ffffff;
   border: 1px solid #3b82f6;
-  color: #bfdbfe;
+  color: #1e3a8a;
+  box-shadow: 0 16px 36px -4px rgba(59, 130, 246, 0.2), 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.toast-fade-enter-active,
-.toast-fade-leave-active {
-  transition: all 0.3s ease;
+.toast-slide-enter-active,
+.toast-slide-leave-active {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.toast-fade-enter-from,
-.toast-fade-leave-to {
+.toast-slide-enter-from,
+.toast-slide-leave-to {
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(16px) scale(0.95);
 }
 </style>

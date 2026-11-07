@@ -5,10 +5,10 @@ import {
   Wine, BookOpen, Layers, ShieldCheck, Clock, FileText, 
   LogOut, User as UserIcon, ChevronDown, ChevronLeft, ChevronRight,
   Users, Truck, BarChart3, UserCheck, Coins, Sparkles, Boxes, Sun, Moon, PlusCircle, Receipt,
-  Settings
+  Settings, DollarSign, RotateCcw, Barcode
 } from 'lucide-vue-next'
 
-const isCollapsed = ref(false)
+const isCollapsed = ref(typeof window !== 'undefined' ? window.innerWidth <= 900 : false)
 
 const roleLabels = {
   owner: 'Business Owner',
@@ -171,6 +171,66 @@ const toggleCollapse = () => {
           <span v-if="!isCollapsed" class="nav-label">Customers & Credit</span>
         </button>
 
+        <!-- STATIONERY: Quotations & Proformas -->
+        <button 
+          v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
+          class="nav-item"
+          :class="{ active: store.activeModal === 'quotations' }"
+          @click="store.activeModal = 'quotations'"
+          :title="isCollapsed ? 'Wholesale Quotations' : ''"
+        >
+          <FileText :size="18" class="nav-icon text-indigo" />
+          <span v-if="!isCollapsed" class="nav-label">Quotations</span>
+        </button>
+
+        <!-- STATIONERY: Wholesale Invoices & Delivery Notes -->
+        <button 
+          v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
+          class="nav-item"
+          :class="{ active: store.activeModal === 'wholesale_docs' }"
+          @click="store.activeModal = 'wholesale_docs'"
+          :title="isCollapsed ? 'Wholesale Invoices & Delivery Notes' : ''"
+        >
+          <Truck :size="18" class="nav-icon text-blue" />
+          <span v-if="!isCollapsed" class="nav-label">Wholesale Invoices</span>
+        </button>
+
+        <!-- STATIONERY: Sales Returns & Refunds -->
+        <button 
+          v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
+          class="nav-item"
+          :class="{ active: store.activeModal === 'stationery_returns' }"
+          @click="store.activeModal = 'stationery_returns'"
+          :title="isCollapsed ? 'Sales Returns & Refunds' : ''"
+        >
+          <RotateCcw :size="18" class="nav-icon text-rose" />
+          <span v-if="!isCollapsed" class="nav-label">Returns & Refunds</span>
+        </button>
+
+        <!-- Operating Expenses (Managers & Owner) -->
+        <button 
+          v-if="store.isStationeryManager || store.isBarManager || store.isOwner"
+          class="nav-item"
+          :class="{ active: store.activeModal === 'expenses' }"
+          @click="store.activeModal = 'expenses'"
+          :title="isCollapsed ? 'Operating Expenses' : ''"
+        >
+          <DollarSign :size="18" class="nav-icon text-amber" />
+          <span v-if="!isCollapsed" class="nav-label">Operating Expenses</span>
+        </button>
+
+        <!-- STATIONERY: Barcode Labels -->
+        <button 
+          v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
+          class="nav-item"
+          :class="{ active: store.activeModal === 'barcode_labels' }"
+          @click="store.activeModal = 'barcode_labels'"
+          :title="isCollapsed ? 'Barcode Labels' : ''"
+        >
+          <Barcode :size="18" class="nav-icon text-amber" />
+          <span v-if="!isCollapsed" class="nav-label">Barcode Labels</span>
+        </button>
+
         <!-- Inventory & Stock Control (Clerk, Managers, Owner) -->
         <button 
           v-if="store.hasInventoryAccess"
@@ -183,9 +243,9 @@ const toggleCollapse = () => {
           <span v-if="!isCollapsed" class="nav-label">Inventory & Stock</span>
         </button>
 
-        <!-- STATIONERY: Suppliers & PO (Accessible to Clerk, Managers, Owner) -->
+        <!-- Suppliers & Receiving (Accessible to Clerk, Managers, Owner) -->
         <button 
-          v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all' || store.hasInventoryAccess"
+          v-if="store.hasInventoryAccess"
           class="nav-item"
           :class="{ active: store.activeModal === 'suppliers' }"
           @click="store.activeModal = 'suppliers'"
@@ -846,6 +906,35 @@ const toggleCollapse = () => {
   background: linear-gradient(135deg, #f59e0b, #d97706);
   border: none;
   color: #fff;
+}
+
+@media (max-width: 900px) {
+  .sidebar-nav {
+    width: 68px;
+  }
+  .brand-text,
+  .user-info,
+  .unit-context-box,
+  .nav-group-title,
+  .nav-label,
+  .theme-label,
+  .btn-logout span,
+  .btn-login span,
+  .btn-account-settings span {
+    display: none !important;
+  }
+  .user-card {
+    margin: 10px 8px 6px 8px;
+    padding: 8px;
+    justify-content: center;
+  }
+  .btn-toggle {
+    display: none;
+  }
+  .nav-item, .btn-account-settings, .btn-theme-toggle, .btn-logout, .btn-login {
+    justify-content: center;
+    padding: 10px;
+  }
 }
 </style>
 

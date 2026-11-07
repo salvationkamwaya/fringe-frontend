@@ -20,7 +20,18 @@ api.interceptors.request.use((config) => {
     }
   }
 
-  const activeUnit = localStorage.getItem('fringe_active_unit')
+  const storedUser = localStorage.getItem('fringe_user')
+  let activeUnit = localStorage.getItem('fringe_active_unit')
+  if (storedUser) {
+    try {
+      const u = JSON.parse(storedUser)
+      if (u.role !== 'owner' && u.business_unit) {
+        activeUnit = u.business_unit
+      }
+    } catch (e) {
+      // parse fallback
+    }
+  }
   if (activeUnit) {
     config.headers['X-Business-Unit'] = activeUnit
   }

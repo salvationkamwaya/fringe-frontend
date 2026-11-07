@@ -275,6 +275,14 @@ onMounted(() => {
         </button>
         <button 
           class="tab-btn" 
+          :class="{ active: activeTab === 'expenses' }"
+          @click="activeTab = 'expenses'"
+        >
+          <DollarSign :size="15" />
+          <span>Expenses & Net Profit</span>
+        </button>
+        <button 
+          class="tab-btn" 
           :class="{ active: activeTab === 'sales' }"
           @click="activeTab = 'sales'"
         >
@@ -350,6 +358,16 @@ onMounted(() => {
                 <strong class="m-val text-emerald">TSH {{ parseFloat(reportData.end_of_day.gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
                 <span class="m-sub">Margin: <strong>{{ reportData.end_of_day.gross_margin_percent || '0.0%' }}</strong> (COGS: TSH {{ parseFloat(reportData.end_of_day.cogs || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }})</span>
               </div>
+
+              <div class="metric-card net-profit-card">
+                <span class="m-title">Net Operating Profit</span>
+                <strong class="m-val" :class="parseFloat(reportData.end_of_day.net_profit || 0) >= 0 ? 'text-emerald' : 'text-rose'">
+                  TSH {{ parseFloat(reportData.end_of_day.net_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
+                </strong>
+                <span class="m-sub">
+                  Expenses: TSH {{ parseFloat(reportData.end_of_day.total_expenses || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }} (Net: <strong>{{ reportData.end_of_day.net_margin_percent || '0.0%' }}</strong>)
+                </span>
+              </div>
             </div>
 
             <!-- Payment Tenders Breakdown -->
@@ -423,6 +441,108 @@ onMounted(() => {
                   <strong class="ratio-val">TSH {{ parseFloat(reportData.end_of_day.single_sales_rev || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
                   <span class="ratio-sub">{{ reportData.end_of_day.single_sales_count || 0 }} individual pieces sold</span>
                 </div>
+              </div>
+            </div>
+
+            <!-- Retail vs Wholesale Sales Breakdown (F1.2, F4, F5) -->
+            <div class="report-section">
+              <div class="section-title">
+                <Building :size="18" class="text-blue" />
+                <h4>Sales Channels: Walk-in Retail vs B2B Wholesale</h4>
+              </div>
+
+              <div class="split-ratio-grid">
+                <div class="ratio-card">
+                  <div class="ratio-badge retail-badge">WALK-IN RETAIL</div>
+                  <span class="ratio-label">Retail Counter Sales</span>
+                  <strong class="ratio-val">TSH {{ parseFloat(reportData.end_of_day.retail_sales_rev || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                  <span class="ratio-sub">{{ reportData.end_of_day.retail_sales_count || 0 }} retail ticket(s) completed</span>
+                </div>
+
+                <div class="ratio-card">
+                  <div class="ratio-badge wholesale-badge">B2B WHOLESALE</div>
+                  <span class="ratio-label">Wholesale Institutional Sales</span>
+                  <strong class="ratio-val text-blue">TSH {{ parseFloat(reportData.end_of_day.wholesale_sales_rev || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                  <span class="ratio-sub">{{ reportData.end_of_day.wholesale_sales_count || 0 }} bulk order(s) (cartons/boxes)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB: OPERATING EXPENSES & NET PROFIT -->
+          <div v-else-if="activeTab === 'expenses'" class="tab-pane">
+            <div class="expenses-summary-card">
+              <div class="exp-stat-box">
+                <span class="stat-lbl">Total Operating Expenses</span>
+                <strong class="stat-num text-rose">TSH {{ parseFloat(reportData.expenses?.total_expenses || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="stat-sub">{{ reportData.expenses?.count || 0 }} expense transactions recorded</span>
+              </div>
+              <div class="exp-stat-box">
+                <span class="stat-lbl">Gross Profit</span>
+                <strong class="stat-num text-cyan">TSH {{ parseFloat(reportData.end_of_day.gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="stat-sub">Revenue minus COGS</span>
+              </div>
+              <div class="exp-stat-box highlight">
+                <span class="stat-lbl">Net Bottom-Line Profit</span>
+                <strong class="stat-num text-emerald">TSH {{ parseFloat(reportData.end_of_day.net_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="stat-sub">Net Margin: {{ reportData.end_of_day.net_margin_percent || '0.0%' }}</span>
+              </div>
+            </div>
+
+            <!-- Expense Categories Breakdown -->
+            <div class="report-section" v-if="reportData.expenses?.categories && Object.keys(reportData.expenses.categories).length > 0">
+              <div class="section-title">
+                <BarChart3 :size="18" class="text-amber" />
+                <h4>Expenses by Category</h4>
+              </div>
+              <div class="cat-expense-bars">
+                <div v-for="(amt, cat) in reportData.expenses.categories" :key="cat" class="cat-bar-row">
+                  <div class="cat-bar-info">
+                    <span class="cat-name">{{ cat }}</span>
+                    <strong class="cat-amt">TSH {{ parseFloat(amt).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                  </div>
+                  <div class="bar-track">
+                    <div 
+                      class="bar-fill" 
+                      :style="{ width: `${Math.min(100, (parseFloat(amt) / Math.max(1, parseFloat(reportData.expenses.total_expenses))) * 100)}%` }"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Expenses Table -->
+            <div class="report-section">
+              <div class="section-title">
+                <FileText :size="18" class="text-cyan" />
+                <h4>Recorded Operating Expenses</h4>
+              </div>
+              <div class="table-container">
+                <table class="report-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Category</th>
+                      <th>Description</th>
+                      <th>Recorded By</th>
+                      <th style="text-align: right;">Amount (TSH)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="!reportData.expenses?.recent || reportData.expenses.recent.length === 0">
+                      <td colspan="5" class="text-center empty-cell">No operating expenses recorded for this period.</td>
+                    </tr>
+                    <tr v-for="e in reportData.expenses?.recent" :key="e.id">
+                      <td>{{ e.date }}</td>
+                      <td><span class="cat-tag">{{ e.category }}</span></td>
+                      <td>{{ e.description }}</td>
+                      <td><span class="user-tag">@{{ e.recorded_by }}</span></td>
+                      <td style="text-align: right; font-weight: 700; color: #fb7185;">
+                        TSH {{ parseFloat(e.amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -1555,6 +1675,101 @@ onMounted(() => {
   border-top-color: #06b6d4;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+/* Expenses & Wholesale Custom Styles */
+.net-profit-card {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.retail-badge {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.wholesale-badge {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.expenses-summary-card {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.exp-stat-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.exp-stat-box.highlight {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 0.85rem;
+  border-radius: 8px;
+}
+
+.stat-lbl { font-size: 0.8rem; font-weight: 600; color: #94a3b8; }
+.stat-num { font-size: 1.45rem; font-weight: 800; }
+.stat-sub { font-size: 0.775rem; color: #64748b; }
+
+.cat-expense-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.cat-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.cat-bar-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.825rem;
+}
+
+.cat-name { color: #cbd5e1; font-weight: 600; }
+.cat-amt { color: #fb7185; font-weight: 700; }
+
+.bar-track {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f43f5e, #fb7185);
+  border-radius: 4px;
+}
+
+.cat-tag {
+  background: rgba(244, 63, 94, 0.15);
+  color: #fda4af;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.user-tag {
+  color: #94a3b8;
+  font-family: monospace;
+  font-size: 0.75rem;
 }
 
 /* Print Styles */

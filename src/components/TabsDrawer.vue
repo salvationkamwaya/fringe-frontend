@@ -35,18 +35,21 @@ const handleCreateTab = async () => {
       tab_name: newTabName.value,
       customer_name: newCustomerName.value
     })
+    store.playSound('beep')
     store.showToast(`Tab '${newTabName.value}' opened!`, 'success')
     newTabName.value = ''
     newCustomerName.value = ''
     showCreateModal.value = false
     await fetchTabs()
   } catch (err) {
+    store.playSound('error')
     errorMessage.value = err.response?.data?.error || 'Failed to create tab.'
   }
 }
 
 const handleSelectTab = (tab) => {
   store.selectedTab = tab
+  store.playSound('beep')
   store.showToast(`Active Tab set to '${tab.tab_name}'`, 'info')
   emit('tab-selected', tab)
   emit('close')
@@ -147,6 +150,7 @@ const handleConfirmSettle = async () => {
   isSettling.value = true
   try {
     const res = await api.post(`/pos/tabs/${settleTab.value.id}/settle/`, { payments })
+    store.playSound('success')
     store.showToast(res.data.message || 'Tab settled and closed!', 'success')
     if (store.selectedTab?.id === settleTab.value.id) {
       store.selectedTab = null
@@ -154,6 +158,7 @@ const handleConfirmSettle = async () => {
     settleTab.value = null
     await fetchTabs()
   } catch (err) {
+    store.playSound('error')
     store.showToast(err.response?.data?.error || 'Failed to settle tab.', 'error')
   } finally {
     isSettling.value = false

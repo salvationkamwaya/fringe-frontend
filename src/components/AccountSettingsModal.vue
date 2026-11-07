@@ -5,7 +5,7 @@ import api from '../api'
 import { 
   User, Lock, Key, Shield, Sun, Moon, Check, X, Eye, EyeOff, 
   RefreshCw, CheckCircle2, AlertCircle, Sparkles, Building,
-  LogOut, ShieldAlert, Award, Clock
+  LogOut, ShieldAlert, Award, Clock, Volume2, VolumeX
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['close'])
@@ -673,6 +673,31 @@ onMounted(() => {
                     <span v-if="store.theme === 'light'" class="theme-active-tag">Active</span>
                   </div>
                 </div>
+              </div>
+
+              <!-- Audio & Sound Feedback -->
+              <h5 class="section-title" style="margin-top: 24px;">Terminal Audio Feedback</h5>
+              <div class="privilege-card">
+                <div class="privilege-header">
+                  <Volume2 v-if="store.soundEnabled" :size="18" class="text-amber" />
+                  <VolumeX v-else :size="18" class="text-slate-400" />
+                  <div>
+                    <h6 class="privilege-role">Sound Feedback Cues</h6>
+                    <span class="privilege-unit">{{ store.soundEnabled ? 'Enabled' : 'Muted' }}</span>
+                  </div>
+                </div>
+                <p class="privilege-desc">
+                  Synthesizes immediate audio feedback on register taps, adding drinks to ticket, and sales settlement.
+                </p>
+                <button 
+                  class="btn-sound-toggle" 
+                  :class="{ 'sound-active': store.soundEnabled }"
+                  @click="store.toggleSound()"
+                >
+                  <Volume2 v-if="store.soundEnabled" :size="16" />
+                  <VolumeX v-else :size="16" />
+                  <span>{{ store.soundEnabled ? 'Disable Audio Cues' : 'Enable Audio Cues' }}</span>
+                </button>
               </div>
             </div>
 
@@ -1353,6 +1378,50 @@ onMounted(() => {
   background: rgba(239, 68, 68, 0.25);
   border-color: #ef4444;
   color: #ffffff;
+}
+
+.btn-sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.btn-sound-toggle:hover {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: #f59e0b;
+}
+
+.btn-sound-toggle.sound-active {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399;
+}
+
+.btn-sound-toggle.sound-active:hover {
+  background: rgba(16, 185, 129, 0.25);
+}
+
+:root[data-theme="light"] .btn-sound-toggle {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #b45309;
+}
+
+:root[data-theme="light"] .btn-sound-toggle.sound-active {
+  background: #d1fae5;
+  border-color: #a7f3d0;
+  color: #065f46;
 }
 
 /* Light Theme Adjustments */

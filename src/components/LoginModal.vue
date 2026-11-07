@@ -4,7 +4,8 @@ import { store } from '../store'
 import api from '../api'
 import { 
   Lock, User, KeyRound, X, RefreshCw, Eye, EyeOff, AlertCircle, 
-  RotateCcw, CheckCircle2, Shield, ArrowLeft, Mail, Check, Key
+  RotateCcw, CheckCircle2, ArrowLeft, Mail, Check, Key,
+  Sun, Moon
 } from 'lucide-vue-next'
 
 const mode = ref('login') // 'login' | 'forgot'
@@ -112,7 +113,9 @@ const handleLogin = async () => {
   loading.value = true
   try {
     await store.login(username.value.trim(), password.value)
+    store.playSound('success')
   } catch (err) {
+    store.playSound('warning')
     if (err.response) {
       errorMessage.value = err.response.data?.error || 'Invalid username or password.'
     } else if (err.request) {
@@ -242,19 +245,41 @@ const switchToForgot = () => {
     <div class="modal-card">
       <!-- Modal Header -->
       <div class="modal-header">
-        <div class="header-icon">
-          <KeyRound v-if="mode === 'login'" :size="24" />
-          <RotateCcw v-else :size="24" />
+        <div class="header-left">
+          <div class="header-icon">
+            <KeyRound v-if="mode === 'login'" :size="22" />
+            <RotateCcw v-else :size="22" />
+          </div>
+          <div class="header-text">
+            <span class="brand-tag">FRINGE BUSINESS SYSTEM</span>
+            <h2 class="modal-title">
+              {{ mode === 'login' ? 'Sign In' : 'Account Recovery' }}
+            </h2>
+          </div>
         </div>
-        <div class="header-text">
-          <div class="brand-tag">FRINGE BUSINESS SYSTEM</div>
-          <h2 class="modal-title">
-            {{ mode === 'login' ? 'Sign In' : 'Account Recovery' }}
-          </h2>
+
+        <div class="header-actions">
+          <!-- Theme Toggle -->
+          <button 
+            type="button" 
+            class="btn-theme-toggle" 
+            @click="store.toggleTheme()" 
+            :title="store.theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+          >
+            <Sun v-if="store.theme === 'dark'" :size="15" class="sun-icon" />
+            <Moon v-else :size="15" class="moon-icon" />
+          </button>
+
+          <!-- Close Button if authenticated -->
+          <button 
+            v-if="store.isAuthenticated" 
+            class="btn-close" 
+            @click="store.activeModal = null" 
+            title="Close Window"
+          >
+            <X :size="16" />
+          </button>
         </div>
-        <button v-if="store.isAuthenticated" class="btn-close" @click="store.activeModal = null" title="Close">
-          <X :size="18" />
-        </button>
       </div>
 
       <!-- VIEW 1: STANDARD SIGN IN -->
@@ -274,7 +299,7 @@ const switchToForgot = () => {
               <input 
                 v-model="username" 
                 type="text" 
-                placeholder="e.g. owner or username" 
+                placeholder="Enter your username or email" 
                 autocomplete="username"
                 required
               />
@@ -372,28 +397,28 @@ const switchToForgot = () => {
           <span>{{ errorMessage }}</span>
         </div>
 
-        <!-- METHOD A: OWNER RESET TOKEN -->
-        <div v-if="forgotMethod === 'token'" class="recovery-pane">
+        <!-- METHOD A: OWNER-ASSISTED RESET TOKEN -->
+        <div v-if="forgotMethod === 'token'">
           <div class="recovery-intro">
-            <p>
-              If you forgot your password, contact your <strong>Business Owner</strong>. The Owner will generate a temporary <strong>Reset Token</strong> for you in Staff Management.
-            </p>
+            Ask your <strong>Business Owner</strong> to issue a password reset token from <em>Staff Management</em>, then enter it below.
           </div>
 
           <form @submit.prevent="handleOwnerTokenReset" class="login-form">
+            <!-- Username -->
             <div class="form-group">
-              <label>Your Username</label>
+              <label>Staff Username</label>
               <div class="input-group">
                 <User :size="18" class="input-icon" />
                 <input 
                   v-model="ownerTokenForm.username" 
                   type="text" 
-                  placeholder="e.g. bartender_alex" 
+                  placeholder="e.g. bartender or staff username" 
                   required
                 />
               </div>
             </div>
 
+            <!-- Owner Token -->
             <div class="form-group">
               <label>Owner Reset Token</label>
               <div class="input-group">
@@ -401,14 +426,15 @@ const switchToForgot = () => {
                 <input 
                   v-model="ownerTokenForm.token" 
                   type="text" 
-                  placeholder="e.g. RST-A9B2C4" 
+                  placeholder="RST-XXXXXX" 
                   class="token-input"
                   required
                 />
               </div>
-              <span class="field-hint">Format: RST-XXXXXX (given by the Owner, valid 24h)</span>
+              <span class="field-hint">Token format: <strong>RST-XXXXXX</strong> (case-insensitive)</span>
             </div>
 
+            <!-- New Password -->
             <div class="form-group">
               <label>New Password</label>
               <div class="input-group">
@@ -416,7 +442,7 @@ const switchToForgot = () => {
                 <input 
                   v-model="ownerTokenForm.newPassword" 
                   :type="showOwnerTokenPassword ? 'text' : 'password'" 
-                  placeholder="Enter new strong password..." 
+                  placeholder="Enter strong new password..." 
                   required
                 />
                 <button 
@@ -431,6 +457,7 @@ const switchToForgot = () => {
               </div>
             </div>
 
+            <!-- Confirm Password -->
             <div class="form-group">
               <label>Confirm New Password</label>
               <div class="input-group">
@@ -453,9 +480,9 @@ const switchToForgot = () => {
               </div>
             </div>
 
-            <!-- Password Checklist -->
+            <!-- Password Standards Checklist -->
             <div class="password-checklist">
-              <div class="checklist-title">Password Standards</div>
+              <div class="checklist-title">Password Security Requirements</div>
               <div class="checklist-grid">
                 <div class="checklist-item" :class="ownerPasswordChecks.length ? 'met' : 'missing'">
                   <Check v-if="ownerPasswordChecks.length" :size="12" class="icon-met" />
@@ -492,160 +519,159 @@ const switchToForgot = () => {
 
             <button type="submit" class="btn-submit" :disabled="!isOwnerTokenFormValid || loading">
               <RefreshCw v-if="loading" :size="16" class="spin-anim" />
-              <span>{{ loading ? 'Verifying Token...' : 'Reset Password & Sign In' }}</span>
+              <span>{{ loading ? 'Updating Password...' : 'Reset Password with Token' }}</span>
             </button>
           </form>
         </div>
 
         <!-- METHOD B: DIRECT VERIFICATION CODE -->
-        <div v-else class="recovery-pane">
-          <!-- Step 1: Request Code -->
-          <div v-if="directCodeStep === 1">
+        <div v-else>
+          <!-- STEP 1: REQUEST CODE -->
+          <form v-if="directCodeStep === 1" @submit.prevent="handleRequestDirectCode" class="login-form">
             <div class="recovery-intro">
-              <p>
-                Enter your username or registered email address to receive a 6-digit verification code.
-              </p>
+              Enter your staff username or registered email address to request a secure 6-digit verification code.
             </div>
 
-            <form @submit.prevent="handleRequestDirectCode" class="login-form">
-              <div class="form-group">
-                <label>Username or Email Address</label>
-                <div class="input-group">
-                  <User :size="18" class="input-icon" />
-                  <input 
-                    v-model="directCodeForm.identifier" 
-                    type="text" 
-                    placeholder="Enter username or email..." 
-                    required
-                  />
-                </div>
+            <div class="form-group">
+              <label>Staff Username or Email</label>
+              <div class="input-group">
+                <User :size="18" class="input-icon" />
+                <input 
+                  v-model="directCodeForm.identifier" 
+                  type="text" 
+                  placeholder="e.g. john or john@fringe.co.tz" 
+                  required
+                />
               </div>
+            </div>
 
-              <button type="submit" class="btn-submit" :disabled="loading">
-                <RefreshCw v-if="loading" :size="16" class="spin-anim" />
-                <span>{{ loading ? 'Generating Code...' : 'Send Verification Code' }}</span>
-              </button>
-            </form>
-          </div>
+            <button type="submit" class="btn-submit" :disabled="loading">
+              <RefreshCw v-if="loading" :size="16" class="spin-anim" />
+              <Mail v-else :size="16" />
+              <span>{{ loading ? 'Generating Code...' : 'Request Verification Code' }}</span>
+            </button>
+          </form>
 
-          <!-- Step 2: Confirm Code & Reset Password -->
-          <div v-else>
-            <!-- Simulated Code Info Card -->
-            <div v-if="directCodeResult?.code" class="direct-code-display-card">
+          <!-- STEP 2: CONFIRM CODE & SET PASSWORD -->
+          <form v-else @submit.prevent="handleConfirmDirectCode" class="login-form">
+            <!-- Direct Code Highlight Card -->
+            <div v-if="directCodeResult?.debug_code" class="direct-code-display-card">
               <div class="code-header">
-                <span class="code-sub">VERIFICATION CODE FOR @{{ directCodeResult.username }}:</span>
+                <span class="code-sub">DEV CONSOLE &bull; 6-DIGIT CODE</span>
               </div>
-              <div class="code-value">{{ directCodeResult.code }}</div>
-              <span class="code-hint">Enter this 6-digit code below to set your new password.</span>
+              <div class="code-value">{{ directCodeResult.debug_code }}</div>
+              <span class="code-hint">Enter this code below to authorize your password update.</span>
             </div>
 
-            <form @submit.prevent="handleConfirmDirectCode" class="login-form">
-              <div class="form-group">
-                <label>6-Digit Verification Code</label>
-                <div class="input-group">
-                  <Key :size="18" class="input-icon" />
-                  <input 
-                    v-model="directCodeForm.code" 
-                    type="text" 
-                    maxlength="6"
-                    placeholder="e.g. 123456" 
-                    class="token-input text-center"
-                    required
-                  />
+            <!-- 6-Digit Code Input -->
+            <div class="form-group">
+              <label>6-Digit Verification Code</label>
+              <div class="input-group">
+                <Key :size="18" class="input-icon" />
+                <input 
+                  v-model="directCodeForm.code" 
+                  type="text" 
+                  maxlength="6"
+                  placeholder="123456" 
+                  class="token-input text-center"
+                  required
+                />
+              </div>
+              <span class="field-hint">Valid for 15 minutes.</span>
+            </div>
+
+            <!-- New Password -->
+            <div class="form-group">
+              <label>New Password</label>
+              <div class="input-group">
+                <Lock :size="18" class="input-icon" />
+                <input 
+                  v-model="directCodeForm.newPassword" 
+                  :type="showDirectCodePassword ? 'text' : 'password'" 
+                  placeholder="Enter strong new password..." 
+                  required
+                />
+                <button 
+                  type="button" 
+                  class="btn-eye" 
+                  @click="showDirectCodePassword = !showDirectCodePassword" 
+                  tabindex="-1"
+                >
+                  <EyeOff v-if="showDirectCodePassword" :size="18" />
+                  <Eye v-else :size="18" />
+                </button>
+              </div>
+            </div>
+
+            <!-- Confirm Password -->
+            <div class="form-group">
+              <label>Confirm New Password</label>
+              <div class="input-group">
+                <Lock :size="18" class="input-icon" />
+                <input 
+                  v-model="directCodeForm.confirmPassword" 
+                  :type="showDirectCodeConfirmPassword ? 'text' : 'password'" 
+                  placeholder="Re-enter new password..." 
+                  required
+                />
+                <button 
+                  type="button" 
+                  class="btn-eye" 
+                  @click="showDirectCodeConfirmPassword = !showDirectCodeConfirmPassword" 
+                  tabindex="-1"
+                >
+                  <EyeOff v-if="showDirectCodeConfirmPassword" :size="18" />
+                  <Eye v-else :size="18" />
+                </button>
+              </div>
+            </div>
+
+            <!-- Password Standards Checklist -->
+            <div class="password-checklist">
+              <div class="checklist-title">Password Standards</div>
+              <div class="checklist-grid">
+                <div class="checklist-item" :class="directPasswordChecks.length ? 'met' : 'missing'">
+                  <Check v-if="directPasswordChecks.length" :size="12" class="icon-met" />
+                  <span v-else class="bullet-missing">&bull;</span>
+                  <span>At least 8 characters</span>
+                </div>
+                <div class="checklist-item" :class="directPasswordChecks.uppercase ? 'met' : 'missing'">
+                  <Check v-if="directPasswordChecks.uppercase" :size="12" class="icon-met" />
+                  <span v-else class="bullet-missing">&bull;</span>
+                  <span>1 uppercase letter (A-Z)</span>
+                </div>
+                <div class="checklist-item" :class="directPasswordChecks.lowercase ? 'met' : 'missing'">
+                  <Check v-if="directPasswordChecks.lowercase" :size="12" class="icon-met" />
+                  <span v-else class="bullet-missing">&bull;</span>
+                  <span>1 lowercase letter (a-z)</span>
+                </div>
+                <div class="checklist-item" :class="directPasswordChecks.number ? 'met' : 'missing'">
+                  <Check v-if="directPasswordChecks.number" :size="12" class="icon-met" />
+                  <span v-else class="bullet-missing">&bull;</span>
+                  <span>1 numeric digit (0-9)</span>
+                </div>
+                <div class="checklist-item" :class="directPasswordChecks.special ? 'met' : 'missing'">
+                  <Check v-if="directPasswordChecks.special" :size="12" class="icon-met" />
+                  <span v-else class="bullet-missing">&bull;</span>
+                  <span>1 special symbol (!@#$%^&*)</span>
+                </div>
+                <div class="checklist-item" :class="directPasswordChecks.match ? 'met' : 'missing'">
+                  <Check v-if="directPasswordChecks.match" :size="12" class="icon-met" />
+                  <span v-else class="bullet-missing">&bull;</span>
+                  <span>Passwords match</span>
                 </div>
               </div>
+            </div>
 
-              <div class="form-group">
-                <label>New Password</label>
-                <div class="input-group">
-                  <Lock :size="18" class="input-icon" />
-                  <input 
-                    v-model="directCodeForm.newPassword" 
-                    :type="showDirectCodePassword ? 'text' : 'password'" 
-                    placeholder="Enter new strong password..." 
-                    required
-                  />
-                  <button 
-                    type="button" 
-                    class="btn-eye" 
-                    @click="showDirectCodePassword = !showDirectCodePassword" 
-                    tabindex="-1"
-                  >
-                    <EyeOff v-if="showDirectCodePassword" :size="18" />
-                    <Eye v-else :size="18" />
-                  </button>
-                </div>
-              </div>
+            <button type="submit" class="btn-submit" :disabled="!isDirectCodeFormValid || loading">
+              <RefreshCw v-if="loading" :size="16" class="spin-anim" />
+              <span>{{ loading ? 'Resetting Password...' : 'Verify Code & Set Password' }}</span>
+            </button>
 
-              <div class="form-group">
-                <label>Confirm New Password</label>
-                <div class="input-group">
-                  <Lock :size="18" class="input-icon" />
-                  <input 
-                    v-model="directCodeForm.confirmPassword" 
-                    :type="showDirectCodeConfirmPassword ? 'text' : 'password'" 
-                    placeholder="Re-enter new password..." 
-                    required
-                  />
-                  <button 
-                    type="button" 
-                    class="btn-eye" 
-                    @click="showDirectCodeConfirmPassword = !showDirectCodeConfirmPassword" 
-                    tabindex="-1"
-                  >
-                    <EyeOff v-if="showDirectCodeConfirmPassword" :size="18" />
-                    <Eye v-else :size="18" />
-                  </button>
-                </div>
-              </div>
-
-              <!-- Password Checklist -->
-              <div class="password-checklist">
-                <div class="checklist-title">Password Standards</div>
-                <div class="checklist-grid">
-                  <div class="checklist-item" :class="directPasswordChecks.length ? 'met' : 'missing'">
-                    <Check v-if="directPasswordChecks.length" :size="12" class="icon-met" />
-                    <span v-else class="bullet-missing">&bull;</span>
-                    <span>At least 8 characters</span>
-                  </div>
-                  <div class="checklist-item" :class="directPasswordChecks.uppercase ? 'met' : 'missing'">
-                    <Check v-if="directPasswordChecks.uppercase" :size="12" class="icon-met" />
-                    <span v-else class="bullet-missing">&bull;</span>
-                    <span>1 uppercase letter (A-Z)</span>
-                  </div>
-                  <div class="checklist-item" :class="directPasswordChecks.lowercase ? 'met' : 'missing'">
-                    <Check v-if="directPasswordChecks.lowercase" :size="12" class="icon-met" />
-                    <span v-else class="bullet-missing">&bull;</span>
-                    <span>1 lowercase letter (a-z)</span>
-                  </div>
-                  <div class="checklist-item" :class="directPasswordChecks.number ? 'met' : 'missing'">
-                    <Check v-if="directPasswordChecks.number" :size="12" class="icon-met" />
-                    <span v-else class="bullet-missing">&bull;</span>
-                    <span>1 numeric digit (0-9)</span>
-                  </div>
-                  <div class="checklist-item" :class="directPasswordChecks.special ? 'met' : 'missing'">
-                    <Check v-if="directPasswordChecks.special" :size="12" class="icon-met" />
-                    <span v-else class="bullet-missing">&bull;</span>
-                    <span>1 special symbol (!@#$%^&*)</span>
-                  </div>
-                  <div class="checklist-item" :class="directPasswordChecks.match ? 'met' : 'missing'">
-                    <Check v-if="directPasswordChecks.match" :size="12" class="icon-met" />
-                    <span v-else class="bullet-missing">&bull;</span>
-                    <span>Passwords match</span>
-                  </div>
-                </div>
-              </div>
-
-              <button type="submit" class="btn-submit" :disabled="!isDirectCodeFormValid || loading">
-                <RefreshCw v-if="loading" :size="16" class="spin-anim" />
-                <span>{{ loading ? 'Resetting Password...' : 'Verify Code & Set Password' }}</span>
-              </button>
-
-              <button type="button" class="btn-secondary-link" @click="directCodeStep = 1">
-                Request another verification code
-              </button>
-            </form>
-          </div>
+            <button type="button" class="btn-secondary-link" @click="directCodeStep = 1">
+              Request another verification code
+            </button>
+          </form>
         </div>
       </div>
     </div>
@@ -656,45 +682,52 @@ const switchToForgot = () => {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(4, 6, 12, 0.88);
-  backdrop-filter: blur(12px);
+  background: radial-gradient(circle at 50% 30%, rgba(15, 23, 42, 0.92), rgba(4, 6, 12, 0.97));
+  backdrop-filter: blur(14px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 1200;
   padding: 16px;
 }
 
 .modal-card {
   width: 100%;
-  max-width: 460px;
+  max-width: 440px;
   max-height: 92vh;
   overflow-y: auto;
-  background: #111827;
+  background: rgba(17, 24, 39, 0.94);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  border-radius: 20px;
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(245, 158, 11, 0.08);
   padding: 28px 24px;
   position: relative;
-  animation: modal-enter 0.2s ease-out;
+  animation: modal-enter 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes modal-enter {
-  from { opacity: 0; transform: scale(0.97); }
-  to { opacity: 1; transform: scale(1); }
+  from { opacity: 0; transform: scale(0.97) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .modal-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  position: relative;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .header-icon {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.1));
   color: #f59e0b;
@@ -702,6 +735,7 @@ const switchToForgot = () => {
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(245, 158, 11, 0.35);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.15);
   flex-shrink: 0;
 }
 
@@ -726,24 +760,52 @@ const switchToForgot = () => {
   line-height: 1.2;
 }
 
-.btn-close {
-  position: absolute;
-  top: 0;
-  right: 0;
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-theme-toggle {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #94a3b8;
+  color: #cbd5e1;
   border-radius: 8px;
-  padding: 6px;
+  width: 32px;
+  height: 32px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
 }
-.btn-close:hover {
+
+.btn-theme-toggle:hover {
   background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  color: #ffffff;
+}
+
+.sun-icon { color: #f59e0b; }
+.moon-icon { color: #818cf8; }
+
+.btn-close {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.35);
 }
 
 .login-form {
@@ -836,7 +898,7 @@ const switchToForgot = () => {
   background: #0f172a;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
-  padding: 11px 40px 11px 42px;
+  padding: 12px 40px 12px 42px;
   color: #f8fafc;
   font-size: 14px;
   outline: none;
@@ -846,7 +908,7 @@ const switchToForgot = () => {
 .input-group input:focus {
   border-color: #f59e0b;
   background: #131d35;
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
 }
 
 .token-input {
@@ -877,6 +939,7 @@ const switchToForgot = () => {
   border-radius: 6px;
   transition: color 0.15s ease;
 }
+
 .btn-eye:hover {
   color: #f8fafc;
 }
@@ -1063,7 +1126,7 @@ const switchToForgot = () => {
 .btn-submit {
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   border: 1px solid rgba(245, 158, 11, 0.5);
-  color: #fff;
+  color: #ffffff;
   font-weight: 700;
   font-size: 14px;
   padding: 12px;
@@ -1099,5 +1162,67 @@ const switchToForgot = () => {
 
 .text-center {
   text-align: center;
+}
+
+/* Light Theme Adjustments */
+:root[data-theme="light"] .modal-overlay {
+  background: radial-gradient(circle at 50% 30%, rgba(241, 245, 249, 0.94), rgba(226, 232, 240, 0.98));
+}
+
+:root[data-theme="light"] .modal-card {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.15),
+    0 0 30px rgba(245, 158, 11, 0.08);
+}
+
+:root[data-theme="light"] .modal-title {
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .btn-theme-toggle {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+:root[data-theme="light"] .btn-theme-toggle:hover {
+  background: #e2e8f0;
+}
+
+:root[data-theme="light"] .form-group label {
+  color: #334155;
+}
+
+:root[data-theme="light"] .input-group input {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .input-group input:focus {
+  background: #ffffff;
+  border-color: #f59e0b;
+}
+
+:root[data-theme="light"] .recovery-tabs {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+:root[data-theme="light"] .recovery-intro {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+:root[data-theme="light"] .recovery-intro strong {
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .password-checklist {
+  background: #f8fafc;
+  border-color: #e2e8f0;
 }
 </style>

@@ -4,7 +4,9 @@ import api from './api'
 // Initialize state from storage
 const storedUser = localStorage.getItem('fringe_user')
 const initialUser = storedUser ? JSON.parse(storedUser) : null
-const initialUnit = localStorage.getItem('fringe_active_unit') || (initialUser?.business_unit || 'bar')
+const initialUnit = (initialUser && initialUser.role !== 'owner' && initialUser.business_unit)
+  ? initialUser.business_unit
+  : (localStorage.getItem('fringe_active_unit') || 'bar')
 
 export const store = reactive({
   user: initialUser,
@@ -26,9 +28,15 @@ export const store = reactive({
   toast: {
     show: false,
     message: '',
+    title: '',
     type: 'info', // 'success', 'error', 'warning', 'info'
+    timeoutId: null,
   },
+  soundEnabled: localStorage.getItem('fringe_sound') !== 'false',
+  orderNotes: '',
   theme: localStorage.getItem('fringe_theme') || 'dark', // 'dark' | 'light'
+  stationeryMode: 'RETAIL', // 'RETAIL' | 'WHOLESALE'
+  heldSales: JSON.parse(localStorage.getItem('fringe_held_sales') || '[]'),
   idleTimeoutMinutes: parseInt(localStorage.getItem('fringe_idle_timeout') ?? '10', 10), // default 10 minutes
   isIdleWarningActive: false,
   idleCountdownSeconds: 30,
@@ -65,6 +73,10 @@ export const store = reactive({
     return store.cart.reduce((sum, item) => sum + item.quantity, 0)
   }),
 
+  currentUnitHeldSales: computed(() => {
+    return store.heldSales.filter(s => !s.business_unit || s.business_unit === store.activeUnit)
+  }),
+
   cartSubtotal: computed(() => {
     return store.cart.reduce((sum, item) => sum + (parseFloat(item.unit_price) * item.quantity), 0)
   }),
@@ -87,13 +99,78 @@ export const store = reactive({
     document.documentElement.setAttribute('data-theme', saved)
   },
 
-  showToast(message, type = 'info') {
+  playSound(type = 'beep') {
+    if (!store.soundEnabled || typeof window === 'undefined') return
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext
+      if (!AudioCtx) return
+      const ctx = new AudioCtx()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+
+      const now = ctx.currentTime
+      if (type === 'beep') {
+        // Soft audio tap (880Hz, 35ms)
+        osc.frequency.setValueAtTime(880, now)
+        gain.gain.setValueAtTime(0.06, now)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04)
+        osc.start(now)
+        osc.stop(now + 0.04)
+      } else if (type === 'success') {
+        // Cheerful dual register chime (523Hz -> 659Hz)
+        osc.frequency.setValueAtTime(523.25, now)
+        osc.frequency.setValueAtTime(659.25, now + 0.07)
+        gain.gain.setValueAtTime(0.1, now)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2)
+        osc.start(now)
+        osc.stop(now + 0.2)
+      } else if (type === 'warning' || type === 'error') {
+        // Low security tone (260Hz)
+        osc.type = 'triangle'
+        osc.frequency.setValueAtTime(260, now)
+        gain.gain.setValueAtTime(0.08, now)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14)
+        osc.start(now)
+        osc.stop(now + 0.14)
+      }
+    } catch (e) {
+      // Audio autoplay policy or unavailable
+    }
+  },
+
+  showToast(message, type = 'info', title = '') {
+    if (store.toast.timeoutId) {
+      clearTimeout(store.toast.timeoutId)
+    }
     store.toast.message = message
     store.toast.type = type
+    store.toast.title = title || (type === 'success' ? 'Success' : type === 'error' ? 'Notice' : type === 'warning' ? 'Warning' : 'Information')
     store.toast.show = true
-    setTimeout(() => {
+
+    if (type === 'success') {
+      store.playSound('success')
+    } else if (type === 'error' || type === 'warning') {
+      store.playSound('warning')
+    }
+
+    store.toast.timeoutId = setTimeout(() => {
       store.toast.show = false
-    }, 4000)
+    }, 4500)
+  },
+
+  dismissToast() {
+    if (store.toast.timeoutId) {
+      clearTimeout(store.toast.timeoutId)
+    }
+    store.toast.show = false
+  },
+
+  toggleSound() {
+    store.soundEnabled = !store.soundEnabled
+    localStorage.setItem('fringe_sound', store.soundEnabled ? 'true' : 'false')
+    store.showToast(`Terminal sound feedback ${store.soundEnabled ? 'Enabled' : 'Muted'}`, 'info')
   },
 
   async login(username, password) {
@@ -134,8 +211,11 @@ export const store = reactive({
       store.cart = []
       store.isAgeVerified = false
       store.isIdleWarningActive = false
+      store.heldSales = []
       localStorage.removeItem('fringe_token')
       localStorage.removeItem('fringe_user')
+      localStorage.removeItem('fringe_active_unit')
+      localStorage.removeItem('fringe_held_sales')
       store.activeModal = 'login'
       if (reason === 'idle_timeout') {
         store.showToast('Session locked automatically due to inactivity.', 'warning')
@@ -175,14 +255,18 @@ export const store = reactive({
     }
   },
 
-  addToCart(product, quantity = 1, is_pack_sale = true) {
-    let unitPrice = parseFloat(product.selling_price)
-    if (product.is_pack && !is_pack_sale && product.allow_split_sale) {
+  addToCart(product, quantity = 1, is_pack_sale = true, custom_price = null) {
+    store.playSound('beep')
+    let unitPrice = custom_price !== null && custom_price !== undefined 
+      ? parseFloat(custom_price)
+      : parseFloat(product.selling_price)
+
+    if (custom_price === null && product.is_pack && !is_pack_sale && product.allow_split_sale) {
       unitPrice = parseFloat(product.split_unit_price || (unitPrice / product.pack_unit_ratio))
     }
 
     const existing = store.cart.find(
-      item => item.product.id === product.id && item.is_pack_sale === is_pack_sale
+      item => item.product.id === product.id && item.is_pack_sale === is_pack_sale && Math.abs(item.unit_price - unitPrice) < 0.01
     )
 
     if (existing) {
@@ -249,6 +333,56 @@ export const store = reactive({
     store.selectedTab = null
     store.selectedCustomer = null
     store.isAgeVerified = false
+    store.orderNotes = ''
+  },
+
+  holdCurrentSale(customNote = '') {
+    if (store.cart.length === 0) return false
+    const heldId = `HOLD-${Date.now().toString().slice(-6)}`
+    const sale = {
+      id: heldId,
+      timestamp: new Date().toISOString(),
+      business_unit: store.activeUnit,
+      note: customNote || (store.selectedCustomer ? `Customer: ${store.selectedCustomer.name}` : `Walk-in Ticket #${heldId}`),
+      customer: store.selectedCustomer ? { ...store.selectedCustomer } : null,
+      items: JSON.parse(JSON.stringify(store.cart)),
+      mode: store.stationeryMode,
+      total: store.cartSubtotal,
+      itemCount: store.cartItemCount,
+    }
+    store.heldSales.unshift(sale)
+    localStorage.setItem('fringe_held_sales', JSON.stringify(store.heldSales))
+    store.playSound('beep')
+    store.showToast(`Sale held as [${heldId}]. Ready for next customer.`, 'info')
+    store.clearCart()
+    return true
+  },
+
+  resumeHeldSale(heldId) {
+    const idx = store.heldSales.findIndex(s => s.id === heldId)
+    if (idx === -1) return false
+    const sale = store.heldSales[idx]
+
+    // Restore
+    store.cart = sale.items || []
+    store.selectedCustomer = sale.customer || null
+    if (sale.mode) store.stationeryMode = sale.mode
+
+    // Remove from held
+    store.heldSales.splice(idx, 1)
+    localStorage.setItem('fringe_held_sales', JSON.stringify(store.heldSales))
+    store.playSound('success')
+    store.showToast(`Resumed held sale [${heldId}]`, 'success')
+    return true
+  },
+
+  discardHeldSale(heldId) {
+    const idx = store.heldSales.findIndex(s => s.id === heldId)
+    if (idx !== -1) {
+      store.heldSales.splice(idx, 1)
+      localStorage.setItem('fringe_held_sales', JSON.stringify(store.heldSales))
+      store.showToast(`Held sale [${heldId}] discarded.`, 'info')
+    }
   },
 
   openPinModal({ action, title, subtitle, context, onSuccess }) {

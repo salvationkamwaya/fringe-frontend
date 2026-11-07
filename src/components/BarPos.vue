@@ -6,7 +6,7 @@ import {
   Wine, Beer, GlassWater, Sparkles, Search, Plus, Minus, 
   Trash2, AlertTriangle, ShieldAlert, ShieldCheck, CreditCard, Banknote, 
   Smartphone, Split, Layers, Percent, CheckCircle, Boxes, Receipt,
-  BookmarkCheck, X
+  BookmarkCheck, X, Check, ArrowRight
 } from 'lucide-vue-next'
 
 const categories = ref([])
@@ -14,6 +14,13 @@ const products = ref([])
 const selectedCategory = ref(null)
 const searchQuery = ref('')
 const loading = ref(true)
+const isMobileCartOpen = ref(false)
+
+const getDrinkCartCount = (drinkId) => {
+  return store.cart
+    .filter(item => item.product.id === drinkId)
+    .reduce((sum, item) => sum + item.quantity, 0)
+}
 
 const fetchCategories = async () => {
   try {
@@ -58,8 +65,8 @@ watch(() => store.activeUnit, () => {
 const requestVoidItem = (item) => {
   if (store.isBarManager || store.isOwner) {
     // Current user is already a manager or owner
-    store.removeFromCart(item.product.id)
-    store.showToast(`Voided ${item.product.name}`, 'info')
+    store.removeFromCart(item.product.id, item.is_pack_sale)
+    store.showToast(`Voided ${item.product.name} from ticket`, 'info')
   } else {
     // Requires Manager PIN authorization!
     store.openPinModal({
@@ -68,19 +75,34 @@ const requestVoidItem = (item) => {
       subtitle: `Manager PIN required to void ${item.quantity}x ${item.product.name}`,
       context: { product_id: item.product.id, product_name: item.product.name, quantity: item.quantity },
       onSuccess: (authData) => {
-        store.removeFromCart(item.product.id)
+        store.removeFromCart(item.product.id, item.is_pack_sale)
         store.showToast(`Void approved by ${authData.approver_name}`, 'success')
       }
     })
   }
 }
 
-const handleDrinkClick = (drink) => {
+const handleDrinkClick = (drink, is_pack_sale = true) => {
   if (!store.canRecordSales) {
     store.showToast('Sales recording is strictly reserved for frontline Bartenders. Managers and Owners perform oversight and reporting only.', 'warning')
     return
   }
-  store.addToCart(drink)
+  if (Number(drink.stock_quantity) <= 0) {
+    store.showToast(`${drink.name} is currently out of stock.`, 'warning')
+    return
+  }
+  store.addToCart(drink, 1, is_pack_sale)
+  const modeLabel = !is_pack_sale ? 'Shot/Peg' : (drink.is_pack ? 'Bottle/Pack' : 'Drink')
+  store.showToast(`Added ${drink.name} (${modeLabel}) to ticket`, 'success')
+}
+
+// Clear order ticket with confirmation
+const requestClearCart = () => {
+  if (store.cart.length === 0) return
+  if (confirm(`Clear all ${store.cartItemCount} drink(s) from current ticket?`)) {
+    store.clearCart()
+    store.showToast('Order ticket cleared.', 'info')
+  }
 }
 
 // Initiating checkout with mandatory age check intercept
@@ -94,6 +116,8 @@ const handleProceedToPayment = (mode = 'CASH') => {
     store.showToast('Cart is empty. Add drinks to proceed.', 'warning')
     return
   }
+
+  isMobileCartOpen.value = false
 
   // 1. NON-BYPASSABLE AGE CHECK
   if (store.cartHasAlcohol && !store.isAgeVerified) {
@@ -131,19 +155,21 @@ const handleSaveRoundToTab = async () => {
       items: store.cart.map(item => ({
         product_id: item.product.id,
         quantity: item.quantity,
-        is_pack_sale: true
+        is_pack_sale: item.is_pack_sale !== undefined ? item.is_pack_sale : true
       })),
       payments: [],
       tab_id: store.selectedTab.id,
       shift_id: store.activeShift?.id || null,
       is_age_verified: store.isAgeVerified,
-      discount_amount: 0
+      discount_amount: 0,
+      notes: store.orderNotes || undefined
     }
     await api.post('/pos/orders/', payload)
     const count = store.cartItemCount
     const tabName = store.selectedTab.tab_name
     store.showToast(`Round of ${count} drink(s) saved to Tab '${tabName}'!`, 'success')
     store.clearCart()
+    isMobileCartOpen.value = false
   } catch (err) {
     store.showToast(err.response?.data?.error || 'Failed to save round to tab.', 'error')
   } finally {
@@ -210,18 +236,52 @@ onMounted(() => {
             v-for="drink in products" 
             :key="drink.id"
             class="drink-card"
-            :class="{ 'card-alcohol': drink.is_alcoholic }"
-            @click="handleDrinkClick(drink)"
+            :class="{ 
+              'card-alcohol': drink.is_alcoholic,
+              'in-cart': getDrinkCartCount(drink.id) > 0,
+              'out-of-stock': Number(drink.stock_quantity) <= 0
+            }"
+            @click="!drink.allow_split_sale && Number(drink.stock_quantity) > 0 && handleDrinkClick(drink, true)"
           >
-            <!-- Alcoholic 18+ Warning Badge -->
-            <div v-if="drink.is_alcoholic" class="alcohol-pill" title="Age 18+ Required">
-              <span>18+ ALCOHOL</span>
+            <!-- Card Top Badges Row -->
+            <div class="drink-card-top-badges">
+              <!-- In-Cart Quantity Indicator Badge -->
+              <div v-if="getDrinkCartCount(drink.id) > 0" class="in-cart-pill" title="Currently on order ticket">
+                <Check :size="11" />
+                <span>{{ getDrinkCartCount(drink.id) }} in ticket</span>
+              </div>
+              <div v-else></div>
+
+              <!-- Alcoholic 18+ Warning Badge -->
+              <div v-if="drink.is_alcoholic" class="alcohol-pill" title="Age 18+ Required">
+                <span>18+ ALCOHOL</span>
+              </div>
             </div>
 
             <div class="drink-content">
               <div class="drink-category">{{ drink.category_name || 'Bar Drink' }}</div>
               <h4 class="drink-name">{{ drink.name }}</h4>
               <div v-if="drink.volume_ml" class="drink-volume">{{ drink.volume_ml }}ml</div>
+            </div>
+
+            <!-- Split Sale Touch Buttons (Peg vs Bottle) -->
+            <div v-if="drink.allow_split_sale && Number(drink.stock_quantity) > 0" class="split-sale-buttons">
+              <button 
+                class="btn-split-unit" 
+                @click.stop="handleDrinkClick(drink, true)"
+                title="Add Full Bottle"
+              >
+                <Wine :size="12" />
+                <span>Bottle</span>
+              </button>
+              <button 
+                class="btn-split-unit btn-peg" 
+                @click.stop="handleDrinkClick(drink, false)"
+                title="Add Single Shot/Peg"
+              >
+                <GlassWater :size="12" />
+                <span>Shot/Peg</span>
+              </button>
             </div>
 
             <div class="drink-footer">
@@ -232,9 +292,9 @@ onMounted(() => {
 
               <div 
                 class="stock-badge"
-                :class="Number(drink.stock_quantity) <= Number(drink.reorder_threshold) ? 'stock-low' : 'stock-ok'"
+                :class="Number(drink.stock_quantity) <= 0 ? 'stock-empty' : Number(drink.stock_quantity) <= Number(drink.reorder_threshold) ? 'stock-low' : 'stock-ok'"
               >
-                {{ Number(drink.stock_quantity).toFixed(0) }} left
+                {{ Number(drink.stock_quantity) <= 0 ? 'Out of stock' : `${Number(drink.stock_quantity).toFixed(0)} left` }}
               </div>
             </div>
           </div>
@@ -243,7 +303,7 @@ onMounted(() => {
     </div>
 
     <!-- RIGHT: ORDER CART & TICKET PANEL -->
-    <div class="cart-panel">
+    <div class="cart-panel" :class="{ 'mobile-open': isMobileCartOpen }">
       <!-- Cart Header -->
       <div class="cart-header">
         <div>
@@ -280,10 +340,15 @@ onMounted(() => {
           <button 
             v-if="store.cart.length > 0" 
             class="btn-clear-cart"
-            title="Clear Cart"
-            @click="store.clearCart"
+            title="Clear Current Order Ticket"
+            @click="requestClearCart"
           >
             <Trash2 :size="16" />
+          </button>
+
+          <!-- Close button on mobile/tablet drawer -->
+          <button class="btn-close-mobile-cart" @click="isMobileCartOpen = false" title="Close Ticket Drawer">
+            <X :size="18" />
           </button>
         </div>
       </div>
@@ -328,31 +393,33 @@ onMounted(() => {
 
         <div 
           v-for="item in store.cart" 
-          :key="item.product.id"
+          :key="`${item.product.id}-${item.is_pack_sale}`"
           class="ticket-item"
         >
           <div class="item-info">
             <div class="item-top">
               <span class="item-title">{{ item.product.name }}</span>
+              <span v-if="item.is_pack_sale === false" class="mini-split-badge">🥃 Shot</span>
+              <span v-else-if="item.product.allow_split_sale" class="mini-bottle-badge">🍾 Bottle</span>
               <span v-if="item.product.is_alcoholic" class="mini-alcohol-badge">18+</span>
             </div>
-            <div class="item-subprice">TSH {{ parseFloat(item.product.selling_price).toFixed(2) }} each</div>
+            <div class="item-subprice">TSH {{ parseFloat(item.unit_price).toFixed(2) }} each</div>
           </div>
 
           <!-- Quantity Stepper -->
           <div class="stepper">
-            <button class="step-btn" @click="store.updateCartQuantity(item.product.id, -1)">
+            <button class="step-btn" @click="store.updateCartQuantity(item.product.id, -1, item.is_pack_sale)">
               <Minus :size="14" />
             </button>
             <span class="step-qty">{{ item.quantity }}</span>
-            <button class="step-btn" @click="store.updateCartQuantity(item.product.id, 1)">
+            <button class="step-btn" @click="store.updateCartQuantity(item.product.id, 1, item.is_pack_sale)">
               <Plus :size="14" />
             </button>
           </div>
 
           <!-- Line Subtotal -->
           <div class="item-subtotal">
-            TSH {{ (parseFloat(item.product.selling_price) * item.quantity).toFixed(2) }}
+            TSH {{ (parseFloat(item.unit_price) * item.quantity).toFixed(2) }}
           </div>
 
           <!-- Void Button -->
@@ -364,6 +431,16 @@ onMounted(() => {
             <Trash2 :size="14" />
           </button>
         </div>
+      </div>
+
+      <!-- Order Table Reference / Notes -->
+      <div v-if="store.cart.length > 0" class="order-notes-section">
+        <input 
+          v-model="store.orderNotes" 
+          type="text" 
+          placeholder="Table # or note (e.g. Table 4, VIP Lounge, Extra ice)..."
+          class="order-note-input"
+        />
       </div>
 
       <!-- Cart Bottom & Checkout Summary -->
@@ -447,6 +524,32 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- Mobile Floating Order Bar (<= 900px) -->
+    <div 
+      v-if="store.cartItemCount > 0 && !isMobileCartOpen" 
+      class="mobile-bottom-bar"
+      @click="isMobileCartOpen = true"
+    >
+      <div class="mobile-bar-left">
+        <span class="mobile-count-pill">{{ store.cartItemCount }}</span>
+        <div>
+          <div class="mobile-bar-total">TSH {{ store.cartSubtotal.toFixed(2) }}</div>
+          <div class="mobile-bar-sub">{{ store.selectedTab ? `Tab: ${store.selectedTab.tab_name}` : 'Walk-in Order' }}</div>
+        </div>
+      </div>
+      <div class="mobile-bar-right">
+        <span>View Ticket</span>
+        <ArrowRight :size="16" />
+      </div>
+    </div>
+
+    <!-- Mobile Drawer Backdrop Overlay -->
+    <div 
+      v-if="isMobileCartOpen" 
+      class="mobile-cart-backdrop" 
+      @click="isMobileCartOpen = false"
+    ></div>
   </div>
 </template>
 
@@ -1151,5 +1254,318 @@ onMounted(() => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Drink Card Status & Badges */
+.drink-card.in-cart {
+  border-color: rgba(16, 185, 129, 0.6);
+  background: linear-gradient(145deg, rgba(16, 185, 129, 0.08) 0%, #111827 100%);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+}
+
+.drink-card.out-of-stock {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+}
+
+.drink-card-top-badges {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.in-cart-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
+.split-sale-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.btn-split-unit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-split-unit:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: #f59e0b;
+  color: #ffffff;
+}
+
+.btn-split-unit.btn-peg:hover {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: #818cf8;
+  color: #ffffff;
+}
+
+.mini-split-badge {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+}
+
+.mini-bottle-badge {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.stock-empty {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.order-notes-section {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.order-note-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 12px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.order-note-input:focus {
+  border-color: #f59e0b;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.btn-close-mobile-cart {
+  display: none;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #94a3b8;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-close-mobile-cart:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.mobile-bottom-bar {
+  display: none;
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  padding: 12px 18px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(245, 158, 11, 0.45);
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  z-index: 1000;
+  animation: bar-pop 0.25s ease-out;
+}
+
+@keyframes bar-pop {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.mobile-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mobile-count-pill {
+  background: #ffffff;
+  color: #d97706;
+  font-weight: 900;
+  font-size: 13px;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.mobile-bar-total {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.mobile-bar-sub {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.mobile-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mobile-cart-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 1150;
+  animation: fade-in 0.2s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 900px) {
+  .pos-container {
+    position: relative;
+    flex-direction: column;
+  }
+
+  .catalog-panel {
+    border-right: none;
+    height: 100%;
+    padding-bottom: 74px; /* clearance for floating mobile bar */
+  }
+
+  .drinks-grid {
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+    gap: 12px;
+  }
+
+  .cart-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 440px;
+    z-index: 1200;
+    box-shadow: -10px 0 35px rgba(0, 0, 0, 0.7);
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .cart-panel.mobile-open {
+    transform: translateX(0);
+  }
+
+  .btn-close-mobile-cart {
+    display: flex;
+  }
+
+  .mobile-bottom-bar {
+    display: flex;
+  }
+}
+
+/* Light Theme Support */
+:root[data-theme="light"] .drink-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+:root[data-theme="light"] .drink-name {
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .price-tag .amount {
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .drink-card:hover {
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  border-color: #f59e0b;
+}
+
+:root[data-theme="light"] .btn-split-unit {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+:root[data-theme="light"] .order-note-input {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .cart-panel {
+  background: #ffffff;
+  border-left: 1px solid #e2e8f0;
+}
+
+:root[data-theme="light"] .cart-title,
+:root[data-theme="light"] .item-title,
+:root[data-theme="light"] .item-subtotal {
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .ticket-item {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+:root[data-theme="light"] .stepper {
+  background: #e2e8f0;
+}
+
+:root[data-theme="light"] .step-btn {
+  color: #334155;
+}
+
+:root[data-theme="light"] .cart-footer {
+  background: #f8fafc;
+  border-top-color: #e2e8f0;
+}
+
+:root[data-theme="light"] .summary-row.total-row {
+  color: #0f172a;
 }
 </style>
