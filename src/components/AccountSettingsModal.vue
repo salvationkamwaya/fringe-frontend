@@ -5,7 +5,7 @@ import api from '../api'
 import { 
   User, Lock, Key, Shield, Sun, Moon, Check, X, Eye, EyeOff, 
   RefreshCw, CheckCircle2, AlertCircle, Sparkles, Building,
-  LogOut, ShieldAlert, Award
+  LogOut, ShieldAlert, Award, Clock
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['close'])
@@ -677,6 +677,37 @@ onMounted(() => {
             </div>
 
             <div class="pane-col">
+              <h5 class="section-title">Terminal Inactivity Security</h5>
+              <div class="privilege-card" style="margin-bottom: 20px;">
+                <div class="privilege-header">
+                  <Clock :size="18" class="text-amber" />
+                  <div>
+                    <h6 class="privilege-role">Idle Auto-Logout Lock</h6>
+                    <span class="privilege-unit">Protects registers when staff step away</span>
+                  </div>
+                </div>
+                <p class="privilege-desc">
+                  When no mouse, touch, or keyboard input is detected, the platform automatically locks and signs out to prevent unauthorized sales.
+                </p>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label>Lockout Inactivity Duration</label>
+                  <select 
+                    :value="store.idleTimeoutMinutes" 
+                    @change="store.setIdleTimeout($event.target.value)"
+                    class="form-select-idle"
+                  >
+                    <option value="2">⏱️ 2 Minutes (High Security / Fast Counter)</option>
+                    <option value="5">⏱️ 5 Minutes (Recommended for Bar & Lounge)</option>
+                    <option value="10">⏱️ 10 Minutes (Standard Business Default)</option>
+                    <option value="15">⏱️ 15 Minutes (Extended)</option>
+                    <option value="30">⏱️ 30 Minutes (Low Traffic Stations)</option>
+                    <option value="0">⚠️ Disabled (Not recommended for POS)</option>
+                  </select>
+                  <span class="field-hint">A 30-second warning countdown will display before locking.</span>
+                </div>
+              </div>
+
               <h5 class="section-title">Session Management</h5>
               <div class="privilege-card">
                 <h6 class="privilege-role">Sign Out Active Session</h6>
@@ -1368,5 +1399,40 @@ onMounted(() => {
 :root[data-theme="light"] .identity-banner {
   background: #f1f5f9;
   border-color: #e2e8f0;
+}
+
+.form-select-idle {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.form-select-idle:focus {
+  border-color: #f59e0b;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.form-select-idle option {
+  background: #111827;
+  color: #ffffff;
+}
+
+:root[data-theme="light"] .form-select-idle {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .form-select-idle option {
+  background: #ffffff;
+  color: #0f172a;
 }
 </style>

@@ -22,6 +22,8 @@ import StockControlModal from './components/StockControlModal.vue'
 import CatalogManagementModal from './components/CatalogManagementModal.vue'
 import SalesRecordsModal from './components/SalesRecordsModal.vue'
 import AccountSettingsModal from './components/AccountSettingsModal.vue'
+import IdleTimeoutModal from './components/IdleTimeoutModal.vue'
+import { initIdleTracker } from './idleTracker'
 
 const checkAuth = async () => {
   if (!store.token) {
@@ -45,6 +47,7 @@ const checkAuth = async () => {
 
 onMounted(() => {
   store.initTheme()
+  initIdleTracker()
   checkAuth()
 })
 </script>
@@ -139,6 +142,9 @@ onMounted(() => {
       v-if="store.activeModal === 'account_settings'"
       @close="store.activeModal = null"
     />
+
+    <!-- Inactivity Auto-Logout Warning Overlay -->
+    <IdleTimeoutModal v-if="store.isIdleWarningActive" />
 
     <!-- Global Toast Notifications -->
     <transition name="toast-fade">

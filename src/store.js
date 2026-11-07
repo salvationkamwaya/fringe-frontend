@@ -29,6 +29,9 @@ export const store = reactive({
     type: 'info', // 'success', 'error', 'warning', 'info'
   },
   theme: localStorage.getItem('fringe_theme') || 'dark', // 'dark' | 'light'
+  idleTimeoutMinutes: parseInt(localStorage.getItem('fringe_idle_timeout') ?? '10', 10), // default 10 minutes
+  isIdleWarningActive: false,
+  idleCountdownSeconds: 30,
 
   // Computed Properties
   isAuthenticated: computed(() => Boolean(store.token && store.user)),
@@ -117,10 +120,10 @@ export const store = reactive({
     }
   },
 
-  async logout() {
+  async logout(reason = 'manual') {
     try {
       if (store.token) {
-        await api.post('/auth/logout/')
+        await api.post('/auth/logout/', { reason })
       }
     } catch (e) {
       // Continue cleanup on error
@@ -130,10 +133,26 @@ export const store = reactive({
       store.activeShift = null
       store.cart = []
       store.isAgeVerified = false
+      store.isIdleWarningActive = false
       localStorage.removeItem('fringe_token')
       localStorage.removeItem('fringe_user')
       store.activeModal = 'login'
-      store.showToast('Logged out successfully.', 'info')
+      if (reason === 'idle_timeout') {
+        store.showToast('Session locked automatically due to inactivity.', 'warning')
+      } else {
+        store.showToast('Logged out successfully.', 'info')
+      }
+    }
+  },
+
+  setIdleTimeout(minutes) {
+    store.idleTimeoutMinutes = parseInt(minutes, 10)
+    localStorage.setItem('fringe_idle_timeout', minutes.toString())
+    if (store.idleTimeoutMinutes === 0) {
+      store.isIdleWarningActive = false
+      store.showToast('Idle auto-logout disabled.', 'info')
+    } else {
+      store.showToast(`Idle auto-logout set to ${minutes} minutes.`, 'info')
     }
   },
 
