@@ -5,7 +5,7 @@ import {
   Wine, BookOpen, Layers, ShieldCheck, Clock, FileText, 
   LogOut, User as UserIcon, ChevronDown, ChevronLeft, ChevronRight,
   Users, Truck, BarChart3, UserCheck, Coins, Sparkles, Boxes, Sun, Moon, PlusCircle, Receipt,
-  Settings, DollarSign, RotateCcw, Barcode
+  Settings, DollarSign, RotateCcw, Barcode, MapPin
 } from 'lucide-vue-next'
 
 const isCollapsed = ref(typeof window !== 'undefined' ? window.innerWidth <= 900 : false)
@@ -114,6 +114,36 @@ const toggleCollapse = () => {
             <option value="all">⚡ Combined (Cross-Unit)</option>
           </select>
           <ChevronDown class="select-arrow" :size="13" />
+        </div>
+      </div>
+
+      <!-- Owner Branch Switcher (Bar & Lounge / Combined) -->
+      <div v-if="store.isOwner && (store.activeUnit === 'bar' || store.activeUnit === 'all')" class="owner-branch-switcher">
+        <label class="switcher-label branch-label">
+          <span>Active Branch:</span>
+          <span class="branch-count-tag" v-if="store.branches.length">{{ store.branches.length }}</span>
+        </label>
+        <div class="select-wrapper">
+          <select 
+            :value="store.activeBranchId" 
+            @change="store.switchBranch($event.target.value)"
+            class="switcher-select branch-select"
+          >
+            <option value="all">⚡ All Branches</option>
+            <option v-for="b in store.branches" :key="b.id" :value="String(b.id)">
+              📍 {{ b.name }} ({{ b.code }})
+            </option>
+          </select>
+          <ChevronDown class="select-arrow" :size="13" />
+        </div>
+      </div>
+
+      <!-- Frontline Staff Branch Assignment Badge (Permanent, No Roaming) -->
+      <div v-if="!store.isOwner && store.activeUnit === 'bar'" class="staff-branch-badge" :title="`Assigned to ${store.activeBranchName}`">
+        <MapPin :size="13" class="staff-branch-icon" />
+        <div class="staff-branch-info">
+          <span class="staff-branch-name">{{ store.activeBranchName }}</span>
+          <span v-if="store.activeBranchCode" class="staff-branch-code">{{ store.activeBranchCode }}</span>
         </div>
       </div>
     </div>
@@ -338,6 +368,19 @@ const toggleCollapse = () => {
         >
           <UserCheck :size="18" class="nav-icon" />
           <span v-if="!isCollapsed" class="nav-label">Staff & Roles</span>
+          <span v-if="!isCollapsed" class="owner-pill">Owner</span>
+        </button>
+
+        <!-- Branches & Locations (Owner Only) -->
+        <button 
+          v-if="store.isOwner"
+          class="nav-item owner-item branch-nav-btn"
+          :class="{ active: store.activeModal === 'branch_management' }"
+          @click="store.activeModal = 'branch_management'"
+          :title="isCollapsed ? 'Branches & Locations (Owner Only)' : ''"
+        >
+          <MapPin :size="18" class="nav-icon text-emerald" />
+          <span v-if="!isCollapsed" class="nav-label">Branches & Locations</span>
           <span v-if="!isCollapsed" class="owner-pill">Owner</span>
         </button>
       </div>
@@ -646,6 +689,83 @@ const toggleCollapse = () => {
 .switcher-select:focus {
   border-color: #f59e0b;
   box-shadow: 0 0 8px rgba(245, 158, 11, 0.25);
+}
+
+.owner-branch-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.branch-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #10b981;
+}
+
+.branch-count-tag {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.branch-select {
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.branch-select:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.25);
+}
+
+.staff-branch-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+}
+
+.staff-branch-icon {
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+.staff-branch-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.staff-branch-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #f1f5f9;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.staff-branch-code {
+  font-size: 9px;
+  font-weight: 700;
+  font-family: monospace;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.branch-nav-btn .text-emerald {
+  color: #10b981;
 }
 
 .select-arrow {

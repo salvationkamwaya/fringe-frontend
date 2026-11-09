@@ -6,7 +6,7 @@ import {
   FileText, TrendingUp, Layers, DollarSign, X, Download, 
   Printer, Clock, Banknote, Smartphone, ShieldAlert, 
   ShieldCheck, AlertTriangle, RefreshCw, BarChart3, Building,
-  Calendar, FileDown, Check
+  Calendar, FileDown, Check, MapPin
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['close'])
@@ -188,7 +188,13 @@ onMounted(() => {
             <FileText :size="24" />
           </div>
           <div>
-            <div class="branding-badge">TANZANIA STATUTORY COMPLIANCE • TSH</div>
+            <div class="branding-badge-row">
+              <span class="branding-badge">TANZANIA STATUTORY COMPLIANCE • TSH</span>
+              <span class="report-branch-pill">
+                <MapPin :size="12" />
+                <span>{{ store.activeBranchName }}</span>
+              </span>
+            </div>
             <h3 class="title">Bar Management & Executive Reports</h3>
             <p class="subtitle">Real-time revenue, gross margins, stock valuation & shift reconciliation</p>
           </div>
@@ -344,6 +350,43 @@ onMounted(() => {
               <span class="kpi-label">Gross Profit</span>
               <span class="kpi-value text-success">TSH {{ parseFloat(reportData.summary?.gross_profit || reportData.profit_snapshot?.gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
               <span class="kpi-desc">Profit Margin: <strong>{{ reportData.summary?.gross_margin_percent || reportData.profit_snapshot?.gross_margin_percent }}</strong></span>
+            </div>
+          </div>
+
+          <!-- Section: Branch Location Performance Breakdown (When viewing All Branches as Owner) -->
+          <div v-if="reportData.branch_breakdown && reportData.branch_breakdown.length > 0" class="content-section">
+            <div class="section-title-row">
+              <Building :size="18" class="text-emerald" />
+              <h4>Branch Performance Comparison (Multi-Location)</h4>
+            </div>
+
+            <div class="branch-breakdown-grid">
+              <div 
+                v-for="b in reportData.branch_breakdown" 
+                :key="b.branch_id"
+                class="branch-breakdown-card"
+                :class="{ 'inactive-branch-card': !b.is_active }"
+              >
+                <div class="branch-card-header">
+                  <div class="branch-card-title">
+                    <span class="branch-card-name">{{ b.branch_name }}</span>
+                    <span class="branch-card-code">{{ b.branch_code }}</span>
+                  </div>
+                  <span class="branch-card-status" :class="b.is_active ? 'active' : 'inactive'">
+                    {{ b.is_active ? 'Active' : 'Deactivated' }}
+                  </span>
+                </div>
+                <div class="branch-card-metrics">
+                  <div class="metric-item">
+                    <span class="metric-lbl">Total Sales:</span>
+                    <strong class="metric-val text-accent">TSH {{ parseFloat(b.total_sales || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                  </div>
+                  <div class="metric-item">
+                    <span class="metric-lbl">Orders:</span>
+                    <span class="metric-val">{{ b.order_count || 0 }} completed</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1426,6 +1469,115 @@ onMounted(() => {
 .wc-sub {
   font-size: 10.5px;
   color: #64748b;
+}
+
+.branding-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.report-branch-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 1px 7px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.branch-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.branch-breakdown-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.branch-breakdown-card.inactive-branch-card {
+  opacity: 0.55;
+}
+
+.branch-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.branch-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.branch-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.branch-card-code {
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.branch-card-status {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+}
+
+.branch-card-status.active {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.branch-card-status.inactive {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.branch-card-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.metric-lbl {
+  color: #94a3b8;
+}
+
+.metric-val {
+  font-weight: 700;
+  color: #e2e8f0;
 }
 
 /* Print Styles */

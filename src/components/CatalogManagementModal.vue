@@ -1,12 +1,12 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { store } from '../store'
 import api from '../api'
 import { 
   Wine, BookOpen, Layers, Plus, Search, Edit3, Trash2, 
   X, CheckCircle2, AlertTriangle, ShieldAlert, Sparkles, 
   DollarSign, Package, Tag, RefreshCw, BarChart2, ShieldCheck,
-  Percent, ArrowRight
+  Percent, ArrowRight, MapPin
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['close'])
@@ -29,6 +29,7 @@ const selectedCategoryId = ref(null)
 const productForm = ref({
   name: '',
   category: '',
+  branch: null,
   sku: '',
   barcode: '',
   description: '',
@@ -53,6 +54,7 @@ const categoryForm = ref({
   name: '',
   slug: '',
   icon: 'tag',
+  branch: null,
   display_order: 0
 })
 const categorySubmitting = ref(false)
@@ -97,8 +99,22 @@ const fetchData = async () => {
   }
 }
 
-onMounted(() => {
+watch(() => store.activeBranchId, () => {
   fetchData()
+})
+
+const onBranchChanged = () => {
+  fetchData()
+}
+
+onMounted(() => {
+  store.fetchBranches()
+  fetchData()
+  window.addEventListener('fringe-branch-changed', onBranchChanged)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('fringe-branch-changed', onBranchChanged)
 })
 
 // Filtered products list
@@ -138,9 +154,15 @@ const openCreateProduct = () => {
   } else {
     itemType.value = 'bar'
   }
+
+  const defaultBranch = (store.activeBranchId && store.activeBranchId !== 'all')
+    ? parseInt(store.activeBranchId, 10)
+    : (store.branches[0]?.id || null)
+
   productForm.value = {
     name: '',
     category: categories.value[0]?.id || '',
+    branch: isBar.value ? defaultBranch : null,
     sku: '',
     barcode: '',
     description: '',
@@ -173,6 +195,7 @@ const openEditProduct = (prod) => {
   productForm.value = {
     name: prod.name,
     category: prod.category || '',
+    branch: prod.branch || null,
     sku: prod.sku || '',
     barcode: prod.barcode || '',
     description: prod.description || '',
@@ -203,6 +226,10 @@ const handleSaveProduct = async () => {
     productError.value = 'Selling price must be greater than zero.'
     return
   }
+  if (isBar.value && store.branches.length > 0 && !productForm.value.branch) {
+    productError.value = 'Please assign this drink to a specific branch location.'
+    return
+  }
 
   productSubmitting.value = true
   productError.value = ''
@@ -212,6 +239,7 @@ const handleSaveProduct = async () => {
       ...productForm.value,
       cost_price: productForm.value.cost_price || '0.00',
       category: productForm.value.category || null,
+      branch: isBar.value ? productForm.value.branch : null,
       is_alcoholic: isBar.value ? Boolean(productForm.value.is_alcoholic) : false,
       volume_ml: (isBar.value && productForm.value.volume_ml) ? parseInt(productForm.value.volume_ml) : null,
       pack_unit_ratio: productForm.value.is_pack ? parseInt(productForm.value.pack_unit_ratio || 1) : 1,
@@ -253,10 +281,15 @@ const handleDeactivateProduct = async (prod) => {
 
 // Category Management
 const openCreateCategory = () => {
+  const defaultBranch = (store.activeBranchId && store.activeBranchId !== 'all')
+    ? parseInt(store.activeBranchId, 10)
+    : (store.branches[0]?.id || null)
+
   categoryForm.value = {
     name: '',
     slug: '',
     icon: 'tag',
+    branch: isBar.value ? defaultBranch : null,
     display_order: categories.value.length + 1
   }
   categoryError.value = ''
@@ -279,12 +312,20 @@ const handleSaveCategory = async () => {
     categoryError.value = 'Category name is required.'
     return
   }
+  if (isBar.value && store.branches.length > 0 && !categoryForm.value.branch) {
+    categoryError.value = 'Please select a branch location for this category.'
+    return
+  }
 
   categorySubmitting.value = true
   categoryError.value = ''
 
   try {
-    const res = await api.post('/catalog/categories/', categoryForm.value)
+    const payload = {
+      ...categoryForm.value,
+      branch: isBar.value ? categoryForm.value.branch : null
+    }
+    const res = await api.post('/catalog/categories/', payload)
     store.showToast(`Category "${categoryForm.value.name}" created!`, 'success')
     showCategoryDrawer.value = false
     await fetchData()
@@ -312,7 +353,13 @@ const handleSaveCategory = async () => {
             <BookOpen v-else :size="24" />
           </div>
           <div>
-            <div class="branding-badge">TANZANIA STATUTORY COMPLIANCE • TSH</div>
+            <div class="branding-badge-row">
+              <span class="branding-badge">TANZANIA STATUTORY COMPLIANCE • TSH</span>
+              <span v-if="isBar" class="branch-indicator-badge">
+                <MapPin :size="12" />
+                <span>{{ store.activeBranchName }}</span>
+              </span>
+            </div>
             <h2>{{ isBar ? 'Bar & Lounge Beverage Catalog' : 'Stationery & Retail Product Catalog' }}</h2>
             <span class="subtitle">Manager Product Registration, Retail Pricing & Category Administration</span>
           </div>
@@ -395,6 +442,7 @@ const handleSaveCategory = async () => {
               <tr>
                 <th>{{ isBar ? 'Beverage Name' : 'Product Name' }}</th>
                 <th>Category</th>
+                <th v-if="isBar && store.isOwner">Branch</th>
                 <th>Classification / Pack</th>
                 <th class="text-right">Cost Price (TSH)</th>
                 <th class="text-right">Selling Price (TSH)</th>
@@ -414,6 +462,14 @@ const handleSaveCategory = async () => {
 
                 <td>
                   <span class="cat-badge">{{ p.category_name || 'Unassigned' }}</span>
+                </td>
+
+                <td v-if="isBar && store.isOwner">
+                  <span v-if="p.branch_name" class="branch-tag">
+                    <MapPin :size="11" />
+                    <span>{{ p.branch_name }}</span>
+                  </span>
+                  <span v-else class="branch-tag-all">Global</span>
                 </td>
 
                 <!-- Classification -->
@@ -556,6 +612,18 @@ const handleSaveCategory = async () => {
                     class="form-input"
                     required
                   />
+                </div>
+
+                <!-- Physical Branch Location (Bar & Lounge) -->
+                <div class="form-group" v-if="isBar && store.branches.length > 0">
+                  <label>Physical Branch Location <span class="req">*</span></label>
+                  <select v-model="productForm.branch" class="form-select" required>
+                    <option :value="null" disabled>Select Branch Location...</option>
+                    <option v-for="b in store.branches" :key="b.id" :value="b.id">
+                      📍 {{ b.name }} ({{ b.code }}) {{ b.is_active ? '' : '[Inactive]' }}
+                    </option>
+                  </select>
+                  <span class="field-hint">Drink catalogs and stock are strictly isolated per branch location.</span>
                 </div>
 
                 <!-- Category -->
@@ -809,6 +877,16 @@ const handleSaveCategory = async () => {
           </div>
 
           <form class="submodal-body" @submit.prevent="handleSaveCategory">
+            <div class="form-group" v-if="isBar && store.branches.length > 0">
+              <label>Branch Location <span class="req">*</span></label>
+              <select v-model="categoryForm.branch" class="form-select" required>
+                <option :value="null" disabled>Select Branch Location...</option>
+                <option v-for="b in store.branches" :key="b.id" :value="b.id">
+                  📍 {{ b.name }} ({{ b.code }})
+                </option>
+              </select>
+            </div>
+
             <div class="form-group">
               <label>Category Name <span class="req">*</span></label>
               <input 
@@ -906,12 +984,48 @@ const handleSaveCategory = async () => {
   justify-content: center;
 }
 
+.branding-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
 .branding-badge {
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
   color: #fbbf24;
-  margin-bottom: 2px;
+}
+
+.branch-indicator-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 1px 7px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.branch-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.branch-tag-all {
+  font-size: 11px;
+  color: #94a3b8;
 }
 
 .window-header h2 {

@@ -28,6 +28,7 @@ import StationeryReturnsModal from './components/StationeryReturnsModal.vue'
 import WholesaleDocumentsModal from './components/WholesaleDocumentsModal.vue'
 import ProductImportModal from './components/ProductImportModal.vue'
 import BarcodeLabelsModal from './components/BarcodeLabelsModal.vue'
+import BranchManagementModal from './components/BranchManagementModal.vue'
 import IdleTimeoutModal from './components/IdleTimeoutModal.vue'
 import { initIdleTracker } from './idleTracker'
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-vue-next'
@@ -46,6 +47,7 @@ const checkAuth = async () => {
       localStorage.setItem('fringe_active_unit', store.activeUnit)
     }
     localStorage.setItem('fringe_user', JSON.stringify(response.data.user))
+    await store.fetchBranches()
     await store.fetchActiveShift()
   } catch (err) {
     store.token = null
@@ -131,6 +133,11 @@ onMounted(() => {
 
     <StaffManagementModal 
       v-if="store.activeModal === 'staff_management'"
+      @close="store.activeModal = null"
+    />
+
+    <BranchManagementModal 
+      v-if="store.activeModal === 'branch_management'"
       @close="store.activeModal = null"
     />
 

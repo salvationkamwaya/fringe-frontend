@@ -1,12 +1,12 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { store } from '../store'
 import api from '../api'
 import { 
   Wine, Beer, GlassWater, Sparkles, Search, Plus, Minus, 
   Trash2, AlertTriangle, ShieldAlert, ShieldCheck, CreditCard, Banknote, 
   Smartphone, Split, Layers, Percent, CheckCircle, Boxes, Receipt,
-  BookmarkCheck, X, Check, ArrowRight
+  BookmarkCheck, X, Check, ArrowRight, MapPin
 } from 'lucide-vue-next'
 
 const categories = ref([])
@@ -57,6 +57,13 @@ watch([selectedCategory, searchQuery], () => {
 
 // Watch for unit switch
 watch(() => store.activeUnit, () => {
+  fetchCategories()
+  fetchProducts()
+})
+
+// Watch for branch switch
+watch(() => store.activeBranchId, () => {
+  selectedCategory.value = null
   fetchCategories()
   fetchProducts()
 })
@@ -177,9 +184,20 @@ const handleSaveRoundToTab = async () => {
   }
 }
 
+const onBranchChange = () => {
+  selectedCategory.value = null
+  fetchCategories()
+  fetchProducts()
+}
+
 onMounted(() => {
   fetchCategories()
   fetchProducts()
+  window.addEventListener('fringe-branch-changed', onBranchChange)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('fringe-branch-changed', onBranchChange)
 })
 </script>
 
@@ -187,6 +205,22 @@ onMounted(() => {
   <div class="pos-container">
     <!-- LEFT: CATALOG & TOUCH DRINK TILES -->
     <div class="catalog-panel">
+      <!-- Active Branch Context Strip -->
+      <div class="branch-context-strip">
+        <div class="branch-context-info">
+          <MapPin :size="14" class="branch-icon-pin" />
+          <span class="branch-label">LOCATION:</span>
+          <strong class="branch-name">{{ store.activeBranchName }}</strong>
+          <span v-if="store.activeBranchCode" class="branch-code-badge">{{ store.activeBranchCode }}</span>
+        </div>
+        <div v-if="store.isOwner" class="branch-context-action">
+          <button class="btn-manage-branches-link" @click="store.activeModal = 'branch_management'">
+            <span>Manage Branches</span>
+            <ArrowRight :size="12" />
+          </button>
+        </div>
+      </div>
+
       <!-- Search & Category Filter Bar -->
       <div class="filter-header">
         <div class="search-box">
@@ -568,6 +602,65 @@ onMounted(() => {
   flex-direction: column;
   overflow: hidden;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.branch-context-strip {
+  padding: 8px 20px;
+  background: rgba(16, 185, 129, 0.08);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.branch-context-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.branch-icon-pin {
+  color: #10b981;
+}
+
+.branch-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #10b981;
+}
+
+.branch-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.branch-code-badge {
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.btn-manage-branches-link {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.btn-manage-branches-link:hover {
+  color: #10b981;
 }
 
 .filter-header {

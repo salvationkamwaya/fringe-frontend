@@ -7,11 +7,16 @@ const initialUser = storedUser ? JSON.parse(storedUser) : null
 const initialUnit = (initialUser && initialUser.role !== 'owner' && initialUser.business_unit)
   ? initialUser.business_unit
   : (localStorage.getItem('fringe_active_unit') || 'bar')
+const initialBranch = (initialUser && initialUser.role !== 'owner' && initialUser.branch)
+  ? initialUser.branch
+  : (localStorage.getItem('fringe_active_branch') || 'all')
 
 export const store = reactive({
   user: initialUser,
   token: localStorage.getItem('fringe_token') || null,
   activeUnit: initialUnit,
+  activeBranchId: initialBranch,
+  branches: [],
   activeShift: null,
   cart: [],
   selectedTab: null,
@@ -52,6 +57,20 @@ export const store = reactive({
   }),
   isStationery: computed(() => store.activeUnit === 'stationery'),
   isBar: computed(() => store.activeUnit === 'bar'),
+  currentBranch: computed(() => {
+    return store.branches.find(b => String(b.id) === String(store.activeBranchId)) || null
+  }),
+  activeBranchName: computed(() => {
+    if (store.currentBranch) return store.currentBranch.name
+    if (store.activeBranchId === 'all') return 'All Branches'
+    return store.user?.branch_name || 'Select Branch'
+  }),
+  activeBranchCode: computed(() => {
+    return store.currentBranch?.code || store.user?.branch_code || ''
+  }),
+  isBranchLocked: computed(() => {
+    return store.user?.role !== 'owner' && Boolean(store.user?.branch)
+  }),
   canRecordSales: computed(() => {
     if (!store.user) return false
     if (store.activeUnit === 'bar') {
@@ -176,18 +195,29 @@ export const store = reactive({
   async login(username, password) {
     try {
       const response = await api.post('/auth/login/', { username, password })
-      const { token, user, active_unit } = response.data
+      const { token, user, active_unit, branches, active_branch } = response.data
 
       store.token = token
       store.user = user
       store.activeUnit = user.role === 'owner' ? (localStorage.getItem('fringe_active_unit') || 'bar') : (user.business_unit || 'bar')
 
+      if (branches) {
+        store.branches = branches
+      }
+      if (user.role === 'owner') {
+        store.activeBranchId = localStorage.getItem('fringe_active_branch') || 'all'
+      } else {
+        store.activeBranchId = user.branch || null
+      }
+
       localStorage.setItem('fringe_token', token)
       localStorage.setItem('fringe_user', JSON.stringify(user))
       localStorage.setItem('fringe_active_unit', store.activeUnit)
+      localStorage.setItem('fringe_active_branch', store.activeBranchId || 'all')
 
       store.activeModal = null
       store.showToast(`Welcome back, ${user.first_name || user.username}!`, 'success')
+      await store.fetchBranches()
       await store.fetchActiveShift()
       return true
     } catch (err) {
@@ -212,9 +242,12 @@ export const store = reactive({
       store.isAgeVerified = false
       store.isIdleWarningActive = false
       store.heldSales = []
+      store.branches = []
+      store.activeBranchId = 'all'
       localStorage.removeItem('fringe_token')
       localStorage.removeItem('fringe_user')
       localStorage.removeItem('fringe_active_unit')
+      localStorage.removeItem('fringe_active_branch')
       localStorage.removeItem('fringe_held_sales')
       store.activeModal = 'login'
       if (reason === 'idle_timeout') {
@@ -223,6 +256,33 @@ export const store = reactive({
         store.showToast('Logged out successfully.', 'info')
       }
     }
+  },
+
+  async fetchBranches() {
+    if (!store.isAuthenticated) return
+    try {
+      const response = await api.get('/core/branches/')
+      store.branches = response.data || []
+      if (store.user?.role === 'owner') {
+        const saved = localStorage.getItem('fringe_active_branch') || 'all'
+        store.activeBranchId = saved
+      } else {
+        store.activeBranchId = store.user?.branch || null
+      }
+    } catch (e) {
+      // Branches not available or user not authorized
+    }
+  },
+
+  switchBranch(branchId) {
+    if (store.user?.role !== 'owner') return
+    store.activeBranchId = branchId
+    localStorage.setItem('fringe_active_branch', branchId)
+    store.clearCart()
+    store.fetchActiveShift()
+    window.dispatchEvent(new CustomEvent('fringe-branch-changed', { detail: { branchId } }))
+    const bName = store.activeBranchName
+    store.showToast(`Active Branch: ${bName}`, 'info')
   },
 
   setIdleTimeout(minutes) {

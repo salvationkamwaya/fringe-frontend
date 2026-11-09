@@ -6,7 +6,7 @@ import {
   Users, UserPlus, Shield, Key, Lock, CheckCircle2,
   XCircle, AlertTriangle, Edit3, RefreshCw, Eye, EyeOff,
   Search, Filter, X, Wine, BookOpen, Layers, Check,
-  RotateCcw, Copy
+  RotateCcw, Copy, MapPin
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['close'])
@@ -16,6 +16,7 @@ const loading = ref(true)
 const searchQuery = ref('')
 const filterUnit = ref('all')
 const filterRole = ref('all')
+const filterBranch = ref('all')
 
 // Modals / Drawers state
 const showCreateDrawer = ref(false)
@@ -42,6 +43,7 @@ const createForm = ref({
   email: '',
   role: 'bartender',
   business_unit: 'bar',
+  branch: null,
   password: '',
   pin: ''
 })
@@ -51,7 +53,8 @@ const createSubmitting = ref(false)
 // Edit Role Form
 const editRoleForm = ref({
   role: '',
-  business_unit: ''
+  business_unit: '',
+  branch: null
 })
 const editRoleSubmitting = ref(false)
 
@@ -116,7 +119,11 @@ const filteredUsers = computed(() => {
     // Role filter
     const matchesRole = filterRole.value === 'all' || user.role === filterRole.value
 
-    return matchesSearch && matchesUnit && matchesRole
+    // Branch filter
+    const matchesBranch = filterBranch.value === 'all' || 
+      String(user.branch) === String(filterBranch.value)
+
+    return matchesSearch && matchesUnit && matchesRole && matchesBranch
   })
 })
 
@@ -129,13 +136,25 @@ const getRoleBadgeClass = (role) => {
 const onRoleChange = () => {
   if (createForm.value.role === 'bar_manager' || createForm.value.role === 'bartender') {
     createForm.value.business_unit = 'bar'
+    if (!createForm.value.branch && store.branches.length > 0) {
+      createForm.value.branch = (store.activeBranchId && store.activeBranchId !== 'all')
+        ? parseInt(store.activeBranchId, 10)
+        : store.branches[0].id
+    }
   } else if (createForm.value.role === 'stationery_manager' || createForm.value.role === 'stationery_cashier') {
     createForm.value.business_unit = 'stationery'
+    createForm.value.branch = null
+  } else {
+    createForm.value.branch = null
   }
 }
 
 // Open creation form
 const openCreateDrawer = () => {
+  const defaultBranch = (store.activeBranchId && store.activeBranchId !== 'all')
+    ? parseInt(store.activeBranchId, 10)
+    : (store.branches[0]?.id || null)
+
   createForm.value = {
     username: '',
     first_name: '',
@@ -143,6 +162,7 @@ const openCreateDrawer = () => {
     email: '',
     role: 'bartender',
     business_unit: 'bar',
+    branch: defaultBranch,
     password: '',
     pin: ''
   }
@@ -176,6 +196,13 @@ const handleCreateStaff = async () => {
     }
   }
 
+  if (createForm.value.business_unit === 'bar' && createForm.value.role === 'bartender' && store.branches.length > 0) {
+    if (!createForm.value.branch) {
+      store.showToast('Bartenders must be permanently assigned to a branch location (no roaming).', 'warning')
+      return
+    }
+  }
+
   createSubmitting.value = true
   try {
     const payload = {
@@ -185,6 +212,7 @@ const handleCreateStaff = async () => {
       email: createForm.value.email.trim(),
       role: createForm.value.role,
       business_unit: createForm.value.business_unit || null,
+      branch: createForm.value.business_unit === 'bar' ? createForm.value.branch : null,
       password: createForm.value.password,
       pin: createForm.value.pin || undefined
     }
@@ -211,7 +239,8 @@ const openRoleModal = (staff) => {
   activeStaff.value = staff
   editRoleForm.value = {
     role: staff.role,
-    business_unit: staff.business_unit || ''
+    business_unit: staff.business_unit || '',
+    branch: staff.branch || null
   }
   showRoleModal.value = true
 }
@@ -219,14 +248,23 @@ const openRoleModal = (staff) => {
 // Submit Role & Unit change
 const handleUpdateRole = async () => {
   if (!activeStaff.value) return
+
+  if (editRoleForm.value.business_unit === 'bar' && editRoleForm.value.role === 'bartender' && store.branches.length > 0) {
+    if (!editRoleForm.value.branch) {
+      store.showToast('Bartenders must be permanently assigned to a single branch location.', 'warning')
+      return
+    }
+  }
+
   editRoleSubmitting.value = true
   try {
     const payload = {
       role: editRoleForm.value.role,
-      business_unit: editRoleForm.value.business_unit || null
+      business_unit: editRoleForm.value.business_unit || null,
+      branch: editRoleForm.value.business_unit === 'bar' ? editRoleForm.value.branch : null
     }
     const res = await api.patch(`/core/users/${activeStaff.value.id}/`, payload)
-    store.showToast(`Role updated for @${res.data.username} to ${res.data.role_display}.`, 'success')
+    store.showToast(`Role & branch assignment updated for @${res.data.username}.`, 'success')
     showRoleModal.value = false
     await fetchUsers()
   } catch (err) {
@@ -335,8 +373,11 @@ const copyResetToken = async () => {
   }
 }
 
-onMounted(() => {
-  fetchUsers()
+onMounted(async () => {
+  await Promise.all([
+    fetchUsers(),
+    store.fetchBranches()
+  ])
 })
 </script>
 
@@ -440,6 +481,15 @@ onMounted(() => {
               </select>
             </div>
 
+            <div class="filter-item" v-if="store.branches.length">
+              <select v-model="filterBranch" class="select-filter">
+                <option value="all">All Branches</option>
+                <option v-for="b in store.branches" :key="b.id" :value="String(b.id)">
+                  📍 {{ b.name }}
+                </option>
+              </select>
+            </div>
+
             <button class="btn-refresh" @click="fetchUsers" title="Refresh List">
               <RefreshCw :size="16" :class="{ 'spin-anim': loading }" />
             </button>
@@ -459,6 +509,7 @@ onMounted(() => {
                 <th>Staff Member</th>
                 <th>Assigned Role</th>
                 <th>Business Unit</th>
+                <th>Assigned Branch</th>
                 <th>Auth PIN</th>
                 <th>Account Status</th>
                 <th class="text-right">Admin Actions</th>
@@ -466,13 +517,13 @@ onMounted(() => {
             </thead>
             <tbody>
               <tr v-if="loading && users.length === 0">
-                <td colspan="6" class="loading-td">
+                <td colspan="7" class="loading-td">
                   <RefreshCw :size="20" class="spin-anim" />
                   <span>Loading staff records from secure ledger...</span>
                 </td>
               </tr>
               <tr v-else-if="filteredUsers.length === 0">
-                <td colspan="6" class="empty-td">
+                <td colspan="7" class="empty-td">
                   <Users :size="32" class="empty-icon" />
                   <p>No staff records found matching your filters.</p>
                 </td>
@@ -509,6 +560,18 @@ onMounted(() => {
                     <Layers v-else :size="14" class="text-purple" />
                     <span>{{ user.business_unit_name || 'Global (Cross-Unit)' }}</span>
                   </div>
+                </td>
+
+                <!-- Assigned Branch -->
+                <td>
+                  <div v-if="user.branch_name" class="branch-cell">
+                    <MapPin :size="13" class="text-emerald" />
+                    <span class="branch-name">{{ user.branch_name }}</span>
+                    <span v-if="user.branch_code" class="branch-code">({{ user.branch_code }})</span>
+                  </div>
+                  <span v-else-if="user.role === 'owner'" class="branch-all">All Locations</span>
+                  <span v-else-if="user.business_unit === 'stationery'" class="branch-na">N/A</span>
+                  <span v-else class="branch-unassigned">Unassigned</span>
                 </td>
 
                 <!-- PIN Status -->
@@ -643,6 +706,20 @@ onMounted(() => {
                 </div>
               </div>
 
+              <!-- Permanent Branch Assignment (Bar & Lounge) -->
+              <div class="form-group" v-if="createForm.business_unit === 'bar'">
+                <label>
+                  Permanent Branch Location <span class="req" v-if="createForm.role === 'bartender'">*</span>
+                </label>
+                <select v-model="createForm.branch" class="form-select" :required="createForm.role === 'bartender'">
+                  <option :value="null">-- Select Branch Location --</option>
+                  <option v-for="b in store.branches" :key="b.id" :value="b.id">
+                    📍 {{ b.name }} ({{ b.code }}) {{ b.is_active ? '' : '[Inactive]' }}
+                  </option>
+                </select>
+                <span class="field-hint">Frontline staff operate permanently from a single branch (no roaming). Owner can dynamically reassign when needed.</span>
+              </div>
+
               <!-- Password -->
               <div class="form-group">
                 <label>Login Password <span class="req">*</span> <span class="optional">(Min 8 chars, Upper, Lower, Number & Symbol)</span></label>
@@ -721,6 +798,20 @@ onMounted(() => {
                   <option value="bar">🍷 Bar & Lounge</option>
                   <option value="stationery">📚 Stationery & Retail</option>
                 </select>
+              </div>
+
+              <!-- Permanent Branch Assignment (Bar & Lounge) -->
+              <div class="form-group" v-if="editRoleForm.business_unit === 'bar'">
+                <label>
+                  Permanent Branch Location <span class="req" v-if="editRoleForm.role === 'bartender'">*</span>
+                </label>
+                <select v-model="editRoleForm.branch" class="form-select" :required="editRoleForm.role === 'bartender'">
+                  <option :value="null">-- Select Branch Location --</option>
+                  <option v-for="b in store.branches" :key="b.id" :value="b.id">
+                    📍 {{ b.name }} ({{ b.code }}) {{ b.is_active ? '' : '[Inactive]' }}
+                  </option>
+                </select>
+                <span class="field-hint">Business Owner dynamically reassigns staff between branches at any time.</span>
               </div>
             </div>
             <div class="submodal-footer">
@@ -1244,6 +1335,47 @@ onMounted(() => {
 .text-amber { color: #f59e0b; }
 .text-cyan { color: #06b6d4; }
 .text-purple { color: #c084fc; }
+
+/* Branch Cell */
+.branch-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+}
+.branch-name {
+  font-weight: 600;
+  color: #f1f5f9;
+}
+.branch-code {
+  font-family: monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+.branch-all {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+}
+.branch-na {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+.branch-unassigned {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+}
 
 /* PIN Badges */
 .badge-pin-yes {
