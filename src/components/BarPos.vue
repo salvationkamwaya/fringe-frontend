@@ -6,7 +6,7 @@ import {
   Wine, Beer, GlassWater, Sparkles, Search, Plus, Minus, 
   Trash2, AlertTriangle, ShieldAlert, ShieldCheck, CreditCard, Banknote, 
   Smartphone, Split, Layers, Percent, CheckCircle, Boxes, Receipt,
-  BookmarkCheck, X, Check, ArrowRight, MapPin
+  BookmarkCheck, X, Check, ArrowRight, MapPin, Package
 } from 'lucide-vue-next'
 
 const categories = ref([])
@@ -99,7 +99,9 @@ const handleDrinkClick = (drink, is_pack_sale = true) => {
     return
   }
   store.addToCart(drink, 1, is_pack_sale)
-  const modeLabel = !is_pack_sale ? 'Shot/Peg' : (drink.is_pack ? 'Bottle/Pack' : 'Drink')
+  const modeLabel = !is_pack_sale 
+    ? `Single ${drink.unit_name || 'Bottle'}` 
+    : (drink.is_pack ? `Full ${drink.pack_name || 'Crate'}` : 'Drink')
   store.showToast(`Added ${drink.name} (${modeLabel}) to ticket`, 'success')
 }
 
@@ -298,37 +300,48 @@ onUnmounted(() => {
               <div v-if="drink.volume_ml" class="drink-volume">{{ drink.volume_ml }}ml</div>
             </div>
 
-            <!-- Split Sale Touch Buttons (Peg vs Bottle) -->
+            <!-- Split Sale Touch Buttons (Crate/Carton vs Single Bottle/Unit) -->
             <div v-if="drink.allow_split_sale && Number(drink.stock_quantity) > 0" class="split-sale-buttons">
               <button 
                 class="btn-split-unit" 
                 @click.stop="handleDrinkClick(drink, true)"
-                title="Add Full Bottle"
+                :title="`Add Full ${drink.pack_name || 'Crate'} (${drink.pack_unit_ratio} ${drink.unit_name || 'bottles'})`"
               >
-                <Wine :size="12" />
-                <span>Bottle</span>
+                <Package :size="12" />
+                <span>{{ drink.pack_name || 'Crate' }}</span>
               </button>
               <button 
                 class="btn-split-unit btn-peg" 
                 @click.stop="handleDrinkClick(drink, false)"
-                title="Add Single Shot/Peg"
+                :title="`Add Single ${drink.unit_name || 'Bottle'}`"
               >
-                <GlassWater :size="12" />
-                <span>Shot/Peg</span>
+                <Wine v-if="drink.is_alcoholic" :size="12" />
+                <GlassWater v-else :size="12" />
+                <span>Single {{ drink.unit_name || 'Bottle' }}</span>
               </button>
             </div>
 
             <div class="drink-footer">
               <div class="price-tag">
                 <span class="currency">TSH</span>
-                <span class="amount">{{ parseFloat(drink.selling_price).toFixed(2) }}</span>
+                <span class="amount">{{ parseFloat(drink.selling_price).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }}</span>
+                <span v-if="drink.is_pack && drink.allow_split_sale && drink.split_unit_price" class="split-price-sub">
+                  • 🍾 {{ parseFloat(drink.split_unit_price).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }}
+                </span>
               </div>
 
               <div 
                 class="stock-badge"
                 :class="Number(drink.stock_quantity) <= 0 ? 'stock-empty' : Number(drink.stock_quantity) <= Number(drink.reorder_threshold) ? 'stock-low' : 'stock-ok'"
               >
-                {{ Number(drink.stock_quantity) <= 0 ? 'Out of stock' : `${Number(drink.stock_quantity).toFixed(0)} left` }}
+                <span v-if="Number(drink.stock_quantity) <= 0">Out of stock</span>
+                <span v-else-if="drink.is_pack">
+                  {{ Math.floor(Number(drink.stock_quantity)) }} {{ drink.pack_name || 'Crates' }}
+                  <span v-if="drink.pack_unit_ratio > 1" class="stock-pieces-sub">
+                    ({{ Math.round(Number(drink.stock_quantity) * drink.pack_unit_ratio) }} {{ drink.unit_name || 'btls' }})
+                  </span>
+                </span>
+                <span v-else>{{ Number(drink.stock_quantity).toFixed(0) }} left</span>
               </div>
             </div>
           </div>
@@ -433,8 +446,12 @@ onUnmounted(() => {
           <div class="item-info">
             <div class="item-top">
               <span class="item-title">{{ item.product.name }}</span>
-              <span v-if="item.is_pack_sale === false" class="mini-split-badge">🥃 Shot</span>
-              <span v-else-if="item.product.allow_split_sale" class="mini-bottle-badge">🍾 Bottle</span>
+              <span v-if="item.is_pack_sale === false" class="mini-split-badge">
+                🍾 Single {{ item.product.unit_name || 'Bottle' }}
+              </span>
+              <span v-else-if="item.product.is_pack" class="mini-bottle-badge">
+                📦 {{ item.product.pack_name || 'Crate' }} ({{ item.product.pack_unit_ratio }})
+              </span>
               <span v-if="item.product.is_alcoholic" class="mini-alcohol-badge">18+</span>
             </div>
             <div class="item-subprice">TSH {{ parseFloat(item.unit_price).toFixed(2) }} each</div>
@@ -1660,5 +1677,18 @@ onUnmounted(() => {
 
 :root[data-theme="light"] .summary-row.total-row {
   color: #0f172a;
+}
+
+.split-price-sub {
+  font-size: 10px;
+  color: #38bdf8;
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.stock-pieces-sub {
+  font-size: 9.5px;
+  opacity: 0.8;
+  display: block;
 }
 </style>

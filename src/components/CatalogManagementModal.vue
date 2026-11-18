@@ -68,6 +68,187 @@ const isBar = computed(() => {
   return itemType.value === 'bar' || store.activeUnit === 'bar'
 })
 
+// RBAC: Only Managers and Owner can register, edit, or deactivate catalog items
+const canManage = computed(() => {
+  if (store.isOwner) return true
+  if (isBar.value) return store.user?.role === 'bar_manager'
+  return store.user?.role === 'stationery_manager'
+})
+
+// Drink & Grocery Packaging Presets (Standard for Tanzania & East African Groceries / Bars)
+const drinkPackagePresets = [
+  {
+    id: 'beer_crate_25',
+    label: 'Beer Crate (25 Btls)',
+    icon: '🍺',
+    desc: 'Kilimanjaro, Safari, Serengeti (500ml)',
+    pack_name: 'Crate',
+    unit_name: 'Bottle',
+    capacity: 25,
+    is_alcoholic: true,
+    volume_ml: '500',
+    default_price: '70000',
+    default_split_price: '3000',
+  },
+  {
+    id: 'beer_crate_24',
+    label: 'Beer Crate (24 Cans/Btls)',
+    icon: '🍻',
+    desc: 'Castle Lite, Heineken, Windhoek (330ml)',
+    pack_name: 'Crate',
+    unit_name: 'Bottle',
+    capacity: 24,
+    is_alcoholic: true,
+    volume_ml: '330',
+    default_price: '72000',
+    default_split_price: '3500',
+  },
+  {
+    id: 'juice_carton_24',
+    label: 'Juice Carton (24 Packs)',
+    icon: '🧃',
+    desc: 'Azam Juice, Ceres, Mo Juice (250ml)',
+    pack_name: 'Carton',
+    unit_name: 'Pack',
+    capacity: 24,
+    is_alcoholic: false,
+    volume_ml: '250',
+    default_price: '24000',
+    default_split_price: '1200',
+  },
+  {
+    id: 'juice_carton_12',
+    label: 'Juice Carton (12 Bottles)',
+    icon: '🧃',
+    desc: 'Sayona, Fresh Fruit Juice (500ml)',
+    pack_name: 'Carton',
+    unit_name: 'Bottle',
+    capacity: 12,
+    is_alcoholic: false,
+    volume_ml: '500',
+    default_price: '18000',
+    default_split_price: '1800',
+  },
+  {
+    id: 'water_carton_24',
+    label: 'Water Carton (24 Bottles)',
+    icon: '💧',
+    desc: 'Kilimanjaro, Uhai, Afya Water (500ml)',
+    pack_name: 'Carton',
+    unit_name: 'Bottle',
+    capacity: 24,
+    is_alcoholic: false,
+    volume_ml: '500',
+    default_price: '18000',
+    default_split_price: '1000',
+  },
+  {
+    id: 'water_carton_12',
+    label: 'Water Carton (12 Large Btls)',
+    icon: '💧',
+    desc: 'Mineral Water (1.5 Litres)',
+    pack_name: 'Carton',
+    unit_name: 'Bottle',
+    capacity: 12,
+    is_alcoholic: false,
+    volume_ml: '1500',
+    default_price: '18000',
+    default_split_price: '2000',
+  },
+  {
+    id: 'soda_crate_24',
+    label: 'Soda Crate (24 Glass Btls)',
+    icon: '🥤',
+    desc: 'Coca-Cola, Fanta, Sprite, Pepsi (350ml)',
+    pack_name: 'Crate',
+    unit_name: 'Bottle',
+    capacity: 24,
+    is_alcoholic: false,
+    volume_ml: '350',
+    default_price: '24000',
+    default_split_price: '1200',
+  },
+  {
+    id: 'energy_carton_24',
+    label: 'Energy Pack (24 Cans)',
+    icon: '⚡',
+    desc: 'Red Bull, Mo Energy, Azam Energy (250ml)',
+    pack_name: 'Carton',
+    unit_name: 'Can',
+    capacity: 24,
+    is_alcoholic: false,
+    volume_ml: '250',
+    default_price: '60000',
+    default_split_price: '3000',
+  },
+  {
+    id: 'wine_spirits_case_6',
+    label: 'Wine / Spirit Case (6 Btls)',
+    icon: '🍷',
+    desc: 'Wine, Whiskeys, Vodka (750ml)',
+    pack_name: 'Case',
+    unit_name: 'Bottle',
+    capacity: 6,
+    is_alcoholic: true,
+    volume_ml: '750',
+    default_price: '120000',
+    default_split_price: '25000',
+  }
+]
+
+const activePreset = ref(null)
+
+const applyPackagePreset = (preset) => {
+  activePreset.value = preset.id
+  productForm.value.is_pack = true
+  productForm.value.pack_name = preset.pack_name
+  productForm.value.unit_name = preset.unit_name
+  productForm.value.pack_unit_ratio = preset.capacity
+  productForm.value.is_alcoholic = preset.is_alcoholic
+  productForm.value.volume_ml = preset.volume_ml
+  productForm.value.allow_split_sale = true
+
+  if (!productForm.value.selling_price || parseFloat(productForm.value.selling_price) === 0) {
+    productForm.value.selling_price = preset.default_price
+  }
+  if (!productForm.value.split_unit_price || parseFloat(productForm.value.split_unit_price) === 0) {
+    productForm.value.split_unit_price = preset.default_split_price
+  }
+}
+
+const onSinglePriceChange = () => {
+  const single = parseFloat(productForm.value.split_unit_price || 0)
+  const ratio = parseInt(productForm.value.pack_unit_ratio || 1, 10)
+  if (single > 0 && ratio > 0 && (!productForm.value.selling_price || parseFloat(productForm.value.selling_price) === 0)) {
+    productForm.value.selling_price = (single * ratio).toFixed(2)
+  }
+}
+
+const onCratePriceChange = () => {
+  const cratePrice = parseFloat(productForm.value.selling_price || 0)
+  const ratio = parseInt(productForm.value.pack_unit_ratio || 1, 10)
+  if (cratePrice > 0 && ratio > 0 && (!productForm.value.split_unit_price || parseFloat(productForm.value.split_unit_price) === 0)) {
+    productForm.value.split_unit_price = (cratePrice / ratio).toFixed(2)
+  }
+}
+
+const getUnitCost = computed(() => {
+  if (!productForm.value.is_pack || !productForm.value.pack_unit_ratio) return parseFloat(productForm.value.cost_price || 0)
+  return parseFloat(productForm.value.cost_price || 0) / productForm.value.pack_unit_ratio
+})
+
+const getSingleProfit = computed(() => {
+  const singlePrice = parseFloat(productForm.value.split_unit_price || 0)
+  const unitCost = getUnitCost.value
+  return singlePrice - unitCost
+})
+
+const getPackageProfit = computed(() => {
+  const packPrice = parseFloat(productForm.value.selling_price || 0)
+  const packCost = parseFloat(productForm.value.cost_price || 0)
+  return packPrice - packCost
+})
+
 const setItemType = (type) => {
   itemType.value = type
   if (type === 'bar') {
@@ -149,6 +330,7 @@ const calculateMargin = (selling, cost) => {
 const openCreateProduct = () => {
   isEditing.value = false
   selectedProductId.value = null
+  activePreset.value = null
   if (store.user?.role === 'stationery_manager' || store.activeUnit === 'stationery') {
     itemType.value = 'stationery'
   } else {
@@ -192,6 +374,9 @@ const openEditProduct = (prod) => {
   } else {
     itemType.value = 'stationery'
   }
+  const matched = drinkPackagePresets.find(p => p.pack_name === prod.pack_name && p.capacity === prod.pack_unit_ratio)
+  activePreset.value = matched ? matched.id : null
+
   productForm.value = {
     name: prod.name,
     category: prod.category || '',
@@ -222,6 +407,17 @@ const handleSaveProduct = async () => {
     productError.value = 'Product name is required.'
     return
   }
+
+  // Auto-sync prices if one was left blank for packaged goods
+  if (productForm.value.is_pack && productForm.value.allow_split_sale) {
+    const ratio = parseInt(productForm.value.pack_unit_ratio || 1, 10)
+    if ((!productForm.value.selling_price || parseFloat(productForm.value.selling_price) <= 0) && productForm.value.split_unit_price) {
+      productForm.value.selling_price = (parseFloat(productForm.value.split_unit_price) * ratio).toFixed(2)
+    } else if (productForm.value.selling_price && (!productForm.value.split_unit_price || parseFloat(productForm.value.split_unit_price) <= 0)) {
+      productForm.value.split_unit_price = (parseFloat(productForm.value.selling_price) / ratio).toFixed(2)
+    }
+  }
+
   if (!productForm.value.selling_price || parseFloat(productForm.value.selling_price) <= 0) {
     productError.value = 'Selling price must be greater than zero.'
     return
@@ -440,10 +636,10 @@ const handleSaveCategory = async () => {
           <table v-else class="catalog-table">
             <thead>
               <tr>
-                <th>{{ isBar ? 'Beverage Name' : 'Product Name' }}</th>
+                <th>{{ isBar ? 'Beverage / Drink' : 'Product Name' }}</th>
                 <th>Category</th>
                 <th v-if="isBar && store.isOwner">Branch</th>
-                <th>Classification / Pack</th>
+                <th>Packaging & Capacity</th>
                 <th class="text-right">Cost Price (TSH)</th>
                 <th class="text-right">Selling Price (TSH)</th>
                 <th class="text-right">Gross Margin</th>
@@ -456,7 +652,12 @@ const handleSaveCategory = async () => {
                 <td>
                   <div class="prod-name-cell">
                     <span class="prod-title">{{ p.name }}</span>
-                    <span v-if="p.sku" class="sku-sub">SKU: {{ p.sku }}</span>
+                    <div class="prod-badges-inline">
+                      <span v-if="p.sku" class="sku-sub">SKU: {{ p.sku }}</span>
+                      <span v-if="p.is_alcoholic" class="badge-tag badge-alcohol">18+ Alcohol</span>
+                      <span v-else-if="isBar" class="badge-tag badge-soft">Soft Drink</span>
+                      <span v-if="p.volume_ml" class="vol-info">{{ p.volume_ml }}ml</span>
+                    </div>
                   </div>
                 </td>
 
@@ -472,16 +673,18 @@ const handleSaveCategory = async () => {
                   <span v-else class="branch-tag-all">Global</span>
                 </td>
 
-                <!-- Classification -->
+                <!-- Packaging & Capacity -->
                 <td>
-                  <div v-if="isBar">
-                    <span v-if="p.is_alcoholic" class="badge-tag badge-alcohol">18+ Alcohol</span>
-                    <span v-else class="badge-tag badge-soft">Soft Drink</span>
-                    <span v-if="p.volume_ml" class="vol-info">{{ p.volume_ml }}ml</span>
+                  <div v-if="p.is_pack" class="pack-display-cell">
+                    <span class="badge-tag badge-pack">
+                      📦 1 {{ p.pack_name || 'Crate' }} = {{ p.pack_unit_ratio }} {{ p.unit_name || 'Bottles' }}
+                    </span>
+                    <span v-if="p.allow_split_sale && p.split_unit_price" class="split-sale-hint">
+                      🍾 Single: TSH {{ parseFloat(p.split_unit_price).toLocaleString() }}
+                    </span>
                   </div>
                   <div v-else>
-                    <span v-if="p.is_pack" class="badge-tag badge-pack">{{ p.pack_name }} ({{ p.pack_unit_ratio }})</span>
-                    <span v-else class="badge-tag badge-single">Single Unit</span>
+                    <span class="badge-tag badge-single">Single Unit</span>
                   </div>
                 </td>
 
@@ -492,7 +695,10 @@ const handleSaveCategory = async () => {
 
                 <!-- Selling Price -->
                 <td class="text-right font-num font-bold text-accent">
-                  TSH {{ parseFloat(p.selling_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
+                  <div class="price-cell-stack">
+                    <span>TSH {{ parseFloat(p.selling_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
+                    <span v-if="p.is_pack" class="price-sub-label">per {{ p.pack_name || 'crate' }}</span>
+                  </div>
                 </td>
 
                 <!-- Margin -->
@@ -504,14 +710,24 @@ const handleSaveCategory = async () => {
 
                 <!-- Current Stock -->
                 <td class="text-right font-num">
-                  <span :class="parseFloat(p.stock_quantity) <= parseFloat(p.reorder_threshold) ? 'text-amber font-bold' : ''">
-                    {{ parseFloat(p.stock_quantity).toLocaleString() }}
-                  </span>
+                  <div v-if="p.is_pack">
+                    <span :class="parseFloat(p.stock_quantity) <= parseFloat(p.reorder_threshold) ? 'text-amber font-bold' : ''">
+                      {{ Math.floor(parseFloat(p.stock_quantity || 0)) }} {{ p.pack_name || 'Crates' }}
+                    </span>
+                    <span v-if="p.pack_unit_ratio > 1" class="stock-sub-units">
+                      ({{ Math.round(parseFloat(p.stock_quantity || 0) * p.pack_unit_ratio) }} {{ p.unit_name || 'bottles' }})
+                    </span>
+                  </div>
+                  <div v-else>
+                    <span :class="parseFloat(p.stock_quantity) <= parseFloat(p.reorder_threshold) ? 'text-amber font-bold' : ''">
+                      {{ parseFloat(p.stock_quantity).toLocaleString() }}
+                    </span>
+                  </div>
                 </td>
 
                 <!-- Actions -->
                 <td class="text-right">
-                  <div class="row-actions">
+                  <div v-if="canManage" class="row-actions">
                     <button class="btn-icon btn-edit" @click="openEditProduct(p)" title="Edit Pricing & Details">
                       <Edit3 :size="15" />
                     </button>
@@ -519,6 +735,7 @@ const handleSaveCategory = async () => {
                       <Trash2 :size="15" />
                     </button>
                   </div>
+                  <span v-else class="text-muted text-xs">Read Only</span>
                 </td>
               </tr>
             </tbody>
@@ -532,7 +749,7 @@ const handleSaveCategory = async () => {
           <div class="toolbar-left">
             <span class="section-hint">Categories organize your POS counter display tiles and sales reporting.</span>
           </div>
-          <button class="btn-primary-action" @click="openCreateCategory">
+          <button v-if="canManage" class="btn-primary-action" @click="openCreateCategory">
             <Plus :size="15" />
             <span>Create Category</span>
           </button>
@@ -672,14 +889,188 @@ const handleSaveCategory = async () => {
                 </div>
               </div>
 
-              <!-- SECTION 2: PRICING & PROFIT MARGINS (STEP 5) -->
+              <!-- SECTION 2: DRINK PACKAGING & CAPACITY CONFIGURATION (STEP 5) -->
+              <div class="form-section-card highlight-packaging-card">
+                <div class="form-section-title text-amber">
+                  <Package :size="15" />
+                  <span>Step 5: Packaging & Capacity (Crates, Cartons & Packs)</span>
+                </div>
+
+                <div class="checkbox-row highlight-checkbox">
+                  <input 
+                    type="checkbox" 
+                    id="chkPack" 
+                    v-model="productForm.is_pack" 
+                    class="form-checkbox"
+                  />
+                  <label for="chkPack" class="checkbox-label">
+                    <strong class="packaging-badge-text">
+                      {{ isBar ? 'Stocked & Handled in Crates / Cartons / Cases' : 'Pack / Bulk Product (Box, Carton, Ream)' }}
+                    </strong>
+                    <span class="sublabel">
+                      {{ isBar ? 'Configure how many bottles or cans are contained inside each crate or carton (e.g. 25 beers/crate, 24 juices/carton, 24 waters/carton).' : 'Allows selling as complete bulk packs and breaking down into individual retail pieces.' }}
+                    </span>
+                  </label>
+                </div>
+
+                <div v-if="productForm.is_pack" class="pack-config-details mt-3">
+                  <!-- Quick Presets for Drinks (Tanzania Bar & Grocery Domain) -->
+                  <div v-if="isBar" class="package-presets-section">
+                    <span class="presets-title">⚡ Quick Grocery & Bar Packaging Presets:</span>
+                    <div class="presets-grid">
+                      <button 
+                        v-for="preset in drinkPackagePresets" 
+                        :key="preset.id"
+                        type="button"
+                        class="preset-chip"
+                        :class="{ active: activePreset === preset.id }"
+                        @click="applyPackagePreset(preset)"
+                      >
+                        <span class="preset-name">{{ preset.label }}</span>
+                        <span class="preset-desc">{{ preset.pack_name }} of {{ preset.capacity }} {{ preset.unit_name }}s</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Packaging Capacity Equation Display -->
+                  <div class="packaging-rule-banner">
+                    <div class="rule-icon">📦</div>
+                    <div class="rule-equation">
+                      <span>1 {{ productForm.pack_name || 'Crate' }} of <strong>{{ productForm.name || 'Drink' }}</strong> holds</span>
+                      <span class="pill-unit-large">{{ productForm.pack_unit_ratio || 1 }}</span>
+                      <span>individual {{ productForm.unit_name || 'Bottles' }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Packaging Breakdown Form Inputs -->
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Package / Bulk Container Name <span class="req">*</span></label>
+                      <input 
+                        v-model="productForm.pack_name" 
+                        type="text" 
+                        :placeholder="isBar ? 'e.g. Crate, Carton, Case, 6-Pack' : 'e.g. Box, Ream, Carton'" 
+                        class="form-input" 
+                        required
+                      />
+                      <span class="field-hint">e.g. "Crate" for beers, "Carton" for juice/water boxes.</span>
+                    </div>
+
+                    <div class="form-group">
+                      <label>Items / Bottles Per Package <span class="req">*</span></label>
+                      <div class="input-with-suffix">
+                        <input 
+                          v-model.number="productForm.pack_unit_ratio" 
+                          type="number" 
+                          min="1" 
+                          step="1"
+                          placeholder="e.g. 25, 24, 12, 6" 
+                          class="form-input" 
+                          required
+                          @input="onCratePriceChange"
+                        />
+                        <span class="suffix-badge">{{ productForm.unit_name || 'units' }}</span>
+                      </div>
+                      <span class="field-hint">e.g. 25 for Kilimanjaro beer, 24 for Azam juice/water carton.</span>
+                    </div>
+
+                    <div class="form-group">
+                      <label>Single Item Unit Name <span class="req">*</span></label>
+                      <input 
+                        v-model="productForm.unit_name" 
+                        type="text" 
+                        :placeholder="isBar ? 'e.g. Bottle, Can, Pack' : 'e.g. Piece, Pen, Sheet'" 
+                        class="form-input" 
+                        required
+                      />
+                      <span class="field-hint">e.g. "Bottle", "Can", or "Pack".</span>
+                    </div>
+                  </div>
+
+                  <!-- Single Bottle / Item Split Sales Checkbox -->
+                  <div class="checkbox-row split-sale-row mt-2">
+                    <input 
+                      type="checkbox" 
+                      id="chkSplit" 
+                      v-model="productForm.allow_split_sale" 
+                      class="form-checkbox"
+                    />
+                    <label for="chkSplit" class="checkbox-label">
+                      <strong>{{ isBar ? 'Enable Single Bottle / Single Unit Sales at POS Counter' : 'Allow Single Unit Split Sales' }}</strong>
+                      <span class="sublabel">
+                        When checked, bartenders/cashiers can sell both full {{ productForm.pack_name || 'crates' }} and single {{ productForm.unit_name || 'bottles' }}. Stock automatically deducts 1/{{ productForm.pack_unit_ratio || 1 }} {{ productForm.pack_name || 'crate' }} per single sale.
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SECTION 3: PRICING & PROFIT MARGINS (STEP 6) -->
               <div class="form-section-card">
                 <div class="form-section-title">
                   <DollarSign :size="14" />
-                  <span>Step 5: Pricing & Profit Margins (TSH)</span>
+                  <span>Step 6: Pricing & Gross Profit (TSH)</span>
                 </div>
 
-                <div class="form-row">
+                <div class="pricing-dual-grid" v-if="productForm.is_pack && productForm.allow_split_sale">
+                  <!-- Package / Crate Price Card -->
+                  <div class="price-input-card">
+                    <div class="price-card-header">
+                      <Package :size="13" />
+                      <span>Full {{ productForm.pack_name || 'Crate' }} Wholesale Price</span>
+                    </div>
+                    <div class="form-group">
+                      <label>Selling Price per {{ productForm.pack_name || 'Crate' }} (TSH) <span class="req">*</span></label>
+                      <input 
+                        v-model="productForm.selling_price" 
+                        type="number" 
+                        step="0.01" 
+                        min="0" 
+                        placeholder="e.g. 62,500.00" 
+                        class="form-input font-bold text-accent"
+                        required
+                        @input="onCratePriceChange"
+                      />
+                    </div>
+                    <div class="price-card-summary">
+                      <span>Package Profit:</span>
+                      <strong class="text-emerald">
+                        TSH {{ getPackageProfit > 0 ? getPackageProfit.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00' }}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <!-- Single Unit / Bottle Price Card -->
+                  <div class="price-input-card">
+                    <div class="price-card-header">
+                      <Wine v-if="isBar" :size="13" />
+                      <Tag v-else :size="13" />
+                      <span>Single {{ productForm.unit_name || 'Bottle' }} Retail Price</span>
+                    </div>
+                    <div class="form-group">
+                      <label>Selling Price per {{ productForm.unit_name || 'Bottle' }} (TSH) <span class="req">*</span></label>
+                      <input 
+                        v-model="productForm.split_unit_price" 
+                        type="number" 
+                        step="0.01" 
+                        min="0" 
+                        placeholder="e.g. 2,500.00" 
+                        class="form-input font-bold text-cyan"
+                        required
+                        @input="onSinglePriceChange"
+                      />
+                    </div>
+                    <div class="price-card-summary">
+                      <span>Profit per {{ productForm.unit_name || 'Bottle' }}:</span>
+                      <strong class="text-cyan">
+                        TSH {{ getSingleProfit > 0 ? getSingleProfit.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00' }}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Single Item Non-Pack Pricing -->
+                <div v-else class="form-row">
                   <div class="form-group">
                     <label>Retail Selling Price (TSH) <span class="req">*</span></label>
                     <input 
@@ -688,13 +1079,19 @@ const handleSaveCategory = async () => {
                       step="0.01" 
                       min="0" 
                       placeholder="0.00" 
-                      class="form-input"
+                      class="form-input font-bold text-accent"
                       required
                     />
                   </div>
+                </div>
 
+                <!-- Cost Price from Brewery / Supplier -->
+                <div class="form-row mt-2">
                   <div class="form-group">
-                    <label>Cost Price (TSH) <span class="opt">(Optional)</span></label>
+                    <label>
+                      {{ productForm.is_pack ? `Cost Price per ${productForm.pack_name || 'Crate'} (TSH)` : 'Cost Price (TSH)' }}
+                      <span class="opt">(Optional)</span>
+                    </label>
                     <input 
                       v-model="productForm.cost_price" 
                       type="number" 
@@ -703,34 +1100,32 @@ const handleSaveCategory = async () => {
                       placeholder="0.00" 
                       class="form-input"
                     />
+                    <span v-if="productForm.is_pack && productForm.cost_price" class="field-hint">
+                      Equates to ~TSH {{ getUnitCost.toLocaleString('en-US', { maximumFractionDigits: 2 }) }} cost per single {{ productForm.unit_name || 'bottle' }}.
+                    </span>
                   </div>
-                </div>
-
-                <!-- Live Margin & Profit Calculator -->
-                <div v-if="productForm.selling_price" class="margin-preview-box">
-                  <div class="margin-preview-item">
-                    <span class="preview-label">Estimated Gross Profit:</span>
-                    <strong class="preview-value text-emerald">
-                      TSH {{ (parseFloat(productForm.selling_price || 0) - parseFloat(productForm.cost_price || 0)).toFixed(2) }}
-                    </strong>
-                  </div>
-                  <div class="margin-preview-item">
-                    <span class="preview-label">Gross Margin:</span>
-                    <span class="margin-pill">{{ calculateMargin(productForm.selling_price, productForm.cost_price) }}%</span>
+                  <div class="form-group">
+                    <label>Overall Gross Margin (%)</label>
+                    <div class="margin-readonly-display">
+                      <span class="margin-pill large">{{ calculateMargin(productForm.selling_price, productForm.cost_price) }}%</span>
+                      <span class="field-hint">Calculated on full package retail selling price.</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <!-- SECTION 3: INVENTORY CONTROL (STEP 6) -->
+              <!-- SECTION 4: INVENTORY CONTROL (STEP 7) -->
               <div class="form-section-card">
                 <div class="form-section-title">
                   <Layers :size="14" />
-                  <span>Step 6: Inventory & Reorder Levels</span>
+                  <span>Step 7: Inventory & Reorder Levels</span>
                 </div>
 
                 <div class="form-row">
                   <div class="form-group" v-if="!isEditing">
-                    <label>Opening Stock Quantity</label>
+                    <label>
+                      {{ productForm.is_pack ? `Opening Stock (${productForm.pack_name || 'Crates'})` : 'Opening Stock Quantity' }}
+                    </label>
                     <input 
                       v-model="productForm.stock_quantity" 
                       type="number" 
@@ -738,10 +1133,15 @@ const handleSaveCategory = async () => {
                       min="0" 
                       class="form-input"
                     />
+                    <span v-if="productForm.is_pack && productForm.stock_quantity" class="field-hint text-emerald">
+                      = {{ Math.round(parseFloat(productForm.stock_quantity || 0) * (productForm.pack_unit_ratio || 1)) }} total {{ productForm.unit_name || 'bottles' }} available.
+                    </span>
                   </div>
 
                   <div class="form-group">
-                    <label>Reorder Alert Threshold</label>
+                    <label>
+                      {{ productForm.is_pack ? `Reorder Alert Threshold (${productForm.pack_name || 'Crates'})` : 'Reorder Alert Threshold' }}
+                    </label>
                     <input 
                       v-model="productForm.reorder_threshold" 
                       type="number" 
@@ -749,15 +1149,16 @@ const handleSaveCategory = async () => {
                       min="0" 
                       class="form-input"
                     />
+                    <span class="field-hint">Alert bartender/manager when stock drops below this level.</span>
                   </div>
                 </div>
               </div>
 
-              <!-- SECTION 4: TANZANIA STATUTORY ALCOHOL COMPLIANCE (STEP 7) -->
+              <!-- SECTION 5: TANZANIA STATUTORY ALCOHOL COMPLIANCE (STEP 8) -->
               <div v-if="isBar" class="form-section-card alcohol-card-highlight">
                 <div class="form-section-title text-amber">
                   <Wine :size="16" />
-                  <span>Step 7: Tanzania Regulatory Compliance (Liquor Laws)</span>
+                  <span>Step 8: Tanzania Regulatory Compliance (Liquor Laws)</span>
                 </div>
 
                 <div class="checkbox-row highlight-checkbox">
@@ -788,64 +1189,6 @@ const handleSaveCategory = async () => {
                     <span class="suffix-badge">ml</span>
                   </div>
                   <span class="field-hint">Common standard sizes: 330ml (Can/Small bottle), 500ml (Standard beer), 750ml (Wine/Spirit).</span>
-                </div>
-              </div>
-
-              <!-- SECTION 5: CRATES & PACKAGING (STEP 8) -->
-              <div class="form-section-card">
-                <div class="form-section-title">
-                  <Package :size="14" />
-                  <span>Step 8: {{ isBar ? 'Crates & Multi-pack Rules (Optional)' : 'Pack & Bulk Rules (Optional)' }}</span>
-                </div>
-
-                <div class="checkbox-row">
-                  <input 
-                    type="checkbox" 
-                    id="chkPack" 
-                    v-model="productForm.is_pack" 
-                    class="form-checkbox"
-                  />
-                  <label for="chkPack" class="checkbox-label">
-                    <strong>{{ isBar ? 'Stocked in Crates / Bulk Packaging' : 'Pack / Bulk Product (Box, Carton, Ream)' }}</strong>
-                    <span class="sublabel">{{ isBar ? 'Allows receiving crates and optionally selling individual bottles.' : 'Allows selling as complete packs and breaking down into individual items.' }}</span>
-                  </label>
-                </div>
-
-                <div v-if="productForm.is_pack" class="pack-subfields mt-3">
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label>Pack Name</label>
-                      <input v-model="productForm.pack_name" type="text" :placeholder="isBar ? 'e.g. Crate, Case, 6-Pack' : 'e.g. Box, Ream, Carton'" class="form-input" />
-                    </div>
-                    <div class="form-group">
-                      <label>Units / Bottles Per Pack</label>
-                      <input v-model="productForm.pack_unit_ratio" type="number" min="1" class="form-input" />
-                    </div>
-                  </div>
-
-                  <div class="checkbox-row mt-2">
-                    <input 
-                      type="checkbox" 
-                      id="chkSplit" 
-                      v-model="productForm.allow_split_sale" 
-                      class="form-checkbox"
-                    />
-                    <label for="chkSplit" class="checkbox-label">
-                      <strong>{{ isBar ? 'Allow Single Bottle Sales' : 'Allow Single Unit Split Sales' }}</strong>
-                      <span class="sublabel">Deducts fractional quantity from crate stock when a single unit is sold.</span>
-                    </label>
-                  </div>
-
-                  <div v-if="productForm.allow_split_sale" class="form-group mt-2">
-                    <label>{{ isBar ? 'Single Bottle Retail Price (TSH)' : 'Single Unit Selling Price (TSH)' }}</label>
-                    <input 
-                      v-model="productForm.split_unit_price" 
-                      type="number" 
-                      step="0.01" 
-                      placeholder="0.00" 
-                      class="form-input"
-                    />
-                  </div>
                 </div>
               </div>
 
@@ -1606,5 +1949,194 @@ const handleSaveCategory = async () => {
 .spin-anim { animation: spin 0.8s linear infinite; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Packaging & Presets Styles */
+.highlight-packaging-card {
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+  background: rgba(245, 158, 11, 0.04) !important;
+}
+
+.packaging-badge-text {
+  color: #fbbf24;
+}
+
+.package-presets-section {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.presets-title {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fbbf24;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.presets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.preset-chip {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.preset-chip:hover {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.preset-chip.active {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #f59e0b;
+}
+
+.preset-name {
+  font-size: 11px;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.preset-desc {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.packaging-rule-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px dashed rgba(245, 158, 11, 0.4);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.rule-icon {
+  font-size: 22px;
+}
+
+.rule-equation {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: #e2e8f0;
+}
+
+.pill-unit-large {
+  background: #f59e0b;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.pricing-dual-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.price-input-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.price-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #cbd5e1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.price-card-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #94a3b8;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.margin-readonly-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+}
+
+.margin-pill.large {
+  font-size: 13px;
+  padding: 4px 10px;
+}
+
+.pack-display-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.split-sale-hint {
+  font-size: 10.5px;
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.price-cell-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.price-sub-label {
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: normal;
+}
+
+.stock-sub-units {
+  display: block;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.prod-badges-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
 </style>
 

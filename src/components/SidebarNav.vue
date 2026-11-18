@@ -12,8 +12,8 @@ const isCollapsed = ref(typeof window !== 'undefined' ? window.innerWidth <= 900
 
 const roleLabels = {
   owner: 'Business Owner',
-  bar_manager: 'Bar Manager',
-  bartender: 'Bartender',
+  bar_manager: 'Bar & Grocery Manager',
+  bartender: 'Bartender / Grocery Cashier',
   stationery_manager: 'Stationery Manager',
   stationery_cashier: 'Stationery Cashier',
   stock_clerk: 'Stock Clerk'
@@ -97,7 +97,7 @@ const toggleCollapse = () => {
         <Wine v-if="store.activeUnit === 'bar'" :size="14" />
         <BookOpen v-else-if="store.activeUnit === 'stationery'" :size="14" />
         <Layers v-else :size="14" />
-        <span>{{ store.activeUnit === 'bar' ? 'Bar & Lounge' : store.activeUnit === 'stationery' ? 'Stationery & Retail' : 'All Businesses' }}</span>
+        <span>{{ store.activeUnit === 'bar' ? 'Bar & Grocery' : store.activeUnit === 'stationery' ? 'Stationery & Retail' : 'All Businesses' }}</span>
       </div>
 
       <!-- Owner Business Unit Switcher -->
@@ -109,7 +109,7 @@ const toggleCollapse = () => {
             @change="store.switchBusinessUnit($event.target.value)"
             class="switcher-select"
           >
-            <option value="bar">🍷 Bar & Lounge</option>
+            <option value="bar">🍷 Bar & Grocery</option>
             <option value="stationery">📚 Stationery Shop</option>
             <option value="all">⚡ Combined (Cross-Unit)</option>
           </select>
@@ -331,7 +331,7 @@ const toggleCollapse = () => {
           :title="isCollapsed ? 'Bar Reports & Stock' : ''"
         >
           <FileText :size="18" class="nav-icon" />
-          <span v-if="!isCollapsed" class="nav-label">Bar Reports</span>
+          <span v-if="!isCollapsed" class="nav-label">Bar & Grocery Reports</span>
         </button>
 
         <!-- Stationery Reports -->

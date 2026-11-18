@@ -9,8 +9,8 @@ import {
 
 const roleLabels = {
   owner: 'Business Owner',
-  bar_manager: 'Bar Manager',
-  bartender: 'Bartender',
+  bar_manager: 'Bar & Grocery Manager',
+  bartender: 'Bartender / Grocery Cashier',
   stationery_manager: 'Stationery Manager',
   stationery_cashier: 'Stationery Cashier',
   stock_clerk: 'Stock Clerk'
@@ -47,7 +47,7 @@ const unitBadgeColor = computed(() => {
         <Wine v-if="store.activeUnit === 'bar'" :size="16" />
         <BookOpen v-else-if="store.activeUnit === 'stationery'" :size="16" />
         <Layers v-else :size="16" />
-        <span>{{ store.activeUnit === 'bar' ? 'Bar & Lounge' : store.activeUnit === 'stationery' ? 'Stationery & Retail' : 'All Businesses' }}</span>
+        <span>{{ store.activeUnit === 'bar' ? 'Bar & Grocery' : store.activeUnit === 'stationery' ? 'Stationery & Retail' : 'All Businesses' }}</span>
       </div>
 
       <!-- Owner Business Switcher (Strictly for Owner) -->
@@ -59,7 +59,7 @@ const unitBadgeColor = computed(() => {
             @change="store.switchBusinessUnit($event.target.value)"
             class="switcher-select"
           >
-            <option value="bar">🍷 Bar & Lounge View</option>
+            <option value="bar">🍷 Bar & Grocery View</option>
             <option value="stationery">📚 Stationery Shop View</option>
             <option value="all">⚡ Combined (Cross-Unit)</option>
           </select>
@@ -169,7 +169,7 @@ const unitBadgeColor = computed(() => {
         @click="store.activeModal = 'reports'"
       >
         <FileText :size="16" />
-        <span>Bar Reports</span>
+        <span>Bar & Grocery Reports</span>
       </button>
 
       <!-- Stationery Reports (Stationery Manager or Owner) -->

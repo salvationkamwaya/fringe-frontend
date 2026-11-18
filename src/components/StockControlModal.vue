@@ -234,6 +234,11 @@ const submitThresholdUpdate = async () => {
     thresholdSubmitting.value = false
   }
 }
+
+const canAdjustStock = computed(() => {
+  const role = store.user?.role
+  return role === 'owner' || role === 'bar_manager' || role === 'stationery_manager' || role === 'stock_clerk'
+})
 </script>
 
 <template>
@@ -355,7 +360,7 @@ const submitThresholdUpdate = async () => {
               :class="{ active: statusFilter === 'packs' }" 
               @click="statusFilter = 'packs'"
             >
-              Packs / Reams
+              Crates / Cartons / Packs
             </button>
           </div>
 
@@ -421,8 +426,8 @@ const submitThresholdUpdate = async () => {
               <!-- Pack Details -->
               <td>
                 <div v-if="p.is_pack" class="pack-info">
-                  <span class="pack-badge">{{ p.pack_name || 'Pack' }} ({{ p.pack_unit_ratio }} {{ p.unit_name }}s)</span>
-                  <span v-if="p.allow_split_sale" class="split-info">Split: TSH {{ formatTsh(p.split_unit_price) }} / {{ p.unit_name }}</span>
+                  <span class="pack-badge">📦 1 {{ p.pack_name || 'Crate' }} = {{ p.pack_unit_ratio }} {{ p.unit_name || 'units' }}</span>
+                  <span v-if="p.allow_split_sale" class="split-info">🍾 Single: TSH {{ formatTsh(p.split_unit_price) }} / {{ p.unit_name || 'unit' }}</span>
                 </div>
                 <div v-else class="single-unit-info">
                   <span class="single-badge">Single Unit</span>
@@ -431,7 +436,23 @@ const submitThresholdUpdate = async () => {
 
               <!-- Stock Quantity -->
               <td class="text-right">
+                <div v-if="p.is_pack">
+                  <span 
+                    class="stock-number" 
+                    :class="{
+                      'stock-zero': parseFloat(p.stock_quantity) <= 0,
+                      'stock-low': parseFloat(p.stock_quantity) > 0 && parseFloat(p.stock_quantity) <= parseFloat(p.reorder_threshold),
+                      'stock-ok': parseFloat(p.stock_quantity) > parseFloat(p.reorder_threshold)
+                    }"
+                  >
+                    {{ Math.floor(parseFloat(p.stock_quantity || 0)) }} {{ p.pack_name || 'Crates' }}
+                  </span>
+                  <span v-if="p.pack_unit_ratio > 1" class="stock-sub-units">
+                    ({{ Math.round(parseFloat(p.stock_quantity || 0) * p.pack_unit_ratio) }} {{ p.unit_name || 'bottles' }})
+                  </span>
+                </div>
                 <span 
+                  v-else
                   class="stock-number" 
                   :class="{
                     'stock-zero': parseFloat(p.stock_quantity) <= 0,
@@ -487,7 +508,7 @@ const submitThresholdUpdate = async () => {
 
               <!-- Actions -->
               <td class="text-right">
-                <div class="row-actions">
+                <div v-if="canAdjustStock" class="row-actions">
                   <button 
                     class="btn-action btn-adjust" 
                     @click="openAdjustDialog(p)"
@@ -505,6 +526,7 @@ const submitThresholdUpdate = async () => {
                     <Edit3 :size="13" />
                   </button>
                 </div>
+                <span v-else class="text-muted text-xs">View Only</span>
               </td>
             </tr>
           </tbody>
@@ -530,11 +552,23 @@ const submitThresholdUpdate = async () => {
             <div class="stock-current-box">
               <div class="current-stat">
                 <span class="cs-label">Current Stock:</span>
-                <span class="cs-val">{{ parseFloat(selectedProduct?.stock_quantity || 0) }} units</span>
+                <span class="cs-val" v-if="selectedProduct?.is_pack">
+                  {{ Math.floor(parseFloat(selectedProduct?.stock_quantity || 0)) }} {{ selectedProduct?.pack_name || 'Crates' }}
+                  <span v-if="selectedProduct?.pack_unit_ratio > 1" class="sub-stat-hint">
+                    ({{ Math.round(parseFloat(selectedProduct?.stock_quantity || 0) * selectedProduct?.pack_unit_ratio) }} {{ selectedProduct?.unit_name || 'bottles' }})
+                  </span>
+                </span>
+                <span class="cs-val" v-else>{{ parseFloat(selectedProduct?.stock_quantity || 0) }} units</span>
               </div>
               <div class="current-stat">
                 <span class="cs-label">Resulting Stock:</span>
-                <span class="cs-val bold text-accent">{{ projectedStock }} units</span>
+                <span class="cs-val bold text-accent" v-if="selectedProduct?.is_pack">
+                  {{ projectedStock }} {{ selectedProduct?.pack_name || 'Crates' }}
+                  <span v-if="selectedProduct?.pack_unit_ratio > 1" class="sub-stat-hint">
+                    (= {{ Math.round(projectedStock * selectedProduct?.pack_unit_ratio) }} {{ selectedProduct?.unit_name || 'bottles' }})
+                  </span>
+                </span>
+                <span class="cs-val bold text-accent" v-else>{{ projectedStock }} units</span>
               </div>
             </div>
 
@@ -571,7 +605,10 @@ const submitThresholdUpdate = async () => {
             <!-- Quantity Input -->
             <div class="form-group">
               <label>
-                {{ adjustForm.adjustment_type === 'SET' ? 'Exact Verified Physical Count' : 'Units to ' + (adjustForm.adjustment_type === 'ADD' ? 'Add' : 'Deduct') }}
+                {{ adjustForm.adjustment_type === 'SET' 
+                    ? 'Exact Verified Count (' + (selectedProduct?.pack_name || 'Units') + ')' 
+                    : (selectedProduct?.pack_name || 'Units') + ' to ' + (adjustForm.adjustment_type === 'ADD' ? 'Receive / Add' : 'Deduct') 
+                }}
                 <span class="req">*</span>
               </label>
               <input 
@@ -579,7 +616,7 @@ const submitThresholdUpdate = async () => {
                 type="number" 
                 min="0" 
                 step="1" 
-                placeholder="Enter units quantity..."
+                :placeholder="selectedProduct?.is_pack ? 'Enter number of ' + (selectedProduct?.pack_name || 'crates') + '...' : 'Enter units quantity...'"
                 class="form-input"
                 autofocus
               />
@@ -1344,6 +1381,20 @@ const submitThresholdUpdate = async () => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+.stock-sub-units {
+  display: block;
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: normal;
+}
+
+.sub-stat-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: normal;
+  margin-left: 4px;
 }
 </style>
 
