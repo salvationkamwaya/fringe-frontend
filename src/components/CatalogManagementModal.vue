@@ -539,7 +539,7 @@ const handleSaveCategory = async () => {
 </script>
 
 <template>
-  <div class="modal-backdrop" @click.self="emit('close')">
+  <div class="catalog-page">
     <div class="catalog-window">
       <!-- Window Header -->
       <div class="window-header">
@@ -571,8 +571,9 @@ const handleSaveCategory = async () => {
             <RefreshCw :size="16" :class="{ 'spin-anim': loading }" />
           </button>
 
-          <button class="btn-close-window" @click="emit('close')">
-            <X :size="20" />
+          <button class="btn-close-window" @click="emit('close')" title="Back to POS">
+            <X :size="18" />
+            <span>Back to POS</span>
           </button>
         </div>
       </div>
@@ -1274,39 +1275,43 @@ const handleSaveCategory = async () => {
 </template>
 
 <style scoped>
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(10, 15, 29, 0.85);
-  backdrop-filter: blur(8px);
-  z-index: 1200;
+.catalog-page {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
+  flex-direction: column;
+  background: var(--bg-primary, #0a0e17);
 }
 
 .catalog-window {
   width: 100%;
-  max-width: 1350px;
-  height: 92vh;
-  background: #0f172a;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
+  flex: 1;
+  min-height: 0;
+  background: var(--bg-secondary, #0f172a);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
 }
 
 /* Header */
 .window-header {
   padding: 16px 24px;
-  background: rgba(15, 23, 42, 0.95);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-secondary, rgba(15, 23, 42, 0.95));
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.window-header h2 {
+  color: var(--text-primary, #f8fafc);
+}
+
+.window-header .subtitle {
+  color: var(--text-secondary, #94a3b8);
 }
 
 .header-branding {
@@ -1407,21 +1412,26 @@ const handleSaveCategory = async () => {
 .btn-primary-action:hover { background: #fbbf24; }
 
 .btn-tool {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #f1f5f9;
+  background: var(--bg-card, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  color: var(--text-primary, #f1f5f9);
   border-radius: 10px;
   padding: 8px 12px;
   cursor: pointer;
 }
 
 .btn-close-window {
-  background: rgba(255, 255, 255, 0.06);
-  color: #94a3b8;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card, rgba(255, 255, 255, 0.06));
+  color: var(--text-secondary, #94a3b8);
   border-radius: 10px;
-  padding: 8px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
   cursor: pointer;
-  border: none;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
 }
 
 .btn-close-window:hover { background: rgba(239, 68, 68, 0.2); color: #f87171; }

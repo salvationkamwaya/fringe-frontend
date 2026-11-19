@@ -85,8 +85,101 @@ onMounted(() => {
 
     <!-- Main Workspace (Right) -->
     <main class="main-workspace">
+      <!-- Full-Workspace Pages (All Sidebar Navigation Views) -->
+      <div
+        v-if="[
+          'catalog_management',
+          'sales_records',
+          'customers',
+          'quotations',
+          'wholesale_docs',
+          'stationery_returns',
+          'stock_inventory',
+          'suppliers',
+          'barcode_labels',
+          'expenses',
+          'reports',
+          'stationery_reports',
+          'audit',
+          'staff_management',
+          'branch_management',
+          'account_settings',
+          'shift'
+        ].includes(store.activeModal)"
+        class="workspace-page-wrap"
+      >
+        <CatalogManagementModal
+          v-if="store.activeModal === 'catalog_management'"
+          @close="store.activeModal = null"
+        />
+        <SalesRecordsModal
+          v-else-if="store.activeModal === 'sales_records'"
+          @close="store.activeModal = null"
+        />
+        <CustomersModal
+          v-else-if="store.activeModal === 'customers'"
+          @close="store.activeModal = null"
+        />
+        <QuotationsModal
+          v-else-if="store.activeModal === 'quotations'"
+          @close="store.activeModal = null"
+        />
+        <WholesaleDocumentsModal
+          v-else-if="store.activeModal === 'wholesale_docs'"
+          @close="store.activeModal = null"
+        />
+        <StationeryReturnsModal
+          v-else-if="store.activeModal === 'stationery_returns'"
+          @close="store.activeModal = null"
+        />
+        <StockControlModal
+          v-else-if="store.activeModal === 'stock_inventory'"
+          @close="store.activeModal = null"
+        />
+        <SuppliersModal
+          v-else-if="store.activeModal === 'suppliers'"
+          @close="store.activeModal = null"
+        />
+        <BarcodeLabelsModal
+          v-else-if="store.activeModal === 'barcode_labels'"
+          @close="store.activeModal = null"
+        />
+        <ExpensesModal
+          v-else-if="store.activeModal === 'expenses'"
+          @close="store.activeModal = null"
+        />
+        <BarReportsModal
+          v-else-if="store.activeModal === 'reports'"
+          @close="store.activeModal = null"
+        />
+        <StationeryReportsModal
+          v-else-if="store.activeModal === 'stationery_reports'"
+          @close="store.activeModal = null"
+        />
+        <AuditTrailModal
+          v-else-if="store.activeModal === 'audit'"
+          @close="store.activeModal = null"
+        />
+        <StaffManagementModal
+          v-else-if="store.activeModal === 'staff_management'"
+          @close="store.activeModal = null"
+        />
+        <BranchManagementModal
+          v-else-if="store.activeModal === 'branch_management'"
+          @close="store.activeModal = null"
+        />
+        <AccountSettingsModal
+          v-else-if="store.activeModal === 'account_settings'"
+          @close="store.activeModal = null"
+        />
+        <ShiftModal
+          v-else-if="store.activeModal === 'shift'"
+          @close="store.activeModal = null"
+        />
+      </div>
+
       <!-- Stationery POS View -->
-      <StationeryPos v-if="store.activeUnit === 'stationery'" />
+      <StationeryPos v-else-if="store.activeUnit === 'stationery'" />
 
       <!-- Bar & Lounge POS View -->
       <BarPos v-else />
@@ -115,93 +208,8 @@ onMounted(() => {
       @close="store.activeModal = null"
     />
 
-    <ShiftModal 
-      v-if="store.activeModal === 'shift'"
-      @close="store.activeModal = null"
-    />
-
-    <BarReportsModal 
-      v-if="store.activeModal === 'reports'"
-      @close="store.activeModal = null"
-    />
-
-    <StationeryReportsModal 
-      v-if="store.activeModal === 'stationery_reports'"
-      @close="store.activeModal = null"
-    />
-
-    <CustomersModal 
-      v-if="store.activeModal === 'customers'"
-      @close="store.activeModal = null"
-    />
-
-    <SuppliersModal 
-      v-if="store.activeModal === 'suppliers'"
-      @close="store.activeModal = null"
-    />
-
-    <AuditTrailModal 
-      v-if="store.activeModal === 'audit'"
-      @close="store.activeModal = null"
-    />
-
-    <StaffManagementModal 
-      v-if="store.activeModal === 'staff_management'"
-      @close="store.activeModal = null"
-    />
-
-    <BranchManagementModal 
-      v-if="store.activeModal === 'branch_management'"
-      @close="store.activeModal = null"
-    />
-
-    <StockControlModal 
-      v-if="store.activeModal === 'stock_inventory'"
-      @close="store.activeModal = null"
-    />
-
-    <CatalogManagementModal 
-      v-if="store.activeModal === 'catalog_management'"
-      @close="store.activeModal = null"
-    />
-
-    <SalesRecordsModal 
-      v-if="store.activeModal === 'sales_records'"
-      @close="store.activeModal = null"
-    />
-
-    <AccountSettingsModal 
-      v-if="store.activeModal === 'account_settings'"
-      @close="store.activeModal = null"
-    />
-
-    <ExpensesModal 
-      v-if="store.activeModal === 'expenses'"
-      @close="store.activeModal = null"
-    />
-
-    <QuotationsModal 
-      v-if="store.activeModal === 'quotations'"
-      @close="store.activeModal = null"
-    />
-
-    <StationeryReturnsModal 
-      v-if="store.activeModal === 'stationery_returns'"
-      @close="store.activeModal = null"
-    />
-
-    <WholesaleDocumentsModal 
-      v-if="store.activeModal === 'wholesale_docs'"
-      @close="store.activeModal = null"
-    />
-
     <ProductImportModal 
       v-if="store.activeModal === 'product_import'"
-      @close="store.activeModal = null"
-    />
-
-    <BarcodeLabelsModal 
-      v-if="store.activeModal === 'barcode_labels'"
       @close="store.activeModal = null"
     />
 

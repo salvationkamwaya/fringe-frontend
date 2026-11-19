@@ -10,6 +10,18 @@ import {
 
 const isCollapsed = ref(typeof window !== 'undefined' ? window.innerWidth <= 900 : false)
 
+const openGroups = ref({
+  pos: true,
+  sales: true,
+  catalog: true,
+  reports: true,
+  org: true,
+})
+
+const toggleGroup = (key) => {
+  openGroups.value[key] = !openGroups.value[key]
+}
+
 const roleLabels = {
   owner: 'Business Owner',
   bar_manager: 'Bar & Grocery Manager',
@@ -151,241 +163,281 @@ const toggleCollapse = () => {
       </div>
     </div>
 
-    <!-- Main Navigation Menu (Scrollable) -->
+    <!-- Main Navigation Menu (Scrollable & Logically Grouped) -->
     <nav class="sidebar-menu">
-      <!-- SECTION 1: POINT OF SALE -->
+      <!-- GROUP 1: POINT OF SALE -->
       <div class="menu-section">
-        <div v-if="!isCollapsed" class="section-title">POS WORKSPACE</div>
-
-        <!-- POS Counter Main Screen -->
-        <button 
-          class="nav-item" 
-          :class="{ active: store.activeModal === null }"
-          @click="store.activeModal = null"
-          :title="isCollapsed ? 'POS Counter' : ''"
-        >
-          <Wine v-if="store.activeUnit === 'bar'" :size="18" class="nav-icon" />
-          <BookOpen v-else :size="18" class="nav-icon" />
-          <span v-if="!isCollapsed" class="nav-label">POS Counter</span>
+        <button v-if="!isCollapsed" type="button" class="section-header-btn" @click="toggleGroup('pos')">
+          <span class="section-title">POINT OF SALE</span>
+          <ChevronDown :size="13" class="group-chevron" :class="{ rotated: !openGroups.pos }" />
         </button>
 
-        <!-- Sales Records (Accessible to Bartenders, Cashiers, Managers, Owner) -->
-        <button 
-          class="nav-item sales-nav-item" 
-          :class="{ active: store.activeModal === 'sales_records' }"
-          @click="store.activeModal = 'sales_records'"
-          :title="isCollapsed ? (store.canRecordSales ? 'My Sales' : 'Sales Records') : ''"
-        >
-          <Receipt :size="18" class="nav-icon" />
-          <span v-if="!isCollapsed" class="nav-label">{{ store.canRecordSales ? 'My Sales' : 'Sales Records' }}</span>
-        </button>
+        <template v-if="isCollapsed || openGroups.pos">
+          <!-- POS Counter Main Screen -->
+          <button 
+            class="nav-item" 
+            :class="{ active: store.activeModal === null }"
+            @click="store.activeModal = null"
+            :title="isCollapsed ? 'POS Counter' : ''"
+          >
+            <Wine v-if="store.activeUnit === 'bar'" :size="18" class="nav-icon" />
+            <BookOpen v-else :size="18" class="nav-icon" />
+            <span v-if="!isCollapsed" class="nav-label">POS Counter</span>
+          </button>
 
-        <!-- BAR: Open Tabs -->
-        <button 
-          v-if="store.activeUnit === 'bar'"
-          class="nav-item"
-          :class="{ active: store.activeModal === 'tabs' }"
-          @click="store.activeModal = 'tabs'"
-          :title="isCollapsed ? 'Open Customer Tabs' : ''"
-        >
-          <Layers :size="18" class="nav-icon" />
-          <span v-if="!isCollapsed" class="nav-label">Open Tabs</span>
-        </button>
+          <!-- BAR: Open Tabs -->
+          <button 
+            v-if="store.activeUnit === 'bar'"
+            class="nav-item"
+            :class="{ active: store.activeModal === 'tabs' }"
+            @click="store.activeModal = 'tabs'"
+            :title="isCollapsed ? 'Open Customer Tabs' : ''"
+          >
+            <Layers :size="18" class="nav-icon" />
+            <span v-if="!isCollapsed" class="nav-label">Open Tabs</span>
+          </button>
 
-        <!-- STATIONERY: Customers & Debtors -->
-        <button 
-          v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
-          class="nav-item"
-          :class="{ active: store.activeModal === 'customers' }"
-          @click="store.activeModal = 'customers'"
-          :title="isCollapsed ? 'Customers & Credit' : ''"
-        >
-          <Users :size="18" class="nav-icon" />
-          <span v-if="!isCollapsed" class="nav-label">Customers & Credit</span>
-        </button>
-
-        <!-- STATIONERY: Quotations & Proformas -->
-        <button 
-          v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
-          class="nav-item"
-          :class="{ active: store.activeModal === 'quotations' }"
-          @click="store.activeModal = 'quotations'"
-          :title="isCollapsed ? 'Wholesale Quotations' : ''"
-        >
-          <FileText :size="18" class="nav-icon text-indigo" />
-          <span v-if="!isCollapsed" class="nav-label">Quotations</span>
-        </button>
-
-        <!-- STATIONERY: Wholesale Invoices & Delivery Notes -->
-        <button 
-          v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
-          class="nav-item"
-          :class="{ active: store.activeModal === 'wholesale_docs' }"
-          @click="store.activeModal = 'wholesale_docs'"
-          :title="isCollapsed ? 'Wholesale Invoices & Delivery Notes' : ''"
-        >
-          <Truck :size="18" class="nav-icon text-blue" />
-          <span v-if="!isCollapsed" class="nav-label">Wholesale Invoices</span>
-        </button>
-
-        <!-- STATIONERY: Sales Returns & Refunds -->
-        <button 
-          v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
-          class="nav-item"
-          :class="{ active: store.activeModal === 'stationery_returns' }"
-          @click="store.activeModal = 'stationery_returns'"
-          :title="isCollapsed ? 'Sales Returns & Refunds' : ''"
-        >
-          <RotateCcw :size="18" class="nav-icon text-rose" />
-          <span v-if="!isCollapsed" class="nav-label">Returns & Refunds</span>
-        </button>
-
-        <!-- Operating Expenses (Managers & Owner) -->
-        <button 
-          v-if="store.isStationeryManager || store.isBarManager || store.isOwner"
-          class="nav-item"
-          :class="{ active: store.activeModal === 'expenses' }"
-          @click="store.activeModal = 'expenses'"
-          :title="isCollapsed ? 'Operating Expenses' : ''"
-        >
-          <DollarSign :size="18" class="nav-icon text-amber" />
-          <span v-if="!isCollapsed" class="nav-label">Operating Expenses</span>
-        </button>
-
-        <!-- STATIONERY: Barcode Labels -->
-        <button 
-          v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
-          class="nav-item"
-          :class="{ active: store.activeModal === 'barcode_labels' }"
-          @click="store.activeModal = 'barcode_labels'"
-          :title="isCollapsed ? 'Barcode Labels' : ''"
-        >
-          <Barcode :size="18" class="nav-icon text-amber" />
-          <span v-if="!isCollapsed" class="nav-label">Barcode Labels</span>
-        </button>
-
-        <!-- Inventory & Stock Control (Clerk, Managers, Owner) -->
-        <button 
-          v-if="store.hasInventoryAccess"
-          class="nav-item stock-nav-item"
-          :class="{ active: store.activeModal === 'stock_inventory' }"
-          @click="store.activeModal = 'stock_inventory'"
-          :title="isCollapsed ? 'Inventory & Stock Control' : ''"
-        >
-          <Boxes :size="18" class="nav-icon" />
-          <span v-if="!isCollapsed" class="nav-label">Inventory & Stock</span>
-        </button>
-
-        <!-- Suppliers & Receiving (Accessible to Clerk, Managers, Owner) -->
-        <button 
-          v-if="store.hasInventoryAccess"
-          class="nav-item"
-          :class="{ active: store.activeModal === 'suppliers' }"
-          @click="store.activeModal = 'suppliers'"
-          :title="isCollapsed ? 'Suppliers & Receiving' : ''"
-        >
-          <Truck :size="18" class="nav-icon" />
-          <span v-if="!isCollapsed" class="nav-label">Suppliers & Goods</span>
-        </button>
-
-        <!-- Shift Status -->
-        <button 
-          class="nav-item shift-item"
-          :class="{ 
-            'pulse-shift': !store.activeShift && store.canRecordSales, 
-            active: store.activeModal === 'shift' 
-          }"
-          @click="store.activeModal = 'shift'"
-          :title="isCollapsed ? (store.activeShift ? `Shift #${store.activeShift.id}` : (store.canRecordSales ? 'Open Shift' : 'Shift Oversight')) : ''"
-        >
-          <Clock :size="18" class="nav-icon" />
-          <span v-if="!isCollapsed" class="nav-label">
-            {{ store.canRecordSales ? (store.activeShift ? `Shift #${store.activeShift.id}` : 'Open Register Shift') : 'Shift Oversight' }}
-          </span>
-          <span class="status-dot" :class="store.activeShift ? 'online' : 'idle'" :title="store.activeShift ? 'Shift Active' : 'No Active Shift'"></span>
-        </button>
+          <!-- Shift Status -->
+          <button 
+            class="nav-item shift-item"
+            :class="{ 
+              'pulse-shift': !store.activeShift && store.canRecordSales, 
+              active: store.activeModal === 'shift' 
+            }"
+            @click="store.activeModal = 'shift'"
+            :title="isCollapsed ? (store.activeShift ? `Shift #${store.activeShift.id}` : (store.canRecordSales ? 'Open Shift' : 'Shift Oversight')) : ''"
+          >
+            <Clock :size="18" class="nav-icon" />
+            <span v-if="!isCollapsed" class="nav-label">
+              {{ store.canRecordSales ? (store.activeShift ? `Shift #${store.activeShift.id}` : 'Open Register Shift') : 'Shift Oversight' }}
+            </span>
+            <span class="status-dot" :class="store.activeShift ? 'online' : 'idle'" :title="store.activeShift ? 'Shift Active' : 'No Active Shift'"></span>
+          </button>
+        </template>
       </div>
 
-      <!-- SECTION 2: MANAGEMENT & REPORTS -->
+      <!-- GROUP 2: SALES & CUSTOMERS -->
+      <div class="menu-section">
+        <button v-if="!isCollapsed" type="button" class="section-header-btn" @click="toggleGroup('sales')">
+          <span class="section-title">SALES &amp; CUSTOMERS</span>
+          <ChevronDown :size="13" class="group-chevron" :class="{ rotated: !openGroups.sales }" />
+        </button>
+
+        <template v-if="isCollapsed || openGroups.sales">
+          <!-- Sales Records Page -->
+          <button 
+            class="nav-item sales-nav-item" 
+            :class="{ active: store.activeModal === 'sales_records' }"
+            @click="store.activeModal = 'sales_records'"
+            :title="isCollapsed ? (store.canRecordSales ? 'My Sales' : 'Sales Records') : ''"
+          >
+            <Receipt :size="18" class="nav-icon" />
+            <span v-if="!isCollapsed" class="nav-label">{{ store.canRecordSales ? 'My Sales' : 'Sales Records' }}</span>
+          </button>
+
+          <!-- STATIONERY: Customers & Debtors -->
+          <button 
+            v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
+            class="nav-item"
+            :class="{ active: store.activeModal === 'customers' }"
+            @click="store.activeModal = 'customers'"
+            :title="isCollapsed ? 'Customers & Credit' : ''"
+          >
+            <Users :size="18" class="nav-icon" />
+            <span v-if="!isCollapsed" class="nav-label">Customers & Credit</span>
+          </button>
+
+          <!-- STATIONERY: Quotations & Proformas -->
+          <button 
+            v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
+            class="nav-item"
+            :class="{ active: store.activeModal === 'quotations' }"
+            @click="store.activeModal = 'quotations'"
+            :title="isCollapsed ? 'Wholesale Quotations' : ''"
+          >
+            <FileText :size="18" class="nav-icon text-indigo" />
+            <span v-if="!isCollapsed" class="nav-label">Quotations</span>
+          </button>
+
+          <!-- STATIONERY: Wholesale Invoices & Delivery Notes -->
+          <button 
+            v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
+            class="nav-item"
+            :class="{ active: store.activeModal === 'wholesale_docs' }"
+            @click="store.activeModal = 'wholesale_docs'"
+            :title="isCollapsed ? 'Wholesale Invoices & Delivery Notes' : ''"
+          >
+            <Truck :size="18" class="nav-icon text-blue" />
+            <span v-if="!isCollapsed" class="nav-label">Wholesale Invoices</span>
+          </button>
+
+          <!-- STATIONERY: Sales Returns & Refunds -->
+          <button 
+            v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
+            class="nav-item"
+            :class="{ active: store.activeModal === 'stationery_returns' }"
+            @click="store.activeModal = 'stationery_returns'"
+            :title="isCollapsed ? 'Sales Returns & Refunds' : ''"
+          >
+            <RotateCcw :size="18" class="nav-icon text-rose" />
+            <span v-if="!isCollapsed" class="nav-label">Returns & Refunds</span>
+          </button>
+        </template>
+      </div>
+
+      <!-- GROUP 3: CATALOG & INVENTORY -->
+      <div
+        v-if="store.hasInventoryAccess || store.isBarManager || store.isStationeryManager || store.isOwner || store.activeUnit === 'stationery' || store.activeUnit === 'all'"
+        class="menu-section"
+      >
+        <button v-if="!isCollapsed" type="button" class="section-header-btn" @click="toggleGroup('catalog')">
+          <span class="section-title">CATALOG &amp; INVENTORY</span>
+          <ChevronDown :size="13" class="group-chevron" :class="{ rotated: !openGroups.catalog }" />
+        </button>
+
+        <template v-if="isCollapsed || openGroups.catalog">
+          <!-- Drink / Product Registration Page (Managers & Owner) -->
+          <button 
+            v-if="store.isBarManager || store.isStationeryManager || store.isOwner"
+            class="nav-item catalog-nav-item"
+            :class="{ active: store.activeModal === 'catalog_management' }"
+            @click="store.activeModal = 'catalog_management'"
+            :title="isCollapsed ? (store.activeUnit === 'bar' ? 'Register Drinks & Catalog' : 'Register Products & Catalog') : ''"
+          >
+            <Wine v-if="store.activeUnit === 'bar'" :size="18" class="nav-icon" />
+            <BookOpen v-else :size="18" class="nav-icon" />
+            <span v-if="!isCollapsed" class="nav-label">{{ store.activeUnit === 'bar' ? 'Drink Registration' : 'Product Registration' }}</span>
+          </button>
+
+          <!-- Inventory & Stock Control -->
+          <button 
+            v-if="store.hasInventoryAccess"
+            class="nav-item stock-nav-item"
+            :class="{ active: store.activeModal === 'stock_inventory' }"
+            @click="store.activeModal = 'stock_inventory'"
+            :title="isCollapsed ? 'Inventory & Stock Control' : ''"
+          >
+            <Boxes :size="18" class="nav-icon" />
+            <span v-if="!isCollapsed" class="nav-label">Inventory & Stock</span>
+          </button>
+
+          <!-- Suppliers & Receiving -->
+          <button 
+            v-if="store.hasInventoryAccess"
+            class="nav-item"
+            :class="{ active: store.activeModal === 'suppliers' }"
+            @click="store.activeModal = 'suppliers'"
+            :title="isCollapsed ? 'Suppliers & Receiving' : ''"
+          >
+            <Truck :size="18" class="nav-icon" />
+            <span v-if="!isCollapsed" class="nav-label">Suppliers & Goods</span>
+          </button>
+
+          <!-- STATIONERY: Barcode Labels -->
+          <button 
+            v-if="store.activeUnit === 'stationery' || store.activeUnit === 'all'"
+            class="nav-item"
+            :class="{ active: store.activeModal === 'barcode_labels' }"
+            @click="store.activeModal = 'barcode_labels'"
+            :title="isCollapsed ? 'Barcode Labels' : ''"
+          >
+            <Barcode :size="18" class="nav-icon text-amber" />
+            <span v-if="!isCollapsed" class="nav-label">Barcode Labels</span>
+          </button>
+        </template>
+      </div>
+
+      <!-- GROUP 4: FINANCE & REPORTS -->
       <div 
         v-if="store.isBarManager || store.isStationeryManager || store.isOwner"
         class="menu-section"
       >
-        <div v-if="!isCollapsed" class="section-title">MANAGEMENT</div>
-
-        <!-- Drink / Product Registration (Managers & Owner) -->
-        <button 
-          class="nav-item catalog-nav-item"
-          :class="{ active: store.activeModal === 'catalog_management' }"
-          @click="store.activeModal = 'catalog_management'"
-          :title="isCollapsed ? (store.activeUnit === 'bar' ? 'Register Drinks & Catalog' : 'Register Products & Catalog') : ''"
-        >
-          <Wine v-if="store.activeUnit === 'bar'" :size="18" class="nav-icon" />
-          <BookOpen v-else :size="18" class="nav-icon" />
-          <span v-if="!isCollapsed" class="nav-label">{{ store.activeUnit === 'bar' ? 'Drink Registration' : 'Product Registration' }}</span>
+        <button v-if="!isCollapsed" type="button" class="section-header-btn" @click="toggleGroup('reports')">
+          <span class="section-title">FINANCE &amp; REPORTS</span>
+          <ChevronDown :size="13" class="group-chevron" :class="{ rotated: !openGroups.reports }" />
         </button>
 
-        <!-- Bar Reports -->
-        <button 
-          v-if="store.activeUnit === 'bar' && (store.isBarManager || store.isOwner)"
-          class="nav-item"
-          :class="{ active: store.activeModal === 'reports' }"
-          @click="store.activeModal = 'reports'"
-          :title="isCollapsed ? 'Bar Reports & Stock' : ''"
-        >
-          <FileText :size="18" class="nav-icon" />
-          <span v-if="!isCollapsed" class="nav-label">Bar & Grocery Reports</span>
+        <template v-if="isCollapsed || openGroups.reports">
+          <!-- Operating Expenses -->
+          <button 
+            class="nav-item"
+            :class="{ active: store.activeModal === 'expenses' }"
+            @click="store.activeModal = 'expenses'"
+            :title="isCollapsed ? 'Operating Expenses' : ''"
+          >
+            <DollarSign :size="18" class="nav-icon text-amber" />
+            <span v-if="!isCollapsed" class="nav-label">Operating Expenses</span>
+          </button>
+
+          <!-- Bar Reports -->
+          <button 
+            v-if="store.activeUnit === 'bar' && (store.isBarManager || store.isOwner)"
+            class="nav-item"
+            :class="{ active: store.activeModal === 'reports' }"
+            @click="store.activeModal = 'reports'"
+            :title="isCollapsed ? 'Bar Reports & Stock' : ''"
+          >
+            <FileText :size="18" class="nav-icon" />
+            <span v-if="!isCollapsed" class="nav-label">Bar & Grocery Reports</span>
+          </button>
+
+          <!-- Stationery Reports -->
+          <button 
+            v-if="(store.activeUnit === 'stationery' || store.activeUnit === 'all') && (store.isStationeryManager || store.isOwner)"
+            class="nav-item"
+            :class="{ active: store.activeModal === 'stationery_reports' }"
+            @click="store.activeModal = 'stationery_reports'"
+            :title="isCollapsed ? 'Stationery Reports & EOD' : ''"
+          >
+            <BarChart3 :size="18" class="nav-icon" />
+            <span v-if="!isCollapsed" class="nav-label">Stationery Reports</span>
+          </button>
+
+          <!-- Audit Trail -->
+          <button 
+            class="nav-item"
+            :class="{ active: store.activeModal === 'audit' }"
+            @click="store.activeModal = 'audit'"
+            :title="isCollapsed ? 'Audit Trail & Overrides' : ''"
+          >
+            <ShieldCheck :size="18" class="nav-icon" />
+            <span v-if="!isCollapsed" class="nav-label">Audit Trail</span>
+          </button>
+        </template>
+      </div>
+
+      <!-- GROUP 5: ORGANIZATION (Owner Only) -->
+      <div v-if="store.isOwner" class="menu-section">
+        <button v-if="!isCollapsed" type="button" class="section-header-btn" @click="toggleGroup('org')">
+          <span class="section-title">ORGANIZATION</span>
+          <ChevronDown :size="13" class="group-chevron" :class="{ rotated: !openGroups.org }" />
         </button>
 
-        <!-- Stationery Reports -->
-        <button 
-          v-if="(store.activeUnit === 'stationery' || store.activeUnit === 'all') && (store.isStationeryManager || store.isOwner)"
-          class="nav-item"
-          :class="{ active: store.activeModal === 'stationery_reports' }"
-          @click="store.activeModal = 'stationery_reports'"
-          :title="isCollapsed ? 'Stationery Reports & EOD' : ''"
-        >
-          <BarChart3 :size="18" class="nav-icon" />
-          <span v-if="!isCollapsed" class="nav-label">Stationery Reports</span>
-        </button>
+        <template v-if="isCollapsed || openGroups.org">
+          <!-- Staff & Roles -->
+          <button 
+            class="nav-item owner-item"
+            :class="{ active: store.activeModal === 'staff_management' }"
+            @click="store.activeModal = 'staff_management'"
+            :title="isCollapsed ? 'Staff & Roles (Owner Only)' : ''"
+          >
+            <UserCheck :size="18" class="nav-icon" />
+            <span v-if="!isCollapsed" class="nav-label">Staff & Roles</span>
+            <span v-if="!isCollapsed" class="owner-pill">Owner</span>
+          </button>
 
-        <!-- Audit Trail -->
-        <button 
-          v-if="store.isBarManager || store.isStationeryManager || store.isOwner"
-          class="nav-item"
-          :class="{ active: store.activeModal === 'audit' }"
-          @click="store.activeModal = 'audit'"
-          :title="isCollapsed ? 'Audit Trail & Overrides' : ''"
-        >
-          <ShieldCheck :size="18" class="nav-icon" />
-          <span v-if="!isCollapsed" class="nav-label">Audit Trail</span>
-        </button>
-
-        <!-- Staff & Roles (Owner Only) -->
-        <button 
-          v-if="store.isOwner"
-          class="nav-item owner-item"
-          :class="{ active: store.activeModal === 'staff_management' }"
-          @click="store.activeModal = 'staff_management'"
-          :title="isCollapsed ? 'Staff & Roles (Owner Only)' : ''"
-        >
-          <UserCheck :size="18" class="nav-icon" />
-          <span v-if="!isCollapsed" class="nav-label">Staff & Roles</span>
-          <span v-if="!isCollapsed" class="owner-pill">Owner</span>
-        </button>
-
-        <!-- Branches & Locations (Owner Only) -->
-        <button 
-          v-if="store.isOwner"
-          class="nav-item owner-item branch-nav-btn"
-          :class="{ active: store.activeModal === 'branch_management' }"
-          @click="store.activeModal = 'branch_management'"
-          :title="isCollapsed ? 'Branches & Locations (Owner Only)' : ''"
-        >
-          <MapPin :size="18" class="nav-icon text-emerald" />
-          <span v-if="!isCollapsed" class="nav-label">Branches & Locations</span>
-          <span v-if="!isCollapsed" class="owner-pill">Owner</span>
-        </button>
+          <!-- Branches & Locations -->
+          <button 
+            class="nav-item owner-item branch-nav-btn"
+            :class="{ active: store.activeModal === 'branch_management' }"
+            @click="store.activeModal = 'branch_management'"
+            :title="isCollapsed ? 'Branches & Locations (Owner Only)' : ''"
+          >
+            <MapPin :size="18" class="nav-icon text-emerald" />
+            <span v-if="!isCollapsed" class="nav-label">Branches & Locations</span>
+            <span v-if="!isCollapsed" class="owner-pill">Owner</span>
+          </button>
+        </template>
       </div>
     </nav>
 
@@ -801,6 +853,30 @@ const toggleCollapse = () => {
   display: flex;
   flex-direction: column;
   gap: 3px;
+}
+
+.section-header-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  padding: 6px 10px 4px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.section-header-btn:hover .section-title {
+  color: var(--text-primary, #f9fafb);
+}
+
+.group-chevron {
+  color: var(--text-muted, #6b7280);
+  transition: transform 0.2s ease;
+}
+
+.group-chevron.rotated {
+  transform: rotate(-90deg);
 }
 
 .section-title {

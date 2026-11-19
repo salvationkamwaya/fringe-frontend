@@ -773,3 +773,325 @@ button {
   border-top: 1px solid #e2e8f0 !important;
 }
 
+/* ============================================================
+   FULL-WORKSPACE PAGE SYSTEM (Converts Sidebar Views to Pages)
+   ============================================================ */
+.workspace-page-wrap {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.workspace-page-wrap > .modal-backdrop,
+.workspace-page-wrap > .modal-overlay {
+  position: static !important;
+  inset: auto !important;
+  z-index: auto !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  padding: 0 !important;
+  width: 100% !important;
+  min-height: 100vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+}
+
+.workspace-page-wrap > .modal-backdrop > div,
+.workspace-page-wrap > .modal-overlay > .modal-card {
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 100vh !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  transform: none !important;
+}
+
+.workspace-page-wrap .window-header,
+.workspace-page-wrap .modal-header {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.workspace-page-wrap .modal-body,
+.workspace-page-wrap .window-body {
+  flex: 1;
+  overflow-x: auto;
+}
+
+/* Minimalistic, Centered Empty States across all Workspace Pages */
+.workspace-page-wrap .empty-box,
+.workspace-page-wrap .empty-state,
+.workspace-page-wrap .empty-breakdown {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  gap: 10px !important;
+  min-height: 280px;
+  max-width: 460px;
+  margin: 36px auto !important;
+  padding: 40px 28px !important;
+  border-radius: 20px !important;
+  border: 1px dashed rgba(255, 255, 255, 0.14) !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.workspace-page-wrap .empty-box svg,
+.workspace-page-wrap .empty-state svg,
+.workspace-page-wrap .empty-icon {
+  width: 54px !important;
+  height: 54px !important;
+  padding: 13px !important;
+  border-radius: 16px !important;
+  background: rgba(99, 102, 241, 0.12) !important;
+  color: #818cf8 !important;
+  margin-bottom: 4px !important;
+  opacity: 1 !important;
+}
+
+.workspace-page-wrap .empty-box h3,
+.workspace-page-wrap .empty-state h3,
+.workspace-page-wrap .empty-title {
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  color: var(--text-primary, #f8fafc) !important;
+  margin: 0 !important;
+}
+
+.workspace-page-wrap .empty-box p,
+.workspace-page-wrap .empty-state p,
+.workspace-page-wrap .empty-sub {
+  font-size: 0.86rem !important;
+  color: var(--text-muted, #94a3b8) !important;
+  max-width: 340px !important;
+  line-height: 1.5 !important;
+  margin: 0 !important;
+}
+
+.workspace-page-wrap table td.empty-cell,
+.workspace-page-wrap table td.empty-row {
+  text-align: center !important;
+  padding: 56px 24px !important;
+  color: var(--text-muted, #94a3b8) !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .empty-box,
+[data-theme="light"] .workspace-page-wrap .empty-state,
+[data-theme="light"] .workspace-page-wrap .empty-breakdown {
+  border-color: #cbd5e1 !important;
+  background: #ffffff !important;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04) !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .empty-box svg,
+[data-theme="light"] .workspace-page-wrap .empty-state svg,
+[data-theme="light"] .workspace-page-wrap .empty-icon {
+  background: #eef2ff !important;
+  color: #4f46e5 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .empty-box h3,
+[data-theme="light"] .workspace-page-wrap .empty-state h3,
+[data-theme="light"] .workspace-page-wrap .empty-title {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .empty-box p,
+[data-theme="light"] .workspace-page-wrap .empty-state p,
+[data-theme="light"] .workspace-page-wrap .empty-sub {
+  color: #64748b !important;
+}
+
+.workspace-page-wrap table {
+  width: 100%;
+}
+
+/* ============================================================
+   ATTRACTIVE LIGHT MODE FOR ALL WORKSPACE PAGES
+   ============================================================ */
+[data-theme="light"] .workspace-page-wrap {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .catalog-page,
+[data-theme="light"] .workspace-page-wrap .catalog-window,
+[data-theme="light"] .workspace-page-wrap .customers-window,
+[data-theme="light"] .workspace-page-wrap .stock-window,
+[data-theme="light"] .workspace-page-wrap .suppliers-window,
+[data-theme="light"] .workspace-page-wrap .reports-window,
+[data-theme="light"] .workspace-page-wrap .modal-card {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .window-header,
+[data-theme="light"] .workspace-page-wrap .modal-header {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .window-header h2,
+[data-theme="light"] .workspace-page-wrap .modal-header h2,
+[data-theme="light"] .workspace-page-wrap .modal-header h3,
+[data-theme="light"] .workspace-page-wrap h1,
+[data-theme="light"] .workspace-page-wrap h2,
+[data-theme="light"] .workspace-page-wrap h3,
+[data-theme="light"] .workspace-page-wrap h4,
+[data-theme="light"] .workspace-page-wrap strong {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .subtitle,
+[data-theme="light"] .workspace-page-wrap .window-sub,
+[data-theme="light"] .workspace-page-wrap p {
+  color: #64748b !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .window-tabs-bar,
+[data-theme="light"] .workspace-page-wrap .tabs-bar,
+[data-theme="light"] .workspace-page-wrap .toolbar,
+[data-theme="light"] .workspace-page-wrap .filter-bar,
+[data-theme="light"] .workspace-page-wrap .controls-bar {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .tab-btn {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .tab-btn:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .tab-btn.active {
+  background: #eef2ff !important;
+  color: #4f46e5 !important;
+  border-color: #c7d2fe !important;
+}
+
+[data-theme="light"] .workspace-page-wrap input:not([type="checkbox"]):not([type="radio"]),
+[data-theme="light"] .workspace-page-wrap select,
+[data-theme="light"] .workspace-page-wrap textarea {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap input::placeholder,
+[data-theme="light"] .workspace-page-wrap textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .search-box,
+[data-theme="light"] .workspace-page-wrap .search-input-box {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .card,
+[data-theme="light"] .workspace-page-wrap .stat-card,
+[data-theme="light"] .workspace-page-wrap .summary-card,
+[data-theme="light"] .workspace-page-wrap .kpi-card,
+[data-theme="light"] .workspace-page-wrap .panel,
+[data-theme="light"] .workspace-page-wrap .table-wrapper,
+[data-theme="light"] .workspace-page-wrap .table-container,
+[data-theme="light"] .workspace-page-wrap .list-card {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04) !important;
+}
+
+[data-theme="light"] .workspace-page-wrap table th {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap table td {
+  color: #1e293b !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap table tbody tr:hover td {
+  background: #f8fafc !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .btn-tool,
+[data-theme="light"] .workspace-page-wrap .btn-close,
+[data-theme="light"] .workspace-page-wrap .btn-close-window,
+[data-theme="light"] .workspace-page-wrap .btn-secondary {
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .btn-tool:hover,
+[data-theme="light"] .workspace-page-wrap .btn-close:hover,
+[data-theme="light"] .workspace-page-wrap .btn-close-window:hover,
+[data-theme="light"] .workspace-page-wrap .btn-secondary:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .submodal-card,
+[data-theme="light"] .workspace-page-wrap .drawer-panel {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* ============================================================
+   RESPONSIVE WORKSPACE PAGES (TABLET & MOBILE)
+   ============================================================ */
+@media (max-width: 900px) {
+  .workspace-page-wrap .window-header,
+  .workspace-page-wrap .modal-header {
+    padding: 14px 16px !important;
+  }
+
+  .workspace-page-wrap .modal-body,
+  .workspace-page-wrap .window-body {
+    padding: 14px 16px !important;
+  }
+
+  .workspace-page-wrap .split-layout,
+  .workspace-page-wrap .two-col-grid,
+  .workspace-page-wrap .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .workspace-page-wrap .window-header,
+  .workspace-page-wrap .modal-header {
+    padding: 12px !important;
+  }
+
+  .workspace-page-wrap .header-actions,
+  .workspace-page-wrap .header-right {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .workspace-page-wrap .window-tabs-bar,
+  .workspace-page-wrap .tabs-bar {
+    overflow-x: auto;
+    padding: 8px 12px !important;
+  }
+}
+
+
