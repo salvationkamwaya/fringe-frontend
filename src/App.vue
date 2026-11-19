@@ -29,6 +29,7 @@ import WholesaleDocumentsModal from './components/WholesaleDocumentsModal.vue'
 import ProductImportModal from './components/ProductImportModal.vue'
 import BarcodeLabelsModal from './components/BarcodeLabelsModal.vue'
 import BranchManagementModal from './components/BranchManagementModal.vue'
+import BusinessSetupModal from './components/BusinessSetupModal.vue'
 import IdleTimeoutModal from './components/IdleTimeoutModal.vue'
 import { initIdleTracker } from './idleTracker'
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-vue-next'
@@ -47,6 +48,18 @@ const checkAuth = async () => {
       localStorage.setItem('fringe_active_unit', store.activeUnit)
     }
     localStorage.setItem('fringe_user', JSON.stringify(response.data.user))
+    if (response.data.branches) {
+      store.branches = response.data.branches
+    }
+    store.syncBusinessUnits(
+      response.data.available_units,
+      response.data.requires_business_setup,
+      response.data.requires_branch_setup
+    )
+    if (store.requiresBusinessSetup || store.requiresBranchSetup) {
+      store.activeModal = 'business_setup'
+      return
+    }
     await store.fetchBranches()
     await store.fetchActiveShift()
   } catch (err) {
@@ -81,6 +94,7 @@ onMounted(() => {
 
     <!-- Modals & Overlays -->
     <LoginModal v-if="store.activeModal === 'login' || !store.isAuthenticated" />
+    <BusinessSetupModal v-else-if="store.isAuthenticated && store.isOwner && (store.requiresBusinessSetup || store.requiresBranchSetup)" />
     
     <AgeVerificationModal 
       v-if="store.activeModal === 'age_verification'"

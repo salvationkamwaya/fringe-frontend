@@ -42,6 +42,9 @@ const unitBadgeColor = computed(() => {
   return 'badge-purple'
 })
 
+const barUnitName = computed(() => store.businessUnits.find(u => u.id === 'bar')?.name || 'Bar & Lounge')
+const stationeryUnitName = computed(() => store.businessUnits.find(u => u.id === 'stationery')?.name || 'Stationery & Retail')
+
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
 }
@@ -97,7 +100,7 @@ const toggleCollapse = () => {
         <Wine v-if="store.activeUnit === 'bar'" :size="14" />
         <BookOpen v-else-if="store.activeUnit === 'stationery'" :size="14" />
         <Layers v-else :size="14" />
-        <span>{{ store.activeUnit === 'bar' ? 'Bar & Grocery' : store.activeUnit === 'stationery' ? 'Stationery & Retail' : 'All Businesses' }}</span>
+        <span>{{ store.activeUnit === 'bar' ? barUnitName : store.activeUnit === 'stationery' ? stationeryUnitName : 'All Businesses' }}</span>
       </div>
 
       <!-- Owner Business Unit Switcher -->
@@ -109,8 +112,8 @@ const toggleCollapse = () => {
             @change="store.switchBusinessUnit($event.target.value)"
             class="switcher-select"
           >
-            <option value="bar">🍷 Bar & Grocery</option>
-            <option value="stationery">📚 Stationery Shop</option>
+            <option value="bar">🍷 {{ barUnitName }}</option>
+            <option value="stationery">📚 {{ stationeryUnitName }}</option>
             <option value="all">⚡ Combined (Cross-Unit)</option>
           </select>
           <ChevronDown class="select-arrow" :size="13" />
