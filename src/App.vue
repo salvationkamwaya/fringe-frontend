@@ -68,10 +68,10 @@ onMounted(() => {
 <template>
   <div class="app-layout">
     <!-- Vertical Role Sidebar (Left) -->
-    <SidebarNav />
+    <SidebarNav v-if="store.isAuthenticated" />
 
     <!-- Main Workspace (Right) -->
-    <main class="main-workspace">
+    <main class="main-workspace" v-if="store.isAuthenticated">
       <!-- Stationery POS View -->
       <StationeryPos v-if="store.activeUnit === 'stationery'" />
 

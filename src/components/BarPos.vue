@@ -23,6 +23,7 @@ const getDrinkCartCount = (drinkId) => {
 }
 
 const fetchCategories = async () => {
+  if (!store.isAuthenticated) return
   try {
     const response = await api.get('/catalog/categories/')
     categories.value = response.data.results || response.data
@@ -32,6 +33,7 @@ const fetchCategories = async () => {
 }
 
 const fetchProducts = async () => {
+  if (!store.isAuthenticated) return
   loading.value = true
   try {
     const params = {}
@@ -193,9 +195,18 @@ const onBranchChange = () => {
 }
 
 onMounted(() => {
-  fetchCategories()
-  fetchProducts()
+  if (store.isAuthenticated) {
+    fetchCategories()
+    fetchProducts()
+  }
   window.addEventListener('fringe-branch-changed', onBranchChange)
+})
+
+watch(() => store.isAuthenticated, (auth) => {
+  if (auth) {
+    fetchCategories()
+    fetchProducts()
+  }
 })
 
 onUnmounted(() => {

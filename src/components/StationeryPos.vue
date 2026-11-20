@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { store } from '../store'
 import api from '../api'
 import { 
@@ -37,6 +37,7 @@ const setSellingMode = (mode) => {
 
 // Fetch catalog and categories for Stationery
 const fetchCatalog = async () => {
+  if (!store.isAuthenticated) return
   loading.value = true
   try {
     const [prodRes, catRes] = await Promise.all([
@@ -54,6 +55,7 @@ const fetchCatalog = async () => {
 
 // Fetch registered customers
 const fetchCustomers = async () => {
+  if (!store.isAuthenticated) return
   try {
     const res = await api.get('/pos/customers/')
     customers.value = res.data
@@ -63,8 +65,17 @@ const fetchCustomers = async () => {
 }
 
 onMounted(() => {
-  fetchCatalog()
-  fetchCustomers()
+  if (store.isAuthenticated) {
+    fetchCatalog()
+    fetchCustomers()
+  }
+})
+
+watch(() => store.isAuthenticated, (auth) => {
+  if (auth) {
+    fetchCatalog()
+    fetchCustomers()
+  }
 })
 
 // Filtered products
