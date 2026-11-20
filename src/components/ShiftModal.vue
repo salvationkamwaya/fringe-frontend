@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import { Clock, Banknote, Smartphone, CheckCircle2, AlertTriangle, Printer, X, ShieldCheck } from 'lucide-vue-next'
 
@@ -72,18 +73,21 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="modal-overlay">
+  <div class="modal-overlay shift-page" :data-theme="store.theme">
     <div class="modal-card">
       <div class="header">
         <div class="header-left">
-          <Clock :size="24" class="header-icon" />
+          <div class="header-icon-tile">
+            <Clock :size="20" />
+          </div>
           <div>
-            <h3 class="title">Register Shift & Z-Report</h3>
-            <p class="subtitle">Cash drawer balancing and end-of-shift reconciliation</p>
+            <h3 class="title">{{ t('shift.title') }}</h3>
+            <p class="subtitle">{{ t('shift.subtitle') }}</p>
           </div>
         </div>
         <button class="btn-close" @click="$emit('close')">
-          <X :size="18" />
+          <X :size="16" />
+          <span>{{ t('common.backToPos') }}</span>
         </button>
       </div>
 
@@ -151,11 +155,13 @@ onMounted(() => {
       <!-- STATE 2: MANAGERIAL OVERSIGHT VIEW (Managers and Owner do not operate drawer) -->
       <div v-else-if="!store.canRecordSales" class="manager-oversight-view">
         <div class="oversight-hero">
-          <ShieldCheck :size="38" class="text-blue" />
-          <h4>Managerial Shift Oversight</h4>
+          <div class="hero-icon-pill">
+            <ShieldCheck :size="24" />
+          </div>
+          <h4>{{ t('shift.oversightTitle') }}</h4>
           <p>
-            Signed in as <strong>{{ store.user?.first_name || store.user?.username }} ({{ store.user?.role?.toUpperCase() }})</strong>.
-            Cash register drawers are strictly operated by frontline staff (Bartenders & Cashiers).
+            <strong>{{ store.user?.first_name || store.user?.username }} ({{ store.user?.role?.toUpperCase() }})</strong> ·
+            {{ t('shift.oversightDesc') }}
           </p>
         </div>
 
@@ -163,23 +169,23 @@ onMounted(() => {
           <div class="oversight-header-row">
             <span class="pulse-indicator"></span>
             <strong>Active Cashier on Duty: {{ activeShift.cashier_username || activeShift.cashier?.username || 'Frontline Staff' }}</strong>
-            <span class="badge-status-open">DRAWER OPEN</span>
+            <span class="badge-status-open">{{ t('shift.activeBadge') }}</span>
           </div>
           <div class="metrics-grid">
             <div class="metric-card">
-              <span class="m-label">Opening Float</span>
+              <span class="m-label">{{ t('shift.openingFloat') }}</span>
               <span class="m-val">TSH {{ activeShift.opening_float }}</span>
             </div>
             <div class="metric-card">
-              <span class="m-label">Cash Sales</span>
+              <span class="m-label">{{ t('dash.cash') }}</span>
               <span class="m-val">TSH {{ activeShift.total_sales_cash }}</span>
             </div>
             <div class="metric-card">
-              <span class="m-label">Mobile Money</span>
+              <span class="m-label">{{ t('dash.mobileMoney') }}</span>
               <span class="m-val">TSH {{ activeShift.total_sales_mobile }}</span>
             </div>
             <div class="metric-card highlight">
-              <span class="m-label">Expected Drawer Cash</span>
+              <span class="m-label">{{ t('shift.expectedCash') }}</span>
               <span class="m-val">TSH {{ expectedCash.toFixed(2) }}</span>
             </div>
           </div>
@@ -189,13 +195,15 @@ onMounted(() => {
         </div>
 
         <div v-else class="empty-oversight-card">
-          <Clock :size="32" class="text-muted" />
-          <h5>No Active Frontline Shift in {{ store.activeUnit?.toUpperCase() }}</h5>
-          <p>The register drawer is currently closed. When a cashier opens their drawer with an opening float, active drawer metrics will appear here live.</p>
+          <div class="empty-icon-pill">
+            <Clock :size="26" />
+          </div>
+          <h5>{{ t('shift.noActiveTitle') }} ({{ store.activeUnit?.toUpperCase() }})</h5>
+          <p>{{ t('shift.noActiveDesc') }}</p>
         </div>
 
         <div class="oversight-actions">
-          <button class="btn-close-oversight" @click="$emit('close')">Close Oversight</button>
+          <button class="btn-close-oversight" @click="$emit('close')">{{ t('shift.closeOversight') }}</button>
         </div>
       </div>
 
@@ -301,425 +309,430 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(4, 6, 14, 0.88);
-  backdrop-filter: blur(14px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1200;
-  padding: 16px;
+/* ============================================================
+   SHIFT & Z-REPORT PAGE — LIGHT & DARK MODE + RESPONSIVE
+   ============================================================ */
+.shift-page {
+  --sh-bg: #0b0f19;
+  --sh-surface: #111827;
+  --sh-card: #161f30;
+  --sh-elevated: #1e293b;
+  --sh-input: #0f1623;
+  --sh-border: rgba(255, 255, 255, 0.09);
+  --sh-border-strong: rgba(255, 255, 255, 0.18);
+  --sh-text: #f8fafc;
+  --sh-text-sec: #cbd5e1;
+  --sh-text-muted: #94a3b8;
+  --sh-accent: #6366f1;
+  --sh-accent-hover: #4f46e5;
+  --sh-accent-soft: rgba(99, 102, 241, 0.15);
+  --sh-positive: #10b981;
+  --sh-positive-soft: rgba(16, 185, 129, 0.14);
+  --sh-danger: #f43f5e;
+  --sh-danger-soft: rgba(244, 63, 94, 0.14);
+  --sh-shadow: 0 2px 14px rgba(0, 0, 0, 0.25);
+
+  width: 100%;
+  min-height: 100vh;
+  background: var(--sh-bg);
+  color: var(--sh-text);
+}
+
+.shift-page[data-theme="light"] {
+  --sh-bg: #f6f8fb;
+  --sh-surface: #ffffff;
+  --sh-card: #ffffff;
+  --sh-elevated: #f1f5f9;
+  --sh-input: #ffffff;
+  --sh-border: #e2e8f0;
+  --sh-border-strong: #cbd5e1;
+  --sh-text: #0f172a;
+  --sh-text-sec: #334155;
+  --sh-text-muted: #64748b;
+  --sh-accent: #4f46e5;
+  --sh-accent-hover: #4338ca;
+  --sh-accent-soft: #eef2ff;
+  --sh-positive: #059669;
+  --sh-positive-soft: #ecfdf5;
+  --sh-danger: #e11d48;
+  --sh-danger-soft: #fff1f2;
+  --sh-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 6px 20px rgba(15, 23, 42, 0.03);
 }
 
 .modal-card {
   width: 100%;
-  max-width: 520px;
-  background: #111827;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 24px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-  padding: 24px;
+  background: var(--sh-bg);
+  color: var(--sh-text);
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
+  background: var(--sh-surface);
+  border-bottom: 1px solid var(--sh-border);
+  padding: 18px 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
-.header-icon {
-  color: #fbbf24;
-}
-
-.title {
-  font-size: 18px;
-  font-weight: 800;
-  color: #f8fafc;
-}
-
-.subtitle {
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-.btn-close {
-  background: rgba(255, 255, 255, 0.06);
-  color: #94a3b8;
-  border-radius: 8px;
-  padding: 6px;
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.metric-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.header-icon-tile {
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
-  padding: 12px;
-}
-
-.metric-card.highlight {
-  grid-column: span 2;
-  background: rgba(245, 158, 11, 0.1);
-  border-color: rgba(245, 158, 11, 0.3);
-}
-
-.m-label {
-  display: block;
-  font-size: 11px;
-  font-weight: 700;
-  color: #94a3b8;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-
-.m-val {
-  font-size: 16px;
-  font-weight: 800;
-  color: #f8fafc;
-}
-
-.reconcile-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  padding: 16px;
-  margin-bottom: 20px;
-}
-
-.form-group label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: #cbd5e1;
-  margin-bottom: 6px;
-}
-
-.count-input, .float-input {
-  width: 100%;
-  font-size: 24px;
-  font-weight: 800;
-  color: #fbbf24;
-  background: #0f172a;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 10px;
-  padding: 10px 14px;
-  text-align: center;
-  outline: none;
-}
-
-.reason-input {
-  width: 100%;
-  background: #0f172a;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: #fff;
-  font-size: 13px;
-  outline: none;
-}
-
-.variance-box {
-  margin: 12px 0;
-  padding: 12px;
-  border-radius: 10px;
-  text-align: center;
-}
-
-.variance-box.balanced {
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  color: #34d399;
-}
-
-.variance-box.short {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #f87171;
-}
-
-.variance-box.over {
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  color: #fbbf24;
-}
-
-.var-title {
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.var-val {
-  font-size: 20px;
-  font-weight: 900;
-}
-
-.btn-close-shift {
-  width: 100%;
-  padding: 14px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: #fff;
-  font-weight: 800;
-  font-size: 15px;
-  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.35);
-}
-
-.btn-start {
-  width: 100%;
-  padding: 14px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: #fff;
-  font-weight: 800;
-  font-size: 15px;
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
-  margin-top: 16px;
-}
-
-/* Z-Report View */
-.z-report-view {
-  background: #0f172a;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 20px;
-}
-
-.z-header {
-  text-align: center;
-  margin-bottom: 16px;
-}
-
-.z-badge {
-  display: inline-block;
-  background: #fbbf24;
-  color: #111827;
-  font-size: 11px;
-  font-weight: 900;
-  padding: 2px 8px;
-  border-radius: 4px;
-  margin-bottom: 6px;
-}
-
-.z-title {
-  font-size: 16px;
-  font-weight: 800;
-  color: #fff;
-}
-
-.z-time {
-  font-size: 11px;
-  color: #64748b;
-}
-
-.z-receipt {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-family: monospace;
-  font-size: 13px;
-  color: #cbd5e1;
-  background: #020617;
-  padding: 16px;
-  border-radius: 10px;
-  margin-bottom: 16px;
-}
-
-.z-row {
-  display: flex;
-  justify-content: space-between;
-}
-
-.z-row.bold {
-  font-weight: bold;
-  color: #fff;
-}
-
-.z-row.variance-row.short {
-  color: #f87171;
-}
-
-.z-row.variance-row.balanced {
-  color: #34d399;
-}
-
-.z-divider {
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
-  margin: 6px 0;
-}
-
-.z-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.btn-print {
+  background: var(--sh-elevated);
+  border: 1px solid var(--sh-border);
+  color: var(--sh-accent);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 10px;
-  background: #1e293b;
-  color: #fff;
-  font-weight: 700;
-  font-size: 13px;
+  flex-shrink: 0;
 }
 
-.btn-done {
-  padding: 10px;
-  border-radius: 10px;
-  background: #f59e0b;
-  color: #111827;
+.title {
+  font-size: 1.25rem;
   font-weight: 800;
-  font-size: 13px;
+  color: var(--sh-text);
+  margin: 0;
 }
 
-/* Managerial Oversight View Styles */
-.manager-oversight-view {
+.subtitle {
+  font-size: 0.84rem;
+  color: var(--sh-text-muted);
+  margin-top: 2px;
+}
+
+.btn-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  background: var(--sh-elevated);
+  border: 1px solid var(--sh-border);
+  color: var(--sh-text-sec);
+}
+
+.btn-close:hover {
+  border-color: var(--sh-border-strong);
+  color: var(--sh-text);
+}
+
+/* Main Centered Body */
+.manager-oversight-view,
+.start-shift-view,
+.active-shift-view,
+.z-report-view {
+  width: 100%;
+  max-width: 820px;
+  margin: 28px auto;
+  padding: 0 20px 36px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
+}
+
+.oversight-hero,
+.active-oversight-card,
+.info-card,
+.reconcile-card,
+.z-receipt {
+  background: var(--sh-surface);
+  border: 1px solid var(--sh-border);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: var(--sh-shadow);
 }
 
 .oversight-hero {
-  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  background: rgba(59, 130, 246, 0.08);
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  text-align: center;
+  gap: 8px;
+}
+
+.hero-icon-pill,
+.empty-icon-pill {
+  width: 52px;
+  height: 52px;
   border-radius: 14px;
-  padding: 18px 16px;
+  background: var(--sh-accent-soft);
+  color: var(--sh-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.empty-icon-pill {
+  background: var(--sh-elevated);
+  color: var(--sh-text-muted);
 }
 
 .oversight-hero h4 {
-  font-size: 16px;
+  font-size: 1.08rem;
   font-weight: 800;
-  color: #93c5fd;
-  margin: 0;
+  color: var(--sh-text);
 }
 
 .oversight-hero p {
-  font-size: 12.5px;
-  color: #94a3b8;
-  line-height: 1.45;
-  margin: 0;
-  max-width: 440px;
+  font-size: 0.86rem;
+  color: var(--sh-text-muted);
+  max-width: 540px;
+  line-height: 1.5;
 }
 
-.active-oversight-card {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 16px;
+.oversight-hero strong {
+  color: var(--sh-text);
+}
+
+.empty-oversight-card {
+  background: var(--sh-surface);
+  border: 1px dashed var(--sh-border-strong);
+  border-radius: 18px;
+  padding: 40px 24px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  box-shadow: var(--sh-shadow);
+}
+
+.empty-oversight-card h5 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--sh-text);
+}
+
+.empty-oversight-card p {
+  font-size: 0.85rem;
+  color: var(--sh-text-muted);
+  max-width: 480px;
+  line-height: 1.5;
 }
 
 .oversight-header-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 13.5px;
-  color: #f1f5f9;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
 .pulse-indicator {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 10px #10b981;
-  display: inline-block;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  background: var(--sh-positive);
 }
 
 .badge-status-open {
   margin-left: auto;
-  font-size: 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--sh-positive-soft);
+  color: var(--sh-positive);
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-card {
+  background: var(--sh-elevated);
+  border: 1px solid var(--sh-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-card.highlight {
+  background: var(--sh-accent-soft);
+  border-color: var(--sh-accent);
+}
+
+.m-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--sh-text-muted);
+}
+
+.m-val {
+  font-size: 1.08rem;
   font-weight: 800;
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  padding: 3px 8px;
-  border-radius: 9999px;
-  letter-spacing: 0.05em;
+  color: var(--sh-text);
+  font-variant-numeric: tabular-nums;
 }
 
 .oversight-footer-note {
-  font-size: 11.5px;
-  color: #64748b;
-  font-style: italic;
-  text-align: center;
+  margin-top: 14px;
+  font-size: 0.8rem;
+  color: var(--sh-text-muted);
 }
 
-.empty-oversight-card {
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px dashed rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  padding: 30px 20px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.empty-oversight-card h5 {
-  font-size: 14px;
-  font-weight: 700;
-  color: #e2e8f0;
-  margin: 0;
-}
-
-.empty-oversight-card p {
-  font-size: 12px;
-  color: #64748b;
-  max-width: 380px;
-  line-height: 1.45;
-  margin: 0;
-}
-
-.oversight-actions {
+.oversight-actions,
+.z-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
 }
 
-.btn-close-oversight {
-  padding: 10px 20px;
-  border-radius: 10px;
-  background: #334155;
-  color: #f8fafc;
+.btn-close-oversight,
+.btn-start,
+.btn-done,
+.btn-close-shift {
+  padding: 11px 20px;
+  border-radius: 11px;
+  font-size: 0.88rem;
   font-weight: 700;
-  font-size: 13px;
-  transition: all 0.2s;
+  background: var(--sh-accent);
+  color: #ffffff;
+  transition: all 0.16s ease;
 }
 
-.btn-close-oversight:hover {
-  background: #475569;
+.btn-close-oversight:hover,
+.btn-start:hover,
+.btn-done:hover,
+.btn-close-shift:hover {
+  background: var(--sh-accent-hover);
+}
+
+.btn-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 18px;
+  border-radius: 11px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  background: var(--sh-elevated);
+  border: 1px solid var(--sh-border);
+  color: var(--sh-text-sec);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--sh-text-sec);
+}
+
+.float-input,
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  background: var(--sh-input);
+  border: 1px solid var(--sh-border-strong);
+  color: var(--sh-text);
+  outline: none;
+}
+
+.float-input:focus,
+.form-group input:focus,
+.form-group textarea:focus {
+  border-color: var(--sh-accent);
+  box-shadow: 0 0 0 3px var(--sh-accent-soft);
+}
+
+.error-msg {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--sh-danger-soft);
+  color: var(--sh-danger);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.z-header {
+  text-align: center;
+}
+
+.z-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--sh-accent-soft);
+  color: var(--sh-accent);
+  margin-bottom: 6px;
+}
+
+.z-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--sh-text);
+}
+
+.z-time {
+  font-size: 0.8rem;
+  color: var(--sh-text-muted);
+}
+
+.z-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 0;
+  font-size: 0.88rem;
+  color: var(--sh-text-sec);
+}
+
+.z-row.bold {
+  font-weight: 800;
+  color: var(--sh-text);
+}
+
+.z-divider {
+  height: 1px;
+  background: var(--sh-border);
+  margin: 8px 0;
+}
+
+.variance-row.balanced { color: var(--sh-positive); }
+.variance-row.short { color: var(--sh-danger); }
+
+@media (max-width: 640px) {
+  .header {
+    padding: 14px 16px;
+  }
+
+  .manager-oversight-view,
+  .start-shift-view,
+  .active-shift-view,
+  .z-report-view {
+    margin: 16px auto;
+    padding: 0 12px 24px;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

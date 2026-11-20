@@ -43,6 +43,7 @@ export const store = reactive({
   soundEnabled: localStorage.getItem('fringe_sound') !== 'false',
   orderNotes: '',
   theme: localStorage.getItem('fringe_theme') || (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'), // 'dark' | 'light'
+  locale: localStorage.getItem('fringe_locale') || 'en', // 'en' | 'sw'
   stationeryMode: 'RETAIL', // 'RETAIL' | 'WHOLESALE'
   heldSales: JSON.parse(localStorage.getItem('fringe_held_sales') || '[]'),
   idleTimeoutMinutes: parseInt(localStorage.getItem('fringe_idle_timeout') ?? '10', 10), // default 10 minutes
@@ -121,6 +122,19 @@ export const store = reactive({
     const resolved = saved || (systemPrefersLight ? 'light' : 'dark')
     store.theme = resolved
     document.documentElement.setAttribute('data-theme', resolved)
+  },
+
+  setLocale(lang) {
+    store.locale = lang === 'sw' ? 'sw' : 'en'
+    localStorage.setItem('fringe_locale', store.locale)
+    store.showToast(
+      store.locale === 'sw' ? 'Lugha imebadilishwa kuwa Kiswahili.' : 'Language switched to English.',
+      'info'
+    )
+  },
+
+  toggleLocale() {
+    store.setLocale(store.locale === 'en' ? 'sw' : 'en')
   },
 
   playSound(type = 'beep') {

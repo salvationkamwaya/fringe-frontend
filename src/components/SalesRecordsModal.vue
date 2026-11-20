@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import { 
   Receipt, Search, Calendar, Filter, User as UserIcon, 
@@ -223,26 +224,26 @@ onMounted(() => {
           <div>
             <div class="window-title-row">
               <h2 class="window-title">
-                {{ isFrontline ? 'My Sales Records & Shift Transactions' : 'Sales Records & Transactions Audit' }}
+                {{ isFrontline ? t('sales.myTitle') : t('sales.title') }}
               </h2>
               <span class="unit-tag" :class="store.activeUnit === 'bar' ? 'tag-bar' : 'tag-stationery'">
                 {{ store.activeUnit === 'bar' ? '🍷 Bar & Lounge' : '📚 Stationery & Retail' }}
               </span>
             </div>
             <p class="window-sub">
-              Chronological sales ledger with recorded staff identification, shift reconciliation, and TSH settlement breakdown.
+              {{ t('sales.subtitle') }}
             </p>
           </div>
         </div>
 
         <div class="header-right">
-          <button class="btn-tool" @click="fetchOrders" :title="'Refresh Sales Records'">
+          <button class="btn-tool" @click="fetchOrders" :title="t('common.refresh')">
             <RefreshCw :size="15" :class="{ 'spin-anim': loading }" />
-            <span>Refresh</span>
+            <span>{{ t('common.refresh') }}</span>
           </button>
-          <button class="btn-close-window" @click="emit('close')" title="Back to POS">
+          <button class="btn-close-window" @click="emit('close')" :title="t('common.backToPos')">
             <X :size="16" />
-            <span>Back to POS</span>
+            <span>{{ t('common.backToPos') }}</span>
           </button>
         </div>
       </div>
@@ -254,7 +255,7 @@ onMounted(() => {
             <DollarSign :size="18" />
           </div>
           <div class="kpi-details">
-            <span class="kpi-label">Total Filtered Sales</span>
+            <span class="kpi-label">{{ t('sales.totalFiltered') }}</span>
             <div class="kpi-value text-emerald">
               <span class="kpi-currency">TSH</span> {{ formatMoney(summary.total_sales) }}
             </div>
@@ -266,9 +267,9 @@ onMounted(() => {
             <Receipt :size="18" />
           </div>
           <div class="kpi-details">
-            <span class="kpi-label">Total Transactions</span>
+            <span class="kpi-label">{{ t('sales.totalTx') }}</span>
             <div class="kpi-value">
-              {{ summary.total_orders }} <span class="kpi-unit">orders</span>
+              {{ summary.total_orders }} <span class="kpi-unit">{{ t('sales.ordersUnit') }}</span>
             </div>
           </div>
         </div>
@@ -278,7 +279,7 @@ onMounted(() => {
             <Banknote :size="18" />
           </div>
           <div class="kpi-details">
-            <span class="kpi-label">Cash Settlements</span>
+            <span class="kpi-label">{{ t('sales.cashSettlements') }}</span>
             <div class="kpi-value">
               <span class="kpi-currency">TSH</span> {{ formatMoney(summary.cash_total) }}
             </div>
@@ -290,7 +291,7 @@ onMounted(() => {
             <Smartphone :size="18" />
           </div>
           <div class="kpi-details">
-            <span class="kpi-label">Mobile Money (M-Pesa/Tigo)</span>
+            <span class="kpi-label">{{ t('sales.mobileMoney') }}</span>
             <div class="kpi-value">
               <span class="kpi-currency">TSH</span> {{ formatMoney(summary.mobile_total) }}
             </div>
@@ -302,7 +303,7 @@ onMounted(() => {
             <CreditCard :size="18" />
           </div>
           <div class="kpi-details">
-            <span class="kpi-label">Customer Credit</span>
+            <span class="kpi-label">{{ t('sales.customerCredit') }}</span>
             <div class="kpi-value">
               <span class="kpi-currency">TSH</span> {{ formatMoney(summary.credit_total) }}
             </div>
@@ -322,7 +323,7 @@ onMounted(() => {
               @click="mySalesOnly = true; selectedCashier = ''"
             >
               <UserIcon :size="14" />
-              <span>My Sales Only (@{{ store.user?.username }})</span>
+              <span>{{ t('sales.mySalesOnly') }} (@{{ store.user?.username }})</span>
             </button>
             <button 
               type="button" 
@@ -331,7 +332,7 @@ onMounted(() => {
               @click="mySalesOnly = false; selectedCashier = ''"
             >
               <Layers :size="14" />
-              <span>All Staff Transactions</span>
+              <span>{{ t('sales.allStaffTx') }}</span>
             </button>
           </div>
 
@@ -341,7 +342,7 @@ onMounted(() => {
             <input 
               v-model="searchQuery" 
               type="text" 
-              placeholder="Search by order #, drink name, tab, or cashier..."
+              :placeholder="t('sales.searchPlaceholder')"
               class="search-input"
             />
             <button v-if="searchQuery" class="btn-clear-search" @click="searchQuery = ''"><X :size="13" /></button>
@@ -446,30 +447,31 @@ onMounted(() => {
         <table class="sales-table">
           <thead>
             <tr>
-              <th class="col-order">Order #</th>
-              <th class="col-cashier">Recorded By (Cashier/Bartender)</th>
-              <th class="col-shift">Shift #</th>
-              <th class="col-date">Date & Time</th>
-              <th class="col-items">Drinks / Items Sold</th>
-              <th class="col-payment">Payment Method</th>
-              <th class="col-amount text-right">Total Amount</th>
-              <th class="col-status text-center">Status</th>
-              <th class="col-action text-right">Receipt</th>
+              <th class="col-order">{{ t('sales.col.order') }}</th>
+              <th class="col-cashier">{{ t('sales.col.staff') }}</th>
+              <th class="col-shift">{{ t('sales.col.shift') }}</th>
+              <th class="col-date">{{ t('sales.col.date') }}</th>
+              <th class="col-items">{{ t('sales.col.items') }}</th>
+              <th class="col-payment">{{ t('sales.col.payment') }}</th>
+              <th class="col-amount text-right">{{ t('sales.col.amount') }}</th>
+              <th class="col-status text-center">{{ t('sales.col.status') }}</th>
+              <th class="col-action text-right">{{ t('sales.col.receipt') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="loading && orders.length === 0">
               <td colspan="9" class="text-center py-8">
                 <div class="spinner"></div>
-                <p class="text-muted mt-2">Loading sales records...</p>
               </td>
             </tr>
 
             <tr v-else-if="orders.length === 0">
-              <td colspan="9" class="text-center py-8 empty-row">
-                <Receipt :size="36" class="text-muted" />
-                <p class="empty-title">No sales records found</p>
-                <p class="empty-sub">Try expanding your date range or clearing your search filters.</p>
+              <td colspan="9" class="empty-row">
+                <div class="empty-state">
+                  <Receipt :size="32" />
+                  <p class="empty-title">{{ t('sales.noRecords') }}</p>
+                  <p class="empty-sub">{{ t('sales.noRecordsSub') }}</p>
+                </div>
               </td>
             </tr>
 

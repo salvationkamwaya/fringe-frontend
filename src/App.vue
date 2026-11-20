@@ -6,6 +6,7 @@ import api from './api'
 import SidebarNav from './components/SidebarNav.vue'
 import BarPos from './components/BarPos.vue'
 import StationeryPos from './components/StationeryPos.vue'
+import StationeryDashboard from './components/StationeryDashboard.vue'
 import LoginModal from './components/LoginModal.vue'
 import AgeVerificationModal from './components/AgeVerificationModal.vue'
 import ManagerPinModal from './components/ManagerPinModal.vue'
@@ -178,8 +179,11 @@ onMounted(() => {
         />
       </div>
 
-      <!-- Stationery POS View -->
-      <StationeryPos v-else-if="store.activeUnit === 'stationery'" />
+      <!-- Stationery POS Counter View -->
+      <StationeryPos v-else-if="store.activeUnit === 'stationery' && store.activeModal === 'stationery_pos'" />
+
+      <!-- Stationery Role-Aware Dashboard (Default Landing Page for Stationery) -->
+      <StationeryDashboard v-else-if="store.activeUnit === 'stationery'" />
 
       <!-- Bar & Lounge POS View -->
       <BarPos v-else />

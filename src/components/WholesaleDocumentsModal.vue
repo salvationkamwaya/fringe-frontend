@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import { 
   FileText, Truck, Printer, Search, Calendar, User, CheckCircle2,
@@ -78,18 +79,19 @@ const printDocument = () => {
             <FileText :size="22" class="text-blue" />
           </div>
           <div>
-            <h2>Wholesale Invoices & Delivery Notes</h2>
-            <p class="subtitle">Generate formal tax invoices and signed delivery notes for schools, shops, and institutions</p>
+            <h2>{{ t('ws.title') }}</h2>
+            <p class="subtitle">{{ t('ws.subtitle') }}</p>
           </div>
         </div>
 
         <div class="header-actions">
           <button class="btn-print-doc" @click="printDocument">
             <Printer :size="16" />
-            <span>Print {{ documentType === 'INVOICE' ? 'Tax Invoice' : 'Delivery Note' }}</span>
+            <span>{{ documentType === 'INVOICE' ? t('ws.printInvoice') : t('ws.printDelivery') }}</span>
           </button>
-          <button class="btn-close" @click="$emit('close')">
-            <X :size="20" />
+          <button class="btn-close" @click="$emit('close')" :title="t('common.backToPos')">
+            <X :size="16" />
+            <span>{{ t('common.backToPos') }}</span>
           </button>
         </div>
       </div>
@@ -103,7 +105,7 @@ const printDocument = () => {
             <input 
               v-model="searchQuery" 
               type="text" 
-              placeholder="Search wholesale order..." 
+              :placeholder="t('ws.searchPlaceholder')" 
               class="sidebar-search-input"
             />
           </div>
@@ -115,7 +117,7 @@ const printDocument = () => {
               @click="documentType = 'INVOICE'"
             >
               <FileText :size="14" />
-              <span>Tax Invoice</span>
+              <span>{{ t('ws.tabInvoice') }}</span>
             </button>
             <button 
               class="type-btn" 
@@ -123,7 +125,7 @@ const printDocument = () => {
               @click="documentType = 'DELIVERY_NOTE'"
             >
               <Truck :size="14" />
-              <span>Delivery Note</span>
+              <span>{{ t('ws.tabDelivery') }}</span>
             </button>
           </div>
 
@@ -148,7 +150,7 @@ const printDocument = () => {
               <span>Loading orders...</span>
             </div>
             <div v-else-if="filteredOrders.length === 0" class="sidebar-state">
-              <span>No wholesale orders found</span>
+              <span>{{ t('ws.noOrders') }}</span>
             </div>
             <div 
               v-else 

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import { 
   Package, Search, AlertTriangle, CheckCircle2, ArrowDownCircle,
@@ -251,30 +252,30 @@ const canAdjustStock = computed(() => {
             <Boxes :size="24" />
           </div>
           <div>
-            <div class="branding-badge">INVENTORY CUSTODY & AUDIT • TSH</div>
-            <h2>Inventory & Stock Control</h2>
-            <span class="subtitle">Live Stock Tracking, Physical Stocktake Counts & Goods Receiving</span>
+            <div class="branding-badge">INVENTORY CUSTODY &amp; AUDIT • TSH</div>
+            <h2>{{ t('stock.title') }}</h2>
+            <span class="subtitle">{{ t('stock.subtitle') }}</span>
           </div>
         </div>
 
         <div class="header-actions">
-          <button v-if="store.isManagement" class="btn-primary-action" @click="store.activeModal = 'catalog_management'" title="Register New Products or Drinks">
+          <button v-if="store.isManagement" class="btn-primary-action" @click="store.activeModal = 'catalog_management'" :title="t('stock.registerProducts')">
             <Plus :size="15" />
-            <span>Register Products</span>
+            <span>{{ t('stock.registerProducts') }}</span>
           </button>
 
           <div class="clerk-pill">
-            <span class="clerk-label">Custody:</span>
             <span class="clerk-user">@{{ store.user?.username }}</span>
             <span class="clerk-role">{{ store.user?.role?.toUpperCase() }}</span>
           </div>
 
-          <button class="btn-tool btn-refresh" @click="fetchInventory" title="Refresh Live Inventory">
+          <button class="btn-tool btn-refresh" @click="fetchInventory" :title="t('common.refresh')">
             <RefreshCw :size="16" :class="{ 'spin-anim': loading }" />
           </button>
 
-          <button class="btn-close-window" @click="emit('close')">
-            <X :size="20" />
+          <button class="btn-close-window" @click="emit('close')" :title="t('common.backToPos')">
+            <X :size="16" />
+            <span>{{ t('common.backToPos') }}</span>
           </button>
         </div>
       </div>
@@ -282,39 +283,39 @@ const canAdjustStock = computed(() => {
       <!-- KPI Metrics Strip -->
       <div class="kpi-strip">
         <div class="kpi-mini-card">
-          <span class="kpi-mini-label">Total Catalog</span>
+          <span class="kpi-mini-label">{{ t('stock.totalCatalog') }}</span>
           <span class="kpi-mini-val">{{ stats.total }}</span>
-          <span class="kpi-mini-sub">Active Products</span>
+          <span class="kpi-mini-sub">{{ t('stock.activeProducts') }}</span>
         </div>
 
         <div class="kpi-mini-card">
-          <span class="kpi-mini-label text-success">Optimal Stock</span>
+          <span class="kpi-mini-label text-success">{{ t('stock.optimalStock') }}</span>
           <span class="kpi-mini-val text-success">{{ stats.optimal }}</span>
-          <span class="kpi-mini-sub">Above Threshold</span>
+          <span class="kpi-mini-sub">{{ t('stock.aboveThreshold') }}</span>
         </div>
 
         <div class="kpi-mini-card" :class="{ 'kpi-warn': stats.low > 0 }">
-          <span class="kpi-mini-label text-amber">Low Stock Alerts</span>
+          <span class="kpi-mini-label text-amber">{{ t('stock.lowStockAlerts') }}</span>
           <span class="kpi-mini-val text-amber">{{ stats.low }}</span>
-          <span class="kpi-mini-sub">Reorder Required</span>
+          <span class="kpi-mini-sub">{{ t('stock.reorderRequired') }}</span>
         </div>
 
         <div class="kpi-mini-card" :class="{ 'kpi-danger': stats.out > 0 }">
-          <span class="kpi-mini-label text-danger">Out of Stock</span>
+          <span class="kpi-mini-label text-danger">{{ t('stock.outOfStock') }}</span>
           <span class="kpi-mini-val text-danger">{{ stats.out }}</span>
-          <span class="kpi-mini-sub">Depleted</span>
+          <span class="kpi-mini-sub">{{ t('stock.depleted') }}</span>
         </div>
 
         <div class="kpi-mini-card highlight-cost">
-          <span class="kpi-mini-label">Valuation at Cost</span>
+          <span class="kpi-mini-label">{{ t('stock.valuationCost') }}</span>
           <span class="kpi-mini-val text-accent">TSH {{ formatTsh(stats.valCost) }}</span>
-          <span class="kpi-mini-sub">Working Capital Invested</span>
+          <span class="kpi-mini-sub">{{ t('stock.capitalInvested') }}</span>
         </div>
 
         <div class="kpi-mini-card highlight-retail">
-          <span class="kpi-mini-label">Retail Value</span>
+          <span class="kpi-mini-label">{{ t('stock.retailValue') }}</span>
           <span class="kpi-mini-val text-cyan">TSH {{ formatTsh(stats.valRetail) }}</span>
-          <span class="kpi-mini-sub">Gross Expected Revenue</span>
+          <span class="kpi-mini-sub">{{ t('stock.expectedRevenue') }}</span>
         </div>
       </div>
 
@@ -325,7 +326,7 @@ const canAdjustStock = computed(() => {
           <input 
             v-model="searchQuery" 
             type="text" 
-            placeholder="Search by product name, SKU, or barcode..." 
+            :placeholder="t('stock.searchPlaceholder')" 
             class="search-input"
           />
           <button v-if="searchQuery" class="clear-btn" @click="searchQuery = ''"><X :size="14" /></button>
@@ -339,35 +340,35 @@ const canAdjustStock = computed(() => {
               :class="{ active: statusFilter === 'all' }" 
               @click="statusFilter = 'all'"
             >
-              All ({{ products.length }})
+              {{ t('stock.filterAll') }} ({{ products.length }})
             </button>
             <button 
               class="pill-btn pill-low" 
               :class="{ active: statusFilter === 'low' }" 
               @click="statusFilter = 'low'"
             >
-              Low Stock ({{ stats.low }})
+              {{ t('stock.filterLow') }} ({{ stats.low }})
             </button>
             <button 
               class="pill-btn pill-out" 
               :class="{ active: statusFilter === 'out' }" 
               @click="statusFilter = 'out'"
             >
-              Out of Stock ({{ stats.out }})
+              {{ t('stock.filterOut') }} ({{ stats.out }})
             </button>
             <button 
               class="pill-btn" 
               :class="{ active: statusFilter === 'packs' }" 
               @click="statusFilter = 'packs'"
             >
-              Crates / Cartons / Packs
+              {{ t('stock.filterPacks') }}
             </button>
           </div>
 
           <!-- Category Select -->
           <div class="cat-select-wrapper" v-if="categories.length">
             <select v-model="categoryFilter" class="cat-select">
-              <option value="all">All Categories</option>
+              <option value="all">{{ t('cat.allCategories') }}</option>
               <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
           </div>
@@ -378,13 +379,13 @@ const canAdjustStock = computed(() => {
       <div class="table-container">
         <div v-if="loading" class="state-box">
           <div class="spinner"></div>
-          <p>Loading live inventory records...</p>
+          <p>{{ t('stock.loading') }}</p>
         </div>
 
         <div v-else-if="filteredProducts.length === 0" class="empty-box">
           <Package :size="40" class="empty-icon" />
-          <h4>No products found</h4>
-          <p>No inventory items matched your search query or filter.</p>
+          <h4>{{ t('stock.emptyTitle') }}</h4>
+          <p>{{ t('stock.emptySub') }}</p>
         </div>
 
         <table v-else class="stock-table">

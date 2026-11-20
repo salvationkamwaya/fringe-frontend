@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import { 
   Wine, BookOpen, Layers, Plus, Search, Edit3, Trash2, 
@@ -556,24 +557,24 @@ const handleSaveCategory = async () => {
                 <span>{{ store.activeBranchName }}</span>
               </span>
             </div>
-            <h2>{{ isBar ? 'Bar & Lounge Beverage Catalog' : 'Stationery & Retail Product Catalog' }}</h2>
-            <span class="subtitle">Manager Product Registration, Retail Pricing & Category Administration</span>
+            <h2>{{ isBar ? t('cat.barTitle') : t('cat.statTitle') }}</h2>
+            <span class="subtitle">{{ t('cat.subtitle') }}</span>
           </div>
         </div>
 
         <div class="header-actions">
           <button class="btn-primary-action" @click="openCreateProduct">
             <Plus :size="16" />
-            <span>{{ isBar ? 'Register Drink' : 'Register Product' }}</span>
+            <span>{{ isBar ? t('cat.registerDrink') : t('cat.registerProduct') }}</span>
           </button>
 
-          <button class="btn-tool" @click="fetchData" title="Refresh Live Data">
+          <button class="btn-tool" @click="fetchData" :title="t('common.refresh')">
             <RefreshCw :size="16" :class="{ 'spin-anim': loading }" />
           </button>
 
-          <button class="btn-close-window" @click="emit('close')" title="Back to POS">
+          <button class="btn-close-window" @click="emit('close')" :title="t('common.backToPos')">
             <X :size="18" />
-            <span>Back to POS</span>
+            <span>{{ t('common.backToPos') }}</span>
           </button>
         </div>
       </div>
@@ -586,7 +587,7 @@ const handleSaveCategory = async () => {
           @click="activeTab = 'products'"
         >
           <Layers :size="16" />
-          <span>{{ isBar ? 'Drinks & Beverages' : 'Products Directory' }} ({{ products.length }})</span>
+          <span>{{ isBar ? t('cat.tabDrinks') : t('cat.tabProducts') }} ({{ products.length }})</span>
         </button>
 
         <button 
@@ -595,7 +596,7 @@ const handleSaveCategory = async () => {
           @click="activeTab = 'categories'"
         >
           <Tag :size="16" />
-          <span>Product Categories ({{ categories.length }})</span>
+          <span>{{ t('cat.tabCategories') }} ({{ categories.length }})</span>
         </button>
       </div>
 
@@ -608,14 +609,14 @@ const handleSaveCategory = async () => {
             <input 
               v-model="searchQuery" 
               type="text" 
-              :placeholder="`Search ${isBar ? 'drinks by brand, name...' : 'products by name, SKU, barcode...'}`" 
+              :placeholder="isBar ? t('cat.searchDrink') : t('cat.searchProduct')" 
               class="search-input"
             />
           </div>
 
           <div class="toolbar-right">
             <select v-model="categoryFilter" class="filter-select">
-              <option value="all">All Categories</option>
+              <option value="all">{{ t('cat.allCategories') }}</option>
               <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
           </div>
@@ -625,13 +626,13 @@ const handleSaveCategory = async () => {
         <div class="table-container">
           <div v-if="loading" class="state-box">
             <div class="spinner"></div>
-            <p>Loading catalog items...</p>
+            <p>{{ t('cat.loading') }}</p>
           </div>
 
           <div v-else-if="filteredProducts.length === 0" class="empty-box">
             <Layers :size="40" class="empty-icon" />
-            <h4>No products found</h4>
-            <p>Click "Register {{ isBar ? 'Drink' : 'Product' }}" above to add items to your catalog.</p>
+            <h4>{{ t('cat.emptyTitle') }}</h4>
+            <p>{{ isBar ? t('cat.emptyDrinkSub') : t('cat.emptyProductSub') }}</p>
           </div>
 
           <table v-else class="catalog-table">

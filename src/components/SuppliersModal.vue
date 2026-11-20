@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import { 
   Truck, Plus, Search, DollarSign, Calendar, Clock, 
@@ -153,8 +154,8 @@ const submitSupplierPayment = async () => {
             <Truck :size="22" />
           </div>
           <div>
-            <h2>Suppliers & Goods Receiving</h2>
-            <span class="subtitle">Stationery Inventory Purchases & Payables</span>
+            <h2>{{ t('sup.title') }}</h2>
+            <span class="subtitle">{{ t('sup.subtitle') }}</span>
           </div>
         </div>
 
@@ -164,19 +165,20 @@ const submitSupplierPayment = async () => {
             :class="{ active: activeTab === 'orders' }"
             @click="activeTab = 'orders'"
           >
-            <span>Purchase Orders ({{ purchaseOrders.length }})</span>
+            <span>{{ t('sup.tabPO') }} ({{ purchaseOrders.length }})</span>
           </button>
           <button 
             class="tab-btn" 
             :class="{ active: activeTab === 'suppliers' }"
             @click="activeTab = 'suppliers'"
           >
-            <span>Suppliers Directory ({{ suppliers.length }})</span>
+            <span>{{ t('sup.tabDir') }} ({{ suppliers.length }})</span>
           </button>
         </div>
 
-        <button class="btn-close-window" @click="emit('close')">
-          <X :size="20" />
+        <button class="btn-close-window" @click="emit('close')" :title="t('common.backToPos')">
+          <X :size="16" />
+          <span>{{ t('common.backToPos') }}</span>
         </button>
       </div>
 
@@ -189,14 +191,14 @@ const submitSupplierPayment = async () => {
             <input 
               v-model="searchQuery" 
               type="text" 
-              placeholder="Search PO #, invoice #, or supplier..." 
+              :placeholder="t('sup.searchPO')" 
               class="search-input"
             />
           </div>
 
           <button class="btn-add" @click="showCreatePO = true">
             <PackageCheck :size="18" />
-            <span>Record Goods Receiving (PO)</span>
+            <span>{{ t('sup.recordPO') }}</span>
           </button>
         </div>
 
@@ -205,15 +207,15 @@ const submitSupplierPayment = async () => {
           <table class="data-table">
             <thead>
               <tr>
-                <th>PO Number</th>
-                <th>Date Received</th>
-                <th>Supplier</th>
-                <th>Invoice #</th>
-                <th class="text-right">Total Cost</th>
-                <th class="text-right">Amount Paid</th>
-                <th class="text-right">Balance Due</th>
-                <th class="text-center">Status</th>
-                <th class="text-center">Action</th>
+                <th>{{ t('sup.colPO') }}</th>
+                <th>{{ t('sup.colDate') }}</th>
+                <th>{{ t('sup.colSupplier') }}</th>
+                <th>{{ t('sup.colInvoice') }}</th>
+                <th class="text-right">{{ t('sup.colTotal') }}</th>
+                <th class="text-right">{{ t('sup.colPaid') }}</th>
+                <th class="text-right">{{ t('sup.colBalance') }}</th>
+                <th class="text-center">{{ t('sup.colStatus') }}</th>
+                <th class="text-center">{{ t('sup.colAction') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -252,7 +254,7 @@ const submitSupplierPayment = async () => {
               </tr>
 
               <tr v-if="filteredPOs.length === 0">
-                <td colspan="9" class="empty-cell">No purchase orders found.</td>
+                <td colspan="9" class="empty-cell">{{ t('sup.emptyPO') }}</td>
               </tr>
             </tbody>
           </table>

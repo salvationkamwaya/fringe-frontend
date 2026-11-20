@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import { 
   DollarSign, Plus, Calendar, Filter, Trash2, X, RefreshCw, 
@@ -151,23 +152,23 @@ onMounted(() => {
           </div>
           <div>
             <div class="title-row">
-              <h3 class="title">Operating Expenses Management</h3>
+              <h3 class="title">{{ t('expenses.title') }}</h3>
               <span class="segment-badge">
                 {{ store.activeUnit === 'bar' ? 'BAR & LOUNGE' : store.activeUnit === 'stationery' ? 'STATIONERY & RETAIL' : 'ALL BUSINESSES' }}
               </span>
             </div>
-            <p class="subtitle">Record business running costs (rent, utilities, fuel, salaries) to calculate true Net Profit.</p>
+            <p class="subtitle">{{ t('expenses.subtitle') }}</p>
           </div>
         </div>
 
         <div class="header-right">
           <button class="btn-primary-add" @click="showCreateDrawer = true">
             <Plus :size="16" />
-            <span>Record New Expense</span>
+            <span>{{ t('expenses.recordNew') }}</span>
           </button>
-          <button class="btn-close" @click="$emit('close')" title="Back to POS">
+          <button class="btn-close" @click="$emit('close')" :title="t('common.backToPos')">
             <X :size="16" />
-            <span>Back to POS</span>
+            <span>{{ t('common.backToPos') }}</span>
           </button>
         </div>
       </div>
@@ -177,21 +178,21 @@ onMounted(() => {
         <!-- Top Metrics Grid -->
         <div class="metrics-grid">
           <div class="metric-card total-card">
-            <span class="m-label">Total Expenses (Selected Period)</span>
+            <span class="m-label">{{ t('expenses.totalPeriod') }}</span>
             <strong class="m-val text-red">TSH {{ totalExpensesAmount.toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-            <span class="m-sub">{{ expenses.length }} transactions recorded</span>
+            <span class="m-sub">{{ expenses.length }} {{ t('sales.transactions') }}</span>
           </div>
 
           <div class="metric-card">
-            <span class="m-label">Primary Expense Category</span>
-            <strong class="m-val text-amber">{{ categoryBreakdown[0]?.category || 'None' }}</strong>
-            <span class="m-sub">{{ categoryBreakdown[0] ? `TSH ${categoryBreakdown[0].amount.toLocaleString()} (${categoryBreakdown[0].percent.toFixed(1)}%)` : 'No expenses recorded' }}</span>
+            <span class="m-label">{{ t('expenses.primaryCategory') }}</span>
+            <strong class="m-val text-amber">{{ categoryBreakdown[0]?.category || '—' }}</strong>
+            <span class="m-sub">{{ categoryBreakdown[0] ? `TSH ${categoryBreakdown[0].amount.toLocaleString()} (${categoryBreakdown[0].percent.toFixed(1)}%)` : t('expenses.emptyBreakdown') }}</span>
           </div>
 
           <div class="metric-card">
-            <span class="m-label">Net Profit Impact</span>
-            <strong class="m-val text-cyan">Deducted from Gross Profit</strong>
-            <span class="m-sub">Reflected in comprehensive P&L reports</span>
+            <span class="m-label">{{ t('expenses.netProfitImpact') }}</span>
+            <strong class="m-val text-cyan">{{ t('expenses.deductedGross') }}</strong>
+            <span class="m-sub">{{ t('expenses.reflectedPnl') }}</span>
           </div>
         </div>
 
@@ -202,32 +203,32 @@ onMounted(() => {
             <div class="filter-group">
               <Calendar :size="14" class="text-slate-400" />
               <select v-model="selectedRange" @change="fetchExpenses" class="select-filter">
-                <option value="today">Today</option>
-                <option value="this_month">This Month</option>
-                <option value="all">All Time</option>
-                <option value="custom">Custom Date Range</option>
+                <option value="today">{{ t('expenses.rangeToday') }}</option>
+                <option value="this_month">{{ t('expenses.rangeMonth') }}</option>
+                <option value="all">{{ t('expenses.rangeAll') }}</option>
+                <option value="custom">{{ t('expenses.rangeCustom') }}</option>
               </select>
             </div>
 
             <!-- Custom Date Inputs -->
             <div v-if="selectedRange === 'custom'" class="custom-dates">
               <input type="date" v-model="customStartDate" class="date-input" />
-              <span>to</span>
+              <span>{{ t('rep.to') }}</span>
               <input type="date" v-model="customEndDate" class="date-input" />
-              <button class="btn-apply" @click="fetchExpenses">Apply</button>
+              <button class="btn-apply" @click="fetchExpenses">{{ t('rep.apply') }}</button>
             </div>
 
             <!-- Category Filter -->
             <div class="filter-group">
               <Tag :size="14" class="text-slate-400" />
               <select v-model="selectedCategory" @change="fetchExpenses" class="select-filter">
-                <option value="all">All Categories</option>
+                <option value="all">{{ t('cat.allCategories') }}</option>
                 <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
               </select>
             </div>
           </div>
 
-          <button class="btn-refresh" @click="fetchExpenses" title="Refresh">
+          <button class="btn-refresh" @click="fetchExpenses" :title="t('common.refresh')">
             <RefreshCw :size="15" :class="{ 'spin-anim': loading }" />
           </button>
         </div>
@@ -239,13 +240,13 @@ onMounted(() => {
             <table class="expenses-table">
               <thead>
                 <tr>
-                  <th>Date & Ref</th>
-                  <th>Title / Description</th>
-                  <th>Category</th>
-                  <th>Paid To</th>
-                  <th>Method</th>
-                  <th class="text-right">Amount (TSH)</th>
-                  <th class="text-center" v-if="store.isManagement">Action</th>
+                  <th>{{ t('expenses.colDateRef') }}</th>
+                  <th>{{ t('expenses.colTitle') }}</th>
+                  <th>{{ t('expenses.colCat') }}</th>
+                  <th>{{ t('expenses.colPaidTo') }}</th>
+                  <th>{{ t('expenses.colMethod') }}</th>
+                  <th class="text-right">{{ t('expenses.colAmount') }}</th>
+                  <th class="text-center" v-if="store.isManagement">{{ t('expenses.colAction') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -258,7 +259,7 @@ onMounted(() => {
                 <tr v-else-if="expenses.length === 0">
                   <td colspan="7" class="state-cell">
                     <DollarSign :size="28" class="text-slate-500" />
-                    <p>No expense records found for the selected period.</p>
+                    <p>{{ t('expenses.emptyTable') }}</p>
                   </td>
                 </tr>
                 <tr v-for="exp in expenses" :key="exp.id">
@@ -298,9 +299,9 @@ onMounted(() => {
 
           <!-- Right: Category Distribution -->
           <div class="breakdown-pane">
-            <h5 class="breakdown-title">Spending by Category</h5>
+            <h5 class="breakdown-title">{{ t('expenses.spendingByCat') }}</h5>
             <div v-if="categoryBreakdown.length === 0" class="empty-breakdown">
-              No expenses in period.
+              {{ t('expenses.emptyBreakdown') }}
             </div>
             <div v-else class="breakdown-list">
               <div v-for="b in categoryBreakdown" :key="b.category" class="breakdown-item">
@@ -311,7 +312,7 @@ onMounted(() => {
                 <div class="progress-track">
                   <div class="progress-fill" :style="{ width: `${b.percent}%` }"></div>
                 </div>
-                <span class="b-percent">{{ b.percent.toFixed(1) }}% of total spending</span>
+                <span class="b-percent">{{ b.percent.toFixed(1) }}% {{ t('expenses.pctOfTotal') }}</span>
               </div>
             </div>
           </div>

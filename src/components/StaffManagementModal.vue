@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import {
   Users, UserPlus, Shield, Key, Lock, CheckCircle2,
@@ -392,16 +393,17 @@ onMounted(async () => {
           </div>
           <div>
             <div class="header-title-row">
-              <h3 class="title">Staff & Role Administration</h3>
-              <span class="owner-badge">EXCLUSIVE TO OWNER</span>
+              <h3 class="title">{{ t('staff.title') }}</h3>
+              <span class="owner-badge">{{ t('staff.ownerBadge') }}</span>
             </div>
             <p class="subtitle">
-              Strict RBAC: Create staff, assign roles, configure authorization PINs, and enforce tenant isolation.
+              {{ t('staff.subtitle') }}
             </p>
           </div>
         </div>
-        <button class="btn-close" @click="$emit('close')" title="Close Window">
-          <X :size="20" />
+        <button class="btn-close" @click="$emit('close')" :title="t('common.backToPos')">
+          <X :size="16" />
+          <span>{{ t('common.backToPos') }}</span>
         </button>
       </div>
 
@@ -410,7 +412,7 @@ onMounted(async () => {
         <AlertTriangle :size="32" class="denied-icon" />
         <h4>Access Restricted: Business Owner Privilege Required</h4>
         <p>Only the Business Owner has permission to manage staff accounts and assign roles.</p>
-        <button class="btn-primary" @click="$emit('close')">Return to POS</button>
+        <button class="btn-primary" @click="$emit('close')">{{ t('common.backToPos') }}</button>
       </div>
 
       <div v-else class="modal-content">
@@ -418,28 +420,28 @@ onMounted(async () => {
         <div class="stats-row">
           <div class="stat-card">
             <div class="stat-info">
-              <span class="stat-label">Total Staff</span>
+              <span class="stat-label">{{ t('staff.total') }}</span>
               <span class="stat-value">{{ stats.total }}</span>
             </div>
             <div class="stat-icon-wrap purple"><Users :size="22" /></div>
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <span class="stat-label">Active Accounts</span>
+              <span class="stat-label">{{ t('staff.active') }}</span>
               <span class="stat-value active-val">{{ stats.active }}</span>
             </div>
             <div class="stat-icon-wrap green"><CheckCircle2 :size="22" /></div>
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <span class="stat-label">Bar & Lounge Staff</span>
+              <span class="stat-label">{{ t('staff.barStaff') }}</span>
               <span class="stat-value">{{ stats.bar }}</span>
             </div>
             <div class="stat-icon-wrap amber"><Wine :size="22" /></div>
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <span class="stat-label">Stationery Staff</span>
+              <span class="stat-label">{{ t('staff.statStaff') }}</span>
               <span class="stat-value">{{ stats.stationery }}</span>
             </div>
             <div class="stat-icon-wrap cyan"><BookOpen :size="22" /></div>
@@ -453,7 +455,7 @@ onMounted(async () => {
             <input 
               v-model="searchQuery" 
               type="text" 
-              placeholder="Search by name, username, or email..."
+              :placeholder="t('staff.searchPlaceholder')"
               class="search-input"
             />
             <button v-if="searchQuery" class="clear-btn" @click="searchQuery = ''">
@@ -465,7 +467,7 @@ onMounted(async () => {
             <div class="filter-item">
               <Filter :size="14" />
               <select v-model="filterUnit" class="select-filter">
-                <option value="all">All Units</option>
+                <option value="all">{{ t('staff.allUnits') }}</option>
                 <option value="bar">🍷 Bar & Lounge</option>
                 <option value="stationery">📚 Stationery Shop</option>
                 <option value="global">⚡ Global / Owner</option>
@@ -474,7 +476,7 @@ onMounted(async () => {
 
             <div class="filter-item">
               <select v-model="filterRole" class="select-filter">
-                <option value="all">All Roles</option>
+                <option value="all">{{ t('staff.allRoles') }}</option>
                 <option v-for="role in roleOptions" :key="role.value" :value="role.value">
                   {{ role.label }}
                 </option>
@@ -483,20 +485,20 @@ onMounted(async () => {
 
             <div class="filter-item" v-if="store.branches.length">
               <select v-model="filterBranch" class="select-filter">
-                <option value="all">All Branches</option>
+                <option value="all">{{ t('staff.allBranches') }}</option>
                 <option v-for="b in store.branches" :key="b.id" :value="String(b.id)">
-                  📍 {{ b.name }}
+                  {{ b.name }}
                 </option>
               </select>
             </div>
 
-            <button class="btn-refresh" @click="fetchUsers" title="Refresh List">
+            <button class="btn-refresh" @click="fetchUsers" :title="t('common.refresh')">
               <RefreshCw :size="16" :class="{ 'spin-anim': loading }" />
             </button>
 
             <button class="btn-add-staff" @click="openCreateDrawer">
               <UserPlus :size="16" />
-              <span>Register New Staff</span>
+              <span>{{ t('staff.registerNew') }}</span>
             </button>
           </div>
         </div>
@@ -506,13 +508,13 @@ onMounted(async () => {
           <table class="staff-table">
             <thead>
               <tr>
-                <th>Staff Member</th>
-                <th>Assigned Role</th>
-                <th>Business Unit</th>
-                <th>Assigned Branch</th>
-                <th>Auth PIN</th>
-                <th>Account Status</th>
-                <th class="text-right">Admin Actions</th>
+                <th>{{ t('staff.colMember') }}</th>
+                <th>{{ t('staff.colRole') }}</th>
+                <th>{{ t('staff.colUnit') }}</th>
+                <th>{{ t('staff.colBranch') }}</th>
+                <th>{{ t('staff.colPin') }}</th>
+                <th>{{ t('staff.colStatus') }}</th>
+                <th class="text-right">{{ t('staff.colActions') }}</th>
               </tr>
             </thead>
             <tbody>

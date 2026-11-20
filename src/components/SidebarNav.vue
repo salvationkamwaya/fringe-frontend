@@ -1,11 +1,12 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import { 
   Wine, BookOpen, Layers, ShieldCheck, Clock, FileText, 
   LogOut, User as UserIcon, ChevronDown, ChevronLeft, ChevronRight,
   Users, Truck, BarChart3, UserCheck, Coins, Sparkles, Boxes, Sun, Moon, PlusCircle, Receipt,
-  Settings, DollarSign, RotateCcw, Barcode, MapPin
+  Settings, DollarSign, RotateCcw, Barcode, MapPin, LayoutDashboard, Check, Globe
 } from 'lucide-vue-next'
 
 const isCollapsed = ref(typeof window !== 'undefined' ? window.innerWidth <= 900 : false)
@@ -56,6 +57,40 @@ const unitBadgeColor = computed(() => {
 
 const barUnitName = computed(() => store.businessUnits.find(u => u.id === 'bar')?.name || 'Bar & Lounge')
 const stationeryUnitName = computed(() => store.businessUnits.find(u => u.id === 'stationery')?.name || 'Stationery & Retail')
+
+const isUnitDropdownOpen = ref(false)
+const unitDropdownRef = ref(null)
+
+const unitOptions = computed(() => [
+  { id: 'bar', label: barUnitName.value, desc: t('nav.barDesc'), icon: Wine },
+  { id: 'stationery', label: stationeryUnitName.value, desc: t('nav.stationeryDesc'), icon: BookOpen },
+  { id: 'all', label: t('nav.combinedView'), desc: t('nav.crossUnitDesc'), icon: Layers },
+])
+
+const activeUnitOption = computed(() =>
+  unitOptions.value.find(o => o.id === store.activeUnit) || unitOptions.value[0]
+)
+
+const selectBusinessUnit = (unitId) => {
+  isUnitDropdownOpen.value = false
+  if (store.activeUnit !== unitId) {
+    store.switchBusinessUnit(unitId)
+  }
+}
+
+const handleOutsideClick = (e) => {
+  if (unitDropdownRef.value && !unitDropdownRef.value.contains(e.target)) {
+    isUnitDropdownOpen.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleOutsideClick)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleOutsideClick)
+})
 
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
@@ -115,20 +150,46 @@ const toggleCollapse = () => {
         <span>{{ store.activeUnit === 'bar' ? barUnitName : store.activeUnit === 'stationery' ? stationeryUnitName : 'All Businesses' }}</span>
       </div>
 
-      <!-- Owner Business Unit Switcher -->
-      <div v-if="store.isOwner" class="owner-switcher">
-        <label class="switcher-label">View Switcher:</label>
-        <div class="select-wrapper">
-          <select 
-            :value="store.activeUnit" 
-            @change="store.switchBusinessUnit($event.target.value)"
-            class="switcher-select"
+      <!-- Owner Business Unit Switcher (Custom Styled Dropdown) -->
+      <div v-if="store.isOwner" class="owner-switcher" ref="unitDropdownRef">
+        <label class="switcher-label">{{ t('nav.viewSwitcher') }}</label>
+        <div class="custom-dropdown" :class="{ open: isUnitDropdownOpen }" :data-theme="store.theme">
+          <button
+            type="button"
+            class="dropdown-trigger"
+            @click.stop="isUnitDropdownOpen = !isUnitDropdownOpen"
+            :aria-expanded="isUnitDropdownOpen"
           >
-            <option value="bar">🍷 {{ barUnitName }}</option>
-            <option value="stationery">📚 {{ stationeryUnitName }}</option>
-            <option value="all">⚡ Combined (Cross-Unit)</option>
-          </select>
-          <ChevronDown class="select-arrow" :size="13" />
+            <span class="trigger-icon-tile">
+              <component :is="activeUnitOption.icon" :size="15" />
+            </span>
+            <span class="trigger-text">
+              <strong>{{ activeUnitOption.label }}</strong>
+            </span>
+            <ChevronDown class="trigger-chevron" :class="{ rotated: isUnitDropdownOpen }" :size="15" />
+          </button>
+
+          <transition name="dd-pop">
+            <div v-if="isUnitDropdownOpen" class="dropdown-menu" role="listbox">
+              <button
+                v-for="opt in unitOptions"
+                :key="opt.id"
+                type="button"
+                class="dropdown-option"
+                :class="{ active: store.activeUnit === opt.id }"
+                @click="selectBusinessUnit(opt.id)"
+              >
+                <span class="option-icon-tile">
+                  <component :is="opt.icon" :size="15" />
+                </span>
+                <span class="option-copy">
+                  <strong>{{ opt.label }}</strong>
+                  <span>{{ opt.desc }}</span>
+                </span>
+                <Check v-if="store.activeUnit === opt.id" :size="15" class="option-check" />
+              </button>
+            </div>
+          </transition>
         </div>
       </div>
 
@@ -168,21 +229,33 @@ const toggleCollapse = () => {
       <!-- GROUP 1: POINT OF SALE -->
       <div class="menu-section">
         <button v-if="!isCollapsed" type="button" class="section-header-btn" @click="toggleGroup('pos')">
-          <span class="section-title">POINT OF SALE</span>
+          <span class="section-title">{{ t('nav.group.pos') }}</span>
           <ChevronDown :size="13" class="group-chevron" :class="{ rotated: !openGroups.pos }" />
         </button>
 
         <template v-if="isCollapsed || openGroups.pos">
+          <!-- STATIONERY: Dashboard Landing Page -->
+          <button
+            v-if="store.activeUnit === 'stationery'"
+            class="nav-item"
+            :class="{ active: store.activeModal === null }"
+            @click="store.activeModal = null"
+            :title="isCollapsed ? t('nav.dashboard') : ''"
+          >
+            <LayoutDashboard :size="18" class="nav-icon" />
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.dashboard') }}</span>
+          </button>
+
           <!-- POS Counter Main Screen -->
           <button 
             class="nav-item" 
-            :class="{ active: store.activeModal === null }"
-            @click="store.activeModal = null"
-            :title="isCollapsed ? 'POS Counter' : ''"
+            :class="{ active: store.activeUnit === 'stationery' ? store.activeModal === 'stationery_pos' : store.activeModal === null }"
+            @click="store.activeModal = store.activeUnit === 'stationery' ? 'stationery_pos' : null"
+            :title="isCollapsed ? t('nav.posCounter') : ''"
           >
             <Wine v-if="store.activeUnit === 'bar'" :size="18" class="nav-icon" />
             <BookOpen v-else :size="18" class="nav-icon" />
-            <span v-if="!isCollapsed" class="nav-label">POS Counter</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.posCounter') }}</span>
           </button>
 
           <!-- BAR: Open Tabs -->
@@ -191,10 +264,10 @@ const toggleCollapse = () => {
             class="nav-item"
             :class="{ active: store.activeModal === 'tabs' }"
             @click="store.activeModal = 'tabs'"
-            :title="isCollapsed ? 'Open Customer Tabs' : ''"
+            :title="isCollapsed ? t('nav.openTabs') : ''"
           >
             <Layers :size="18" class="nav-icon" />
-            <span v-if="!isCollapsed" class="nav-label">Open Tabs</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.openTabs') }}</span>
           </button>
 
           <!-- Shift Status -->
@@ -205,11 +278,11 @@ const toggleCollapse = () => {
               active: store.activeModal === 'shift' 
             }"
             @click="store.activeModal = 'shift'"
-            :title="isCollapsed ? (store.activeShift ? `Shift #${store.activeShift.id}` : (store.canRecordSales ? 'Open Shift' : 'Shift Oversight')) : ''"
+            :title="isCollapsed ? (store.activeShift ? `Shift #${store.activeShift.id}` : (store.canRecordSales ? t('nav.openShift') : t('nav.shiftOversight'))) : ''"
           >
             <Clock :size="18" class="nav-icon" />
             <span v-if="!isCollapsed" class="nav-label">
-              {{ store.canRecordSales ? (store.activeShift ? `Shift #${store.activeShift.id}` : 'Open Register Shift') : 'Shift Oversight' }}
+              {{ store.canRecordSales ? (store.activeShift ? `Shift #${store.activeShift.id}` : t('nav.openShift')) : t('nav.shiftOversight') }}
             </span>
             <span class="status-dot" :class="store.activeShift ? 'online' : 'idle'" :title="store.activeShift ? 'Shift Active' : 'No Active Shift'"></span>
           </button>
@@ -219,7 +292,7 @@ const toggleCollapse = () => {
       <!-- GROUP 2: SALES & CUSTOMERS -->
       <div class="menu-section">
         <button v-if="!isCollapsed" type="button" class="section-header-btn" @click="toggleGroup('sales')">
-          <span class="section-title">SALES &amp; CUSTOMERS</span>
+          <span class="section-title">{{ t('nav.group.sales') }}</span>
           <ChevronDown :size="13" class="group-chevron" :class="{ rotated: !openGroups.sales }" />
         </button>
 
@@ -229,10 +302,10 @@ const toggleCollapse = () => {
             class="nav-item sales-nav-item" 
             :class="{ active: store.activeModal === 'sales_records' }"
             @click="store.activeModal = 'sales_records'"
-            :title="isCollapsed ? (store.canRecordSales ? 'My Sales' : 'Sales Records') : ''"
+            :title="isCollapsed ? (store.canRecordSales ? t('nav.mySales') : t('nav.salesRecords')) : ''"
           >
             <Receipt :size="18" class="nav-icon" />
-            <span v-if="!isCollapsed" class="nav-label">{{ store.canRecordSales ? 'My Sales' : 'Sales Records' }}</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ store.canRecordSales ? t('nav.mySales') : t('nav.salesRecords') }}</span>
           </button>
 
           <!-- STATIONERY: Customers & Debtors -->
@@ -241,10 +314,10 @@ const toggleCollapse = () => {
             class="nav-item"
             :class="{ active: store.activeModal === 'customers' }"
             @click="store.activeModal = 'customers'"
-            :title="isCollapsed ? 'Customers & Credit' : ''"
+            :title="isCollapsed ? t('nav.customers') : ''"
           >
             <Users :size="18" class="nav-icon" />
-            <span v-if="!isCollapsed" class="nav-label">Customers & Credit</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.customers') }}</span>
           </button>
 
           <!-- STATIONERY: Quotations & Proformas -->
@@ -253,10 +326,10 @@ const toggleCollapse = () => {
             class="nav-item"
             :class="{ active: store.activeModal === 'quotations' }"
             @click="store.activeModal = 'quotations'"
-            :title="isCollapsed ? 'Wholesale Quotations' : ''"
+            :title="isCollapsed ? t('nav.quotations') : ''"
           >
             <FileText :size="18" class="nav-icon text-indigo" />
-            <span v-if="!isCollapsed" class="nav-label">Quotations</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.quotations') }}</span>
           </button>
 
           <!-- STATIONERY: Wholesale Invoices & Delivery Notes -->
@@ -265,10 +338,10 @@ const toggleCollapse = () => {
             class="nav-item"
             :class="{ active: store.activeModal === 'wholesale_docs' }"
             @click="store.activeModal = 'wholesale_docs'"
-            :title="isCollapsed ? 'Wholesale Invoices & Delivery Notes' : ''"
+            :title="isCollapsed ? t('nav.wholesaleInvoices') : ''"
           >
             <Truck :size="18" class="nav-icon text-blue" />
-            <span v-if="!isCollapsed" class="nav-label">Wholesale Invoices</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.wholesaleInvoices') }}</span>
           </button>
 
           <!-- STATIONERY: Sales Returns & Refunds -->
@@ -277,10 +350,10 @@ const toggleCollapse = () => {
             class="nav-item"
             :class="{ active: store.activeModal === 'stationery_returns' }"
             @click="store.activeModal = 'stationery_returns'"
-            :title="isCollapsed ? 'Sales Returns & Refunds' : ''"
+            :title="isCollapsed ? t('nav.returns') : ''"
           >
             <RotateCcw :size="18" class="nav-icon text-rose" />
-            <span v-if="!isCollapsed" class="nav-label">Returns & Refunds</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.returns') }}</span>
           </button>
         </template>
       </div>
@@ -291,7 +364,7 @@ const toggleCollapse = () => {
         class="menu-section"
       >
         <button v-if="!isCollapsed" type="button" class="section-header-btn" @click="toggleGroup('catalog')">
-          <span class="section-title">CATALOG &amp; INVENTORY</span>
+          <span class="section-title">{{ t('nav.group.catalog') }}</span>
           <ChevronDown :size="13" class="group-chevron" :class="{ rotated: !openGroups.catalog }" />
         </button>
 
@@ -302,11 +375,11 @@ const toggleCollapse = () => {
             class="nav-item catalog-nav-item"
             :class="{ active: store.activeModal === 'catalog_management' }"
             @click="store.activeModal = 'catalog_management'"
-            :title="isCollapsed ? (store.activeUnit === 'bar' ? 'Register Drinks & Catalog' : 'Register Products & Catalog') : ''"
+            :title="isCollapsed ? (store.activeUnit === 'bar' ? t('nav.drinkRegistration') : t('nav.productRegistration')) : ''"
           >
             <Wine v-if="store.activeUnit === 'bar'" :size="18" class="nav-icon" />
             <BookOpen v-else :size="18" class="nav-icon" />
-            <span v-if="!isCollapsed" class="nav-label">{{ store.activeUnit === 'bar' ? 'Drink Registration' : 'Product Registration' }}</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ store.activeUnit === 'bar' ? t('nav.drinkRegistration') : t('nav.productRegistration') }}</span>
           </button>
 
           <!-- Inventory & Stock Control -->
@@ -315,10 +388,10 @@ const toggleCollapse = () => {
             class="nav-item stock-nav-item"
             :class="{ active: store.activeModal === 'stock_inventory' }"
             @click="store.activeModal = 'stock_inventory'"
-            :title="isCollapsed ? 'Inventory & Stock Control' : ''"
+            :title="isCollapsed ? t('nav.inventory') : ''"
           >
             <Boxes :size="18" class="nav-icon" />
-            <span v-if="!isCollapsed" class="nav-label">Inventory & Stock</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.inventory') }}</span>
           </button>
 
           <!-- Suppliers & Receiving -->
@@ -327,10 +400,10 @@ const toggleCollapse = () => {
             class="nav-item"
             :class="{ active: store.activeModal === 'suppliers' }"
             @click="store.activeModal = 'suppliers'"
-            :title="isCollapsed ? 'Suppliers & Receiving' : ''"
+            :title="isCollapsed ? t('nav.suppliers') : ''"
           >
             <Truck :size="18" class="nav-icon" />
-            <span v-if="!isCollapsed" class="nav-label">Suppliers & Goods</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.suppliers') }}</span>
           </button>
 
           <!-- STATIONERY: Barcode Labels -->
@@ -339,10 +412,10 @@ const toggleCollapse = () => {
             class="nav-item"
             :class="{ active: store.activeModal === 'barcode_labels' }"
             @click="store.activeModal = 'barcode_labels'"
-            :title="isCollapsed ? 'Barcode Labels' : ''"
+            :title="isCollapsed ? t('nav.barcodeLabels') : ''"
           >
             <Barcode :size="18" class="nav-icon text-amber" />
-            <span v-if="!isCollapsed" class="nav-label">Barcode Labels</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.barcodeLabels') }}</span>
           </button>
         </template>
       </div>
@@ -353,7 +426,7 @@ const toggleCollapse = () => {
         class="menu-section"
       >
         <button v-if="!isCollapsed" type="button" class="section-header-btn" @click="toggleGroup('reports')">
-          <span class="section-title">FINANCE &amp; REPORTS</span>
+          <span class="section-title">{{ t('nav.group.reports') }}</span>
           <ChevronDown :size="13" class="group-chevron" :class="{ rotated: !openGroups.reports }" />
         </button>
 
@@ -363,10 +436,10 @@ const toggleCollapse = () => {
             class="nav-item"
             :class="{ active: store.activeModal === 'expenses' }"
             @click="store.activeModal = 'expenses'"
-            :title="isCollapsed ? 'Operating Expenses' : ''"
+            :title="isCollapsed ? t('nav.expenses') : ''"
           >
             <DollarSign :size="18" class="nav-icon text-amber" />
-            <span v-if="!isCollapsed" class="nav-label">Operating Expenses</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.expenses') }}</span>
           </button>
 
           <!-- Bar Reports -->
@@ -375,10 +448,10 @@ const toggleCollapse = () => {
             class="nav-item"
             :class="{ active: store.activeModal === 'reports' }"
             @click="store.activeModal = 'reports'"
-            :title="isCollapsed ? 'Bar Reports & Stock' : ''"
+            :title="isCollapsed ? t('nav.barReports') : ''"
           >
             <FileText :size="18" class="nav-icon" />
-            <span v-if="!isCollapsed" class="nav-label">Bar & Grocery Reports</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.barReports') }}</span>
           </button>
 
           <!-- Stationery Reports -->
@@ -387,10 +460,10 @@ const toggleCollapse = () => {
             class="nav-item"
             :class="{ active: store.activeModal === 'stationery_reports' }"
             @click="store.activeModal = 'stationery_reports'"
-            :title="isCollapsed ? 'Stationery Reports & EOD' : ''"
+            :title="isCollapsed ? t('nav.stationeryReports') : ''"
           >
             <BarChart3 :size="18" class="nav-icon" />
-            <span v-if="!isCollapsed" class="nav-label">Stationery Reports</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.stationeryReports') }}</span>
           </button>
 
           <!-- Audit Trail -->
@@ -398,10 +471,10 @@ const toggleCollapse = () => {
             class="nav-item"
             :class="{ active: store.activeModal === 'audit' }"
             @click="store.activeModal = 'audit'"
-            :title="isCollapsed ? 'Audit Trail & Overrides' : ''"
+            :title="isCollapsed ? t('nav.auditTrail') : ''"
           >
             <ShieldCheck :size="18" class="nav-icon" />
-            <span v-if="!isCollapsed" class="nav-label">Audit Trail</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.auditTrail') }}</span>
           </button>
         </template>
       </div>
@@ -409,7 +482,7 @@ const toggleCollapse = () => {
       <!-- GROUP 5: ORGANIZATION (Owner Only) -->
       <div v-if="store.isOwner" class="menu-section">
         <button v-if="!isCollapsed" type="button" class="section-header-btn" @click="toggleGroup('org')">
-          <span class="section-title">ORGANIZATION</span>
+          <span class="section-title">{{ t('nav.group.org') }}</span>
           <ChevronDown :size="13" class="group-chevron" :class="{ rotated: !openGroups.org }" />
         </button>
 
@@ -419,10 +492,10 @@ const toggleCollapse = () => {
             class="nav-item owner-item"
             :class="{ active: store.activeModal === 'staff_management' }"
             @click="store.activeModal = 'staff_management'"
-            :title="isCollapsed ? 'Staff & Roles (Owner Only)' : ''"
+            :title="isCollapsed ? t('nav.staffRoles') : ''"
           >
             <UserCheck :size="18" class="nav-icon" />
-            <span v-if="!isCollapsed" class="nav-label">Staff & Roles</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.staffRoles') }}</span>
             <span v-if="!isCollapsed" class="owner-pill">Owner</span>
           </button>
 
@@ -431,23 +504,53 @@ const toggleCollapse = () => {
             class="nav-item owner-item branch-nav-btn"
             :class="{ active: store.activeModal === 'branch_management' }"
             @click="store.activeModal = 'branch_management'"
-            :title="isCollapsed ? 'Branches & Locations (Owner Only)' : ''"
+            :title="isCollapsed ? t('nav.branches') : ''"
           >
             <MapPin :size="18" class="nav-icon text-emerald" />
-            <span v-if="!isCollapsed" class="nav-label">Branches & Locations</span>
+            <span v-if="!isCollapsed" class="nav-label">{{ t('nav.branches') }}</span>
             <span v-if="!isCollapsed" class="owner-pill">Owner</span>
           </button>
         </template>
       </div>
     </nav>
 
-    <!-- Sidebar Bottom: Currency Badge & Logout -->
+    <!-- Sidebar Bottom: Currency Badge, Language Switcher, Theme & Logout -->
     <div class="sidebar-footer">
       <div v-if="!isCollapsed" class="currency-badge">
         <Coins :size="14" class="currency-icon" />
-        <span class="currency-label">Currency:</span>
+        <span class="currency-label">{{ t('nav.currency') }}:</span>
         <strong class="currency-name">TSH</strong>
       </div>
+
+      <!-- Language Switcher (EN / SW) -->
+      <div v-if="!isCollapsed" class="lang-switcher" :data-theme="store.theme">
+        <Globe :size="14" class="lang-icon" />
+        <button
+          type="button"
+          class="lang-btn"
+          :class="{ active: store.locale === 'en' }"
+          @click="store.setLocale('en')"
+        >
+          EN
+        </button>
+        <button
+          type="button"
+          class="lang-btn"
+          :class="{ active: store.locale === 'sw' }"
+          @click="store.setLocale('sw')"
+        >
+          SW
+        </button>
+      </div>
+      <button
+        v-else
+        type="button"
+        class="btn-theme-toggle"
+        @click="store.toggleLocale()"
+        :title="store.locale === 'en' ? 'Switch to Kiswahili' : 'Switch to English'"
+      >
+        <Globe :size="16" />
+      </button>
 
       <!-- Account Settings & User Profile -->
       <button 
@@ -455,31 +558,31 @@ const toggleCollapse = () => {
         class="btn-account-settings" 
         :class="{ active: store.activeModal === 'account_settings' }"
         @click="store.activeModal = 'account_settings'" 
-        :title="isCollapsed ? 'Account Settings & Profile' : ''"
+        :title="isCollapsed ? t('nav.accountSettings') : ''"
       >
         <Settings :size="16" class="settings-icon" />
-        <span v-if="!isCollapsed">Account Settings</span>
+        <span v-if="!isCollapsed">{{ t('nav.accountSettings') }}</span>
       </button>
 
       <!-- Appearance Switcher (Dark / Light Mode) -->
       <button 
         class="btn-theme-toggle" 
         @click="store.toggleTheme()" 
-        :title="store.theme === 'dark' ? 'Switch to Light Appearance' : 'Switch to Dark Appearance'"
+        :title="store.theme === 'dark' ? t('nav.lightMode') : t('nav.darkMode')"
       >
         <Sun v-if="store.theme === 'dark'" :size="16" class="theme-icon sun-icon" />
         <Moon v-else :size="16" class="theme-icon moon-icon" />
-        <span v-if="!isCollapsed" class="theme-label">{{ store.theme === 'dark' ? 'Light Mode' : 'Dark Mode' }}</span>
+        <span v-if="!isCollapsed" class="theme-label">{{ store.theme === 'dark' ? t('nav.lightMode') : t('nav.darkMode') }}</span>
       </button>
 
       <button 
         v-if="store.isAuthenticated" 
         class="btn-logout" 
-        title="Sign Out of Session"
+        :title="t('nav.signOut')"
         @click="store.logout()"
       >
         <LogOut :size="18" />
-        <span v-if="!isCollapsed">Sign Out</span>
+        <span v-if="!isCollapsed">{{ t('nav.signOut') }}</span>
       </button>
 
       <button 
@@ -1105,6 +1208,221 @@ const toggleCollapse = () => {
   background: linear-gradient(135deg, #f59e0b, #d97706);
   border: none;
   color: #fff;
+}
+
+/* Custom Business Unit Switcher Dropdown */
+.custom-dropdown {
+  --dd-bg: #111827;
+  --dd-surface: #182132;
+  --dd-hover: #1f293b;
+  --dd-border: rgba(255, 255, 255, 0.12);
+  --dd-text: #f8fafc;
+  --dd-muted: #94a3b8;
+  --dd-accent: #6366f1;
+  --dd-accent-soft: rgba(99, 102, 241, 0.16);
+  --dd-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+
+  position: relative;
+  width: 100%;
+}
+
+.custom-dropdown[data-theme="light"] {
+  --dd-bg: #ffffff;
+  --dd-surface: #ffffff;
+  --dd-hover: #f1f5f9;
+  --dd-border: #cbd5e1;
+  --dd-text: #0f172a;
+  --dd-muted: #64748b;
+  --dd-accent: #4f46e5;
+  --dd-accent-soft: #eef2ff;
+  --dd-shadow: 0 12px 32px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.05);
+}
+
+.dropdown-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--dd-bg);
+  border: 1px solid var(--dd-border);
+  color: var(--dd-text);
+  transition: all 0.16s ease;
+}
+
+.dropdown-trigger:hover,
+.custom-dropdown.open .dropdown-trigger {
+  border-color: var(--dd-accent);
+  box-shadow: 0 0 0 3px var(--dd-accent-soft);
+}
+
+.trigger-icon-tile {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--dd-accent-soft);
+  color: var(--dd-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.trigger-text {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.trigger-text strong {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--dd-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trigger-chevron {
+  color: var(--dd-muted);
+  transition: transform 0.18s ease;
+  flex-shrink: 0;
+}
+
+.trigger-chevron.rotated {
+  transform: rotate(180deg);
+  color: var(--dd-accent);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 900;
+  background: var(--dd-surface);
+  border: 1px solid var(--dd-border);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: var(--dd-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dropdown-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 9px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dd-text);
+  text-align: left;
+  transition: background 0.14s ease;
+}
+
+.dropdown-option:hover {
+  background: var(--dd-hover);
+}
+
+.dropdown-option.active {
+  background: var(--dd-accent-soft);
+}
+
+.option-icon-tile {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--dd-hover);
+  color: var(--dd-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dropdown-option.active .option-icon-tile {
+  background: var(--dd-accent);
+  color: #ffffff;
+}
+
+.option-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.option-copy strong {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--dd-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.option-copy span {
+  font-size: 0.7rem;
+  color: var(--dd-muted);
+}
+
+.option-check {
+  color: var(--dd-accent);
+  flex-shrink: 0;
+}
+
+.dd-pop-enter-active,
+.dd-pop-leave-active {
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.dd-pop-enter-from,
+.dd-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+}
+
+/* Language Switcher Pill */
+.lang-switcher {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.lang-switcher[data-theme="light"] {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.lang-icon {
+  color: var(--text-muted, #64748b);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.lang-btn {
+  flex: 1;
+  padding: 5px 8px;
+  border-radius: 7px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  background: transparent;
+  color: var(--text-secondary, #64748b);
+  transition: all 0.16s ease;
+}
+
+.lang-btn.active {
+  background: #4f46e5;
+  color: #ffffff;
 }
 
 @media (max-width: 900px) {

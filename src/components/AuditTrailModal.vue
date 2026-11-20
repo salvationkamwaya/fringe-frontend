@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import { ShieldCheck, Search, Filter, History, X } from 'lucide-vue-next'
 
@@ -45,21 +46,22 @@ onMounted(() => {
         <div class="header-left">
           <ShieldCheck :size="24" class="header-icon" />
           <div>
-            <h3 class="title">Immutable System Audit Trail</h3>
-            <p class="subtitle">Append-only compliance ledger with row-level unit isolation</p>
+            <h3 class="title">{{ t('audit.title') }}</h3>
+            <p class="subtitle">{{ t('audit.subtitle') }}</p>
           </div>
         </div>
-        <button class="btn-close" @click="$emit('close')">
-          <X :size="18" />
+        <button class="btn-close" @click="$emit('close')" :title="t('common.backToPos')">
+          <X :size="16" />
+          <span>{{ t('common.backToPos') }}</span>
         </button>
       </div>
 
       <!-- Filters Bar -->
       <div class="filters-bar">
         <div class="filter-group">
-          <label>Filter Action:</label>
+          <label>{{ t('audit.filterAction') }}:</label>
           <select v-model="selectedAction" @change="fetchLogs" class="filter-select">
-            <option value="">All Audit Events</option>
+            <option value="">{{ t('audit.allEvents') }}</option>
             <option value="SALE_COMPLETED">Sales Completed</option>
             <option value="AGE_VERIFIED">Alcohol Age Verifications</option>
             <option value="AGE_CHECK_BLOCKED_SALE">Age Verification Blocks</option>
@@ -72,7 +74,7 @@ onMounted(() => {
         </div>
 
         <button class="btn-refresh" @click="fetchLogs">
-          Refresh Log
+          {{ t('audit.refreshLog') }}
         </button>
       </div>
 
@@ -81,12 +83,12 @@ onMounted(() => {
         <table class="audit-table">
           <thead>
             <tr>
-              <th>Timestamp</th>
-              <th>Unit</th>
-              <th>Actor & Role</th>
-              <th>Action</th>
-              <th>Target Entity</th>
-              <th>Details</th>
+              <th>{{ t('audit.colTime') }}</th>
+              <th>{{ t('audit.colUnit') }}</th>
+              <th>{{ t('audit.colActor') }}</th>
+              <th>{{ t('audit.colAction') }}</th>
+              <th>{{ t('audit.colEntity') }}</th>
+              <th>{{ t('audit.colDetails') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -112,11 +114,11 @@ onMounted(() => {
                 {{ log.entity_type }} {{ log.entity_id ? `#${log.entity_id}` : '' }}
               </td>
               <td>
-                <button class="btn-view" @click.stop="selectedLog = log">View</button>
+                <button class="btn-view" @click.stop="selectedLog = log">{{ t('audit.view') }}</button>
               </td>
             </tr>
             <tr v-if="logs.length === 0 && !loading">
-              <td colspan="6" class="empty-state">No audit logs matching this criteria.</td>
+              <td colspan="6" class="empty-cell">{{ t('audit.empty') }}</td>
             </tr>
           </tbody>
         </table>

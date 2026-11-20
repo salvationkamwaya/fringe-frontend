@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import { 
   Barcode, Printer, Search, Plus, Minus, Trash2, X, RefreshCw, Check
@@ -96,18 +97,19 @@ const printLabels = () => {
             <Barcode :size="22" class="text-amber" />
           </div>
           <div>
-            <h2>Stationery Barcode Label Generator</h2>
-            <p class="subtitle">Print scannable barcode stickers and shelf edge price tags</p>
+            <h2>{{ t('bc.title') }}</h2>
+            <p class="subtitle">{{ t('bc.subtitle') }}</p>
           </div>
         </div>
 
         <div class="header-actions">
           <button class="btn-print" :disabled="printableLabels.length === 0" @click="printLabels">
             <Printer :size="16" />
-            <span>Print {{ totalLabelsCount }} Labels</span>
+            <span>{{ t('bc.print') }} ({{ totalLabelsCount }}) {{ t('bc.labels') }}</span>
           </button>
-          <button class="btn-close" @click="$emit('close')">
-            <X :size="20" />
+          <button class="btn-close" @click="$emit('close')" :title="t('common.backToPos')">
+            <X :size="16" />
+            <span>{{ t('common.backToPos') }}</span>
           </button>
         </div>
       </div>
@@ -117,7 +119,7 @@ const printLabels = () => {
         <!-- LEFT: Product Selector & Options (no-print) -->
         <aside class="sidebar-config no-print">
           <div class="config-section">
-            <label class="section-label">Label Size / Format</label>
+            <label class="section-label">{{ t('bc.formatLabel') }}</label>
             <select v-model="labelLayout" class="styled-select">
               <option value="THERMAL_50X30">Thermal Sticker (50mm x 30mm)</option>
               <option value="A4_30_SHEET">A4 Label Sheet (3x10 Grid)</option>
@@ -128,23 +130,23 @@ const printLabels = () => {
           <div class="config-options-row">
             <label class="checkbox-label">
               <input type="checkbox" v-model="includePrice" />
-              <span>Show Price (TSH)</span>
+              <span>{{ t('bc.showPrice') }}</span>
             </label>
             <label class="checkbox-label">
               <input type="checkbox" v-model="includeStoreName" />
-              <span>Show Fringe Branding</span>
+              <span>{{ t('bc.showBrand') }}</span>
             </label>
           </div>
 
           <!-- Add Product to Print Queue -->
           <div class="add-product-box">
-            <label class="section-label">Add Products to Print Queue</label>
+            <label class="section-label">{{ t('bc.addQueue') }}</label>
             <div class="search-mini">
               <Search :size="14" class="text-muted" />
               <input 
                 v-model="searchQuery" 
                 type="text" 
-                placeholder="Search stationery items..." 
+                :placeholder="t('bc.searchPlaceholder')" 
                 class="search-mini-input"
               />
             </div>
@@ -169,7 +171,7 @@ const printLabels = () => {
 
           <!-- Print Queue Summary -->
           <div class="queue-summary">
-            <label class="section-label">Selected Products ({{ selectedProducts.length }})</label>
+            <label class="section-label">{{ t('bc.selectedProducts') }} ({{ selectedProducts.length }})</label>
             <div class="queue-list-scroll">
               <div v-for="(it, idx) in selectedProducts" :key="it.product.id" class="queue-item">
                 <div class="queue-info">
