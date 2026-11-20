@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import { 
   FileText, DollarSign, Package, AlertTriangle, TrendingUp, 
@@ -187,33 +188,34 @@ onMounted(() => {
           </div>
           <div>
             <div class="branding-badge">TANZANIA STATUTORY COMPLIANCE • TSH</div>
-            <h2>Stationery Business Reports</h2>
-            <span class="subtitle">End-of-Day Reconciliation, Pack Splits, Debtors Aging & Supplier Payables</span>
+            <h2>{{ t('rep.title') }}</h2>
+            <span class="subtitle">{{ t('rep.subtitle') }}</span>
           </div>
         </div>
 
         <div class="header-actions">
-          <button class="btn-tool btn-pdf" @click="downloadPDF" :disabled="downloadingPdf" title="Download Official PDF Report">
+          <button class="btn-tool btn-pdf" @click="downloadPDF" :disabled="downloadingPdf" :title="t('rep.exportPdf')">
             <FileDown :size="16" :class="{ 'spin-anim': downloadingPdf }" />
-            <span>{{ downloadingPdf ? 'Generating...' : 'Export PDF' }}</span>
+            <span>{{ downloadingPdf ? '...' : t('rep.exportPdf') }}</span>
           </button>
 
-          <button class="btn-tool btn-download" @click="downloadCSV" :disabled="downloadingCsv" title="Download Report as CSV">
+          <button class="btn-tool btn-download" @click="downloadCSV" :disabled="downloadingCsv" :title="t('rep.exportCsv')">
             <Download :size="16" :class="{ 'spin-anim': downloadingCsv }" />
-            <span>{{ downloadingCsv ? 'Exporting...' : 'Export CSV' }}</span>
+            <span>{{ downloadingCsv ? '...' : t('rep.exportCsv') }}</span>
           </button>
 
-          <button class="btn-tool btn-print" @click="printReport" title="Print or Save as PDF">
+          <button class="btn-tool btn-print" @click="printReport" :title="t('rep.print')">
             <Printer :size="16" />
-            <span>Print</span>
+            <span>{{ t('rep.print') }}</span>
           </button>
 
-          <button class="btn-tool btn-refresh" @click="fetchReports" title="Refresh Live Data">
+          <button class="btn-tool btn-refresh" @click="fetchReports" :title="t('common.refresh')">
             <RefreshCw :size="16" :class="{ 'spin-anim': loading }" />
           </button>
 
-          <button class="btn-close-window" @click="emit('close')">
-            <X :size="20" />
+          <button class="btn-close-window" @click="emit('close')" :title="t('common.backToPos')">
+            <X :size="16" />
+            <span>{{ t('common.backToPos') }}</span>
           </button>
         </div>
       </div>
@@ -223,7 +225,7 @@ onMounted(() => {
         <div class="range-presets-group">
           <span class="range-toolbar-label">
             <Calendar :size="14" />
-            <span>Period:</span>
+            <span>{{ t('rep.period') }}:</span>
           </span>
           <button 
             v-for="p in rangePresets" 
@@ -271,7 +273,7 @@ onMounted(() => {
           @click="activeTab = 'eod'"
         >
           <DollarSign :size="15" />
-          <span>End-of-Day</span>
+          <span>{{ t('rep.tabEod') }}</span>
         </button>
         <button 
           class="tab-btn" 
@@ -279,7 +281,7 @@ onMounted(() => {
           @click="activeTab = 'expenses'"
         >
           <DollarSign :size="15" />
-          <span>Expenses & Net Profit</span>
+          <span>{{ t('rep.tabExpenses') }}</span>
         </button>
         <button 
           class="tab-btn" 
@@ -287,7 +289,7 @@ onMounted(() => {
           @click="activeTab = 'sales'"
         >
           <TrendingUp :size="15" />
-          <span>Product Sales</span>
+          <span>{{ t('rep.tabSales') }}</span>
         </button>
         <button 
           class="tab-btn" 
@@ -295,7 +297,7 @@ onMounted(() => {
           @click="activeTab = 'stock'"
         >
           <Package :size="15" />
-          <span>Stock & Reorder</span>
+          <span>{{ t('rep.tabStock') }}</span>
         </button>
         <button 
           class="tab-btn" 
@@ -303,7 +305,7 @@ onMounted(() => {
           @click="activeTab = 'debtors'"
         >
           <Users :size="15" />
-          <span>Debtors Aging</span>
+          <span>{{ t('rep.tabDebtors') }}</span>
         </button>
         <button 
           class="tab-btn" 
@@ -311,7 +313,7 @@ onMounted(() => {
           @click="activeTab = 'payables'"
         >
           <Truck :size="15" />
-          <span>Supplier Payables</span>
+          <span>{{ t('rep.tabPayables') }}</span>
         </button>
         <button 
           v-if="store.isOwner"
@@ -320,7 +322,7 @@ onMounted(() => {
           @click="activeTab = 'consolidated'"
         >
           <Building :size="15" />
-          <span>Consolidated (Owner)</span>
+          <span>{{ t('rep.tabConsolidated') }}</span>
         </button>
       </div>
 
@@ -342,30 +344,30 @@ onMounted(() => {
             <!-- Financial Totals Grid -->
             <div class="eod-metrics-grid">
               <div class="metric-card highlight-card">
-                <span class="m-title">Total Gross Revenue</span>
+                <span class="m-title">{{ t('rep.grossRevenue') }}</span>
                 <strong class="m-val text-cyan">TSH {{ parseFloat(reportData.end_of_day.total_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="m-sub">{{ reportData.end_of_day.total_orders || 0 }} completed orders (Avg: TSH {{ reportData.end_of_day.avg_order_value || '0.00' }})</span>
+                <span class="m-sub">{{ reportData.end_of_day.total_orders || 0 }} {{ t('sales.ordersUnit') }}</span>
               </div>
 
               <div class="metric-card drawer-card">
-                <span class="m-title">Expected Drawer Cash</span>
+                <span class="m-title">{{ t('rep.expectedCash') }}</span>
                 <strong class="m-val text-green">TSH {{ parseFloat(reportData.end_of_day.expected_cash_drawer || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="m-sub">Cash Sales + Debt Recovered</span>
+                <span class="m-sub">{{ t('dash.cash') }}</span>
               </div>
 
               <div class="metric-card profit-card">
-                <span class="m-title">Gross Profit</span>
+                <span class="m-title">{{ t('rep.grossProfit') }}</span>
                 <strong class="m-val text-emerald">TSH {{ parseFloat(reportData.end_of_day.gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="m-sub">Margin: <strong>{{ reportData.end_of_day.gross_margin_percent || '0.0%' }}</strong> (COGS: TSH {{ parseFloat(reportData.end_of_day.cogs || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }})</span>
+                <span class="m-sub">Margin: <strong>{{ reportData.end_of_day.gross_margin_percent || '0.0%' }}</strong></span>
               </div>
 
               <div class="metric-card net-profit-card">
-                <span class="m-title">Net Operating Profit</span>
+                <span class="m-title">{{ t('rep.netProfit') }}</span>
                 <strong class="m-val" :class="parseFloat(reportData.end_of_day.net_profit || 0) >= 0 ? 'text-emerald' : 'text-rose'">
                   TSH {{ parseFloat(reportData.end_of_day.net_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
                 </strong>
                 <span class="m-sub">
-                  Expenses: TSH {{ parseFloat(reportData.end_of_day.total_expenses || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }} (Net: <strong>{{ reportData.end_of_day.net_margin_percent || '0.0%' }}</strong>)
+                  {{ t('nav.expenses') }}: TSH {{ parseFloat(reportData.end_of_day.total_expenses || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
                 </span>
               </div>
             </div>
@@ -374,7 +376,7 @@ onMounted(() => {
             <div class="report-section">
               <div class="section-title">
                 <Coins :size="18" class="text-amber" />
-                <h4>Revenue by Payment Method</h4>
+                <h4>{{ t('rep.revByPayment') }}</h4>
               </div>
 
               <div class="payments-grid">
@@ -383,7 +385,7 @@ onMounted(() => {
                     <Coins :size="20" />
                   </div>
                   <div>
-                    <span class="p-type">Cash Collected</span>
+                    <span class="p-type">{{ t('rep.cashCollected') }}</span>
                     <strong class="p-amt">TSH {{ parseFloat(reportData.end_of_day.cash_sales || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
                   </div>
                 </div>

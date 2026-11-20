@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import { 
   Users, UserPlus, Search, DollarSign, Calendar, Clock, 
@@ -164,8 +165,8 @@ const openStatementDialog = async (cust) => {
             <Users :size="22" />
           </div>
           <div>
-            <h2>Customer Accounts & Credit Register</h2>
-            <span class="subtitle">Stationery & Retail Registered Accounts</span>
+            <h2>{{ t('cust.title') }}</h2>
+            <span class="subtitle">{{ t('cust.subtitle') }}</span>
           </div>
         </div>
 
@@ -175,19 +176,20 @@ const openStatementDialog = async (cust) => {
             :class="{ active: activeTab === 'directory' }"
             @click="activeTab = 'directory'"
           >
-            <span>Customer Directory</span>
+            <span>{{ t('cust.tabDirectory') }}</span>
           </button>
           <button 
             class="tab-btn" 
             :class="{ active: activeTab === 'aging' }"
             @click="activeTab = 'aging'"
           >
-            <span>Debtors Aging Report</span>
+            <span>{{ t('cust.tabAging') }}</span>
           </button>
         </div>
 
-        <button class="btn-close-window" @click="emit('close')">
-          <X :size="20" />
+        <button class="btn-close-window" @click="emit('close')" :title="t('common.backToPos')">
+          <X :size="16" />
+          <span>{{ t('common.backToPos') }}</span>
         </button>
       </div>
 
@@ -200,14 +202,14 @@ const openStatementDialog = async (cust) => {
             <input 
               v-model="searchQuery" 
               type="text" 
-              placeholder="Search by customer name, phone, or contact person..." 
+              :placeholder="t('cust.searchPlaceholder')" 
               class="search-input"
             />
           </div>
 
           <button class="btn-add-customer" @click="showRegisterModal = true">
             <UserPlus :size="18" />
-            <span>Register New Customer</span>
+            <span>{{ t('cust.registerNew') }}</span>
           </button>
         </div>
 
@@ -215,13 +217,13 @@ const openStatementDialog = async (cust) => {
         <div class="customers-scroll">
           <div v-if="loading" class="state-placeholder">
             <div class="spinner"></div>
-            <p>Loading customer accounts...</p>
+            <p>{{ t('common.refresh') }}...</p>
           </div>
 
           <div v-else-if="filteredCustomers.length === 0" class="state-placeholder">
             <Users :size="48" class="empty-icon" />
-            <h3>No registered customers found</h3>
-            <p>Click "Register New Customer" to create credit accounts for schools, offices, and regular clients.</p>
+            <h3>{{ t('cust.emptyTitle') }}</h3>
+            <p>{{ t('cust.emptySub') }}</p>
           </div>
 
           <div v-else class="customer-cards-grid">

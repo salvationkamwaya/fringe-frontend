@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import { 
   FileText, Plus, Search, CheckCircle2, Clock, XCircle, ArrowRightCircle,
@@ -293,18 +294,19 @@ const printDocument = () => {
             <FileText :size="22" class="text-indigo" />
           </div>
           <div>
-            <h2>Wholesale Quotations & Proforma Invoices</h2>
-            <p class="subtitle">Issue formal price offers for schools, offices, and bulk wholesale buyers</p>
+            <h2>{{ t('quote.title') }}</h2>
+            <p class="subtitle">{{ t('quote.subtitle') }}</p>
           </div>
         </div>
 
         <div class="header-actions">
           <button class="btn-create" @click="openCreateForm">
             <Plus :size="16" />
-            <span>Create New Quotation</span>
+            <span>{{ t('quote.createNew') }}</span>
           </button>
-          <button class="btn-close" @click="$emit('close')">
-            <X :size="20" />
+          <button class="btn-close" @click="$emit('close')" :title="t('common.backToPos')">
+            <X :size="16" />
+            <span>{{ t('common.backToPos') }}</span>
           </button>
         </div>
       </div>
@@ -319,7 +321,12 @@ const printDocument = () => {
             :class="{ active: activeTab === st }"
             @click="activeTab = st"
           >
-            {{ st === 'ALL' ? 'All Quotes' : st.charAt(0) + st.slice(1).toLowerCase() }}
+            {{
+              st === 'ALL' ? t('quote.tabAll')
+              : st === 'PENDING' ? t('quote.tabPending')
+              : st === 'ACCEPTED' ? t('quote.tabAccepted')
+              : t('quote.tabConverted')
+            }}
           </button>
         </div>
 
@@ -328,7 +335,7 @@ const printDocument = () => {
           <input 
             v-model="searchQuery" 
             type="text" 
-            placeholder="Search by Quote #, Customer, or Phone..."
+            :placeholder="t('quote.searchPlaceholder')"
             class="search-input"
           />
         </div>
@@ -338,14 +345,14 @@ const printDocument = () => {
       <div class="quotes-body">
         <div v-if="loading" class="state-placeholder">
           <RefreshCw :size="32" class="spinner" />
-          <p>Loading quotation records...</p>
+          <p>{{ t('quote.loading') }}</p>
         </div>
 
         <div v-else-if="filteredQuotations.length === 0" class="state-placeholder">
           <FileText :size="48" class="empty-icon" />
-          <h3>No quotations found</h3>
-          <p v-if="searchQuery">No results matching "{{ searchQuery }}".</p>
-          <p v-else>Prepare formal price quotations for schools and B2B buyers using the "Create New Quotation" button.</p>
+          <h3>{{ t('quote.emptyTitle') }}</h3>
+          <p v-if="searchQuery">"{{ searchQuery }}"</p>
+          <p v-else>{{ t('quote.emptySub') }}</p>
         </div>
 
         <div v-else class="quotes-grid">

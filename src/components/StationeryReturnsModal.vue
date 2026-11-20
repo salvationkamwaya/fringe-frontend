@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import { 
   RotateCcw, Search, ShieldCheck, CheckCircle2, AlertTriangle, 
@@ -195,14 +196,15 @@ const printDocument = () => {
             <RotateCcw :size="22" class="text-rose" />
           </div>
           <div>
-            <h2>Sales Returns & Customer Refunds</h2>
-            <p class="subtitle">Accept returned items linked to original receipt or wholesale invoice</p>
+            <h2>{{ t('ret.title') }}</h2>
+            <p class="subtitle">{{ t('ret.subtitle') }}</p>
           </div>
         </div>
 
         <div class="header-actions">
-          <button class="btn-close" @click="$emit('close')">
-            <X :size="20" />
+          <button class="btn-close" @click="$emit('close')" :title="t('common.backToPos')">
+            <X :size="16" />
+            <span>{{ t('common.backToPos') }}</span>
           </button>
         </div>
       </div>
@@ -215,7 +217,7 @@ const printDocument = () => {
           @click="activeTab = 'NEW'"
         >
           <Plus :size="16" />
-          <span>Process New Return</span>
+          <span>{{ t('ret.tabNew') }}</span>
         </button>
         <button 
           class="nav-tab-btn" 
@@ -223,7 +225,7 @@ const printDocument = () => {
           @click="activeTab = 'HISTORY'"
         >
           <Calendar :size="16" />
-          <span>Returns Audit History ({{ returnsList.length }})</span>
+          <span>{{ t('ret.tabHistory') }} ({{ returnsList.length }})</span>
         </button>
       </div>
 
@@ -236,8 +238,8 @@ const printDocument = () => {
             <div class="card-step-header">
               <span class="step-num">1</span>
               <div>
-                <h3>Lookup Original Sale Order / Receipt</h3>
-                <p>Enter the receipt number from the customer's paper receipt or wholesale invoice</p>
+                <h3>{{ t('ret.lookupTitle') }}</h3>
+                <p>{{ t('ret.lookupSub') }}</p>
               </div>
             </div>
 
@@ -247,14 +249,14 @@ const printDocument = () => {
                 <input 
                   v-model="orderSearchQuery" 
                   type="text" 
-                  placeholder="e.g. STN-20261107-001 or STN-WS-004..." 
+                  :placeholder="t('ret.lookupPlaceholder')" 
                   class="styled-search-input"
                   @keyup.enter="lookupOrder"
                 />
               </div>
               <button class="btn-lookup" :disabled="searchingOrder" @click="lookupOrder">
                 <RefreshCw v-if="searchingOrder" :size="16" class="spinner" />
-                <span v-else>Locate Order</span>
+                <span v-else>{{ t('ret.locateBtn') }}</span>
               </button>
             </div>
 

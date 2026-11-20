@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import {
   MapPin, Plus, Edit3, Power, RefreshCw, X, Search,
@@ -289,33 +290,19 @@ onMounted(() => {
           </div>
           <div>
             <div class="header-title-row">
-              <h3 class="title">Branch & Location Management</h3>
-              <span class="owner-badge">OWNER MULTI-TENANCY</span>
-              <span class="movable-indicator" title="Draggable window">
-                <Move :size="12" />
-                <span>Movable Window</span>
-              </span>
+              <h3 class="title">{{ t('branch.title') }}</h3>
+              <span class="owner-badge">{{ t('branch.ownerBadge') }}</span>
             </div>
             <p class="subtitle">
-              Dynamically create and manage physical Bar & Lounge branches. Each location operates with independent drink catalogs and permanently assigned staff.
+              {{ t('branch.subtitle') }}
             </p>
           </div>
         </div>
 
         <div class="header-actions no-drag">
-          <button 
-            v-if="modalOffset.x !== 0 || modalOffset.y !== 0"
-            type="button"
-            class="btn-reset-pos"
-            @click.stop="resetPosition"
-            title="Reset window to center screen"
-          >
-            <RotateCcw :size="13" />
-            <span>Reset Pos</span>
-          </button>
-
-          <button class="btn-close" @click="$emit('close')" title="Close Window">
-            <X :size="20" />
+          <button class="btn-close" @click="$emit('close')" :title="t('common.backToPos')">
+            <X :size="16" />
+            <span>{{ t('common.backToPos') }}</span>
           </button>
         </div>
       </div>
@@ -325,7 +312,7 @@ onMounted(() => {
         <AlertTriangle :size="32" class="denied-icon" />
         <h4>Access Restricted: Business Owner Privilege Required</h4>
         <p>Only the Business Owner has authority to register or manage branch locations.</p>
-        <button class="btn-primary" @click="$emit('close')">Return</button>
+        <button class="btn-primary" @click="$emit('close')">{{ t('common.backToPos') }}</button>
       </div>
 
       <div v-else class="modal-content">
@@ -333,28 +320,28 @@ onMounted(() => {
         <div class="stats-row">
           <div class="stat-card">
             <div class="stat-info">
-              <span class="stat-label">Total Branches</span>
+              <span class="stat-label">{{ t('branch.total') }}</span>
               <span class="stat-value">{{ stats.total }}</span>
             </div>
             <div class="stat-icon-wrap emerald"><Building2 :size="22" /></div>
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <span class="stat-label">Active Locations</span>
+              <span class="stat-label">{{ t('branch.active') }}</span>
               <span class="stat-value active-val">{{ stats.active }}</span>
             </div>
             <div class="stat-icon-wrap green"><CheckCircle2 :size="22" /></div>
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <span class="stat-label">Assigned Staff</span>
+              <span class="stat-label">{{ t('branch.assignedStaff') }}</span>
               <span class="stat-value">{{ stats.totalStaff }}</span>
             </div>
             <div class="stat-icon-wrap blue"><Users :size="22" /></div>
           </div>
           <div class="stat-card">
             <div class="stat-info">
-              <span class="stat-label">Current View</span>
+              <span class="stat-label">{{ t('branch.currentView') }}</span>
               <span class="stat-value current-val">{{ store.activeBranchName }}</span>
             </div>
             <div class="stat-icon-wrap amber"><MapPin :size="22" /></div>
@@ -378,18 +365,18 @@ onMounted(() => {
 
           <div class="filters">
             <select v-model="statusFilter" class="select-filter">
-              <option value="all">All Statuses</option>
-              <option value="active">Active Only</option>
-              <option value="inactive">Deactivated Only</option>
+              <option value="all">{{ t('branch.allStatuses') }}</option>
+              <option value="active">{{ t('branch.activeOnly') }}</option>
+              <option value="inactive">{{ t('branch.inactiveOnly') }}</option>
             </select>
 
-            <button class="btn-refresh" @click="fetchBranchesList" title="Refresh Branches">
+            <button class="btn-refresh" @click="fetchBranchesList" :title="t('common.refresh')">
               <RefreshCw :size="16" :class="{ 'spin-anim': loading }" />
             </button>
 
             <button class="btn-add-branch" @click="openCreateDrawer">
               <Plus :size="16" />
-              <span>Register New Branch</span>
+              <span>{{ t('branch.registerNew') }}</span>
             </button>
           </div>
         </div>
@@ -399,13 +386,13 @@ onMounted(() => {
           <table class="branch-table">
             <thead>
               <tr>
-                <th>Branch / Location</th>
-                <th>Prefix Code</th>
-                <th>Physical Address</th>
-                <th>Contact Phone</th>
-                <th>Assigned Staff</th>
-                <th>Status</th>
-                <th class="text-right">Actions</th>
+                <th>{{ t('branch.colLocation') }}</th>
+                <th>{{ t('branch.colCode') }}</th>
+                <th>{{ t('branch.colAddress') }}</th>
+                <th>{{ t('branch.colPhone') }}</th>
+                <th>{{ t('branch.colStaff') }}</th>
+                <th>{{ t('branch.colStatus') }}</th>
+                <th class="text-right">{{ t('branch.colActions') }}</th>
               </tr>
             </thead>
             <tbody>

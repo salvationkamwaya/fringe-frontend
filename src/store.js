@@ -16,6 +16,9 @@ export const store = reactive({
   token: localStorage.getItem('fringe_token') || null,
   activeUnit: initialUnit,
   activeBranchId: initialBranch,
+  businessUnits: [],
+  requiresBusinessSetup: false,
+  requiresBranchSetup: false,
   branches: [],
   activeShift: null,
   cart: [],
@@ -39,7 +42,8 @@ export const store = reactive({
   },
   soundEnabled: localStorage.getItem('fringe_sound') !== 'false',
   orderNotes: '',
-  theme: localStorage.getItem('fringe_theme') || 'dark', // 'dark' | 'light'
+  theme: localStorage.getItem('fringe_theme') || (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'), // 'dark' | 'light'
+  locale: localStorage.getItem('fringe_locale') || 'en', // 'en' | 'sw'
   stationeryMode: 'RETAIL', // 'RETAIL' | 'WHOLESALE'
   heldSales: JSON.parse(localStorage.getItem('fringe_held_sales') || '[]'),
   idleTimeoutMinutes: parseInt(localStorage.getItem('fringe_idle_timeout') ?? '10', 10), // default 10 minutes
@@ -113,9 +117,24 @@ export const store = reactive({
   },
 
   initTheme() {
-    const saved = localStorage.getItem('fringe_theme') || 'dark'
-    store.theme = saved
-    document.documentElement.setAttribute('data-theme', saved)
+    const saved = localStorage.getItem('fringe_theme')
+    const systemPrefersLight = typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches
+    const resolved = saved || (systemPrefersLight ? 'light' : 'dark')
+    store.theme = resolved
+    document.documentElement.setAttribute('data-theme', resolved)
+  },
+
+  setLocale(lang) {
+    store.locale = lang === 'sw' ? 'sw' : 'en'
+    localStorage.setItem('fringe_locale', store.locale)
+    store.showToast(
+      store.locale === 'sw' ? 'Lugha imebadilishwa kuwa Kiswahili.' : 'Language switched to English.',
+      'info'
+    )
+  },
+
+  toggleLocale() {
+    store.setLocale(store.locale === 'en' ? 'sw' : 'en')
   },
 
   playSound(type = 'beep') {
@@ -192,18 +211,41 @@ export const store = reactive({
     store.showToast(`Terminal sound feedback ${store.soundEnabled ? 'Enabled' : 'Muted'}`, 'info')
   },
 
+  syncBusinessUnits(units = [], requiresSetup = null, requiresBranchSetup = null) {
+    store.businessUnits = Array.isArray(units) ? units : []
+    if (requiresSetup !== null && requiresSetup !== undefined) {
+      store.requiresBusinessSetup = Boolean(requiresSetup)
+    } else if (store.user?.role === 'owner') {
+      const ids = new Set(store.businessUnits.map(u => u.id))
+      store.requiresBusinessSetup = !(ids.has('bar') && ids.has('stationery'))
+    } else {
+      store.requiresBusinessSetup = false
+    }
+
+    if (requiresBranchSetup !== null && requiresBranchSetup !== undefined) {
+      store.requiresBranchSetup = Boolean(requiresBranchSetup)
+    } else if (store.user?.role === 'owner') {
+      const branchUnits = new Set(
+        (store.branches || []).filter(b => b.is_active !== false).map(b => b.business_unit_id || b.business_unit)
+      )
+      store.requiresBranchSetup = !(branchUnits.has('bar') && branchUnits.has('stationery'))
+    } else {
+      store.requiresBranchSetup = false
+    }
+  },
+
   async login(username, password) {
     try {
       const response = await api.post('/auth/login/', { username, password })
-      const { token, user, active_unit, branches, active_branch } = response.data
+      const { token, user, available_units, requires_business_setup, requires_branch_setup, branches } = response.data
 
       store.token = token
       store.user = user
       store.activeUnit = user.role === 'owner' ? (localStorage.getItem('fringe_active_unit') || 'bar') : (user.business_unit || 'bar')
-
       if (branches) {
         store.branches = branches
       }
+      store.syncBusinessUnits(available_units, requires_business_setup, requires_branch_setup)
       if (user.role === 'owner') {
         store.activeBranchId = localStorage.getItem('fringe_active_branch') || 'all'
       } else {
@@ -214,6 +256,15 @@ export const store = reactive({
       localStorage.setItem('fringe_user', JSON.stringify(user))
       localStorage.setItem('fringe_active_unit', store.activeUnit)
       localStorage.setItem('fringe_active_branch', store.activeBranchId || 'all')
+
+      if (store.requiresBusinessSetup || store.requiresBranchSetup) {
+        store.activeModal = 'business_setup'
+        const msg = store.requiresBusinessSetup
+          ? 'Welcome! Step 1: Name and save your Bar and Stationery businesses.'
+          : 'Step 2: Create at least one branch for each business to continue.'
+        store.showToast(msg, 'info')
+        return true
+      }
 
       store.activeModal = null
       store.showToast(`Welcome back, ${user.first_name || user.username}!`, 'success')
@@ -242,6 +293,9 @@ export const store = reactive({
       store.isAgeVerified = false
       store.isIdleWarningActive = false
       store.heldSales = []
+      store.businessUnits = []
+      store.requiresBusinessSetup = false
+      store.requiresBranchSetup = false
       store.branches = []
       store.activeBranchId = 'all'
       localStorage.removeItem('fringe_token')
@@ -261,11 +315,27 @@ export const store = reactive({
   async fetchBranches() {
     if (!store.isAuthenticated) return
     try {
-      const response = await api.get('/core/branches/')
+      const config = store.user?.role === 'owner' ? { headers: { 'X-Business-Unit': 'all' } } : {}
+      const response = await api.get('/core/branches/', config)
       store.branches = response.data || []
       if (store.user?.role === 'owner') {
         const saved = localStorage.getItem('fringe_active_branch') || 'all'
-        store.activeBranchId = saved
+        if (store.activeUnit === 'all') {
+          store.activeBranchId = 'all'
+        } else {
+          const unitBranches = store.branches.filter(
+            b => (b.business_unit_id || b.business_unit) === store.activeUnit && b.is_active !== false
+          )
+          const matchesSaved = unitBranches.some(b => String(b.id) === String(saved))
+          if (matchesSaved) {
+            store.activeBranchId = saved
+          } else if (unitBranches.length > 0) {
+            store.activeBranchId = String(unitBranches[0].id)
+            localStorage.setItem('fringe_active_branch', store.activeBranchId)
+          } else {
+            store.activeBranchId = 'all'
+          }
+        }
       } else {
         store.activeBranchId = store.user?.branch || null
       }
@@ -300,6 +370,18 @@ export const store = reactive({
     if (!store.isOwner) return
     store.activeUnit = unitId
     localStorage.setItem('fringe_active_unit', unitId)
+    if (unitId === 'all') {
+      store.activeBranchId = 'all'
+    } else {
+      const unitBranches = (store.branches || []).filter(
+        b => (b.business_unit_id || b.business_unit) === unitId && b.is_active !== false
+      )
+      const currentValid = unitBranches.some(b => String(b.id) === String(store.activeBranchId))
+      if (!currentValid) {
+        store.activeBranchId = unitBranches.length > 0 ? String(unitBranches[0].id) : 'all'
+      }
+    }
+    localStorage.setItem('fringe_active_branch', store.activeBranchId || 'all')
     store.clearCart()
     store.fetchActiveShift()
     store.showToast(`Switched view to ${unitId.toUpperCase()}`, 'info')

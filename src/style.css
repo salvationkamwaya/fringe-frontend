@@ -228,6 +228,19 @@ button {
   color: #0f172a !important;
 }
 
+[data-theme="light"] .btn-account-settings {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+[data-theme="light"] .btn-account-settings:hover,
+[data-theme="light"] .btn-account-settings.active {
+  background: #eef2ff !important;
+  border-color: #c7d2fe !important;
+  color: #4f46e5 !important;
+}
+
 /* --- LIGHT THEME: TOP HEADER (HeaderNav) --- */
 [data-theme="light"] .navbar {
   background: rgba(255, 255, 255, 0.95) !important;
@@ -772,4 +785,863 @@ button {
   background: #ffffff !important;
   border-top: 1px solid #e2e8f0 !important;
 }
+
+/* ============================================================
+   FULL-WORKSPACE PAGE SYSTEM (Converts Sidebar Views to Pages)
+   ============================================================ */
+.workspace-page-wrap {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.workspace-page-wrap > .modal-backdrop,
+.workspace-page-wrap > .modal-overlay {
+  position: static !important;
+  inset: auto !important;
+  z-index: auto !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  padding: 0 !important;
+  width: 100% !important;
+  min-height: 100vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+}
+
+.workspace-page-wrap > .modal-backdrop > div,
+.workspace-page-wrap > .modal-overlay > .modal-card {
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 100vh !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  transform: none !important;
+}
+
+.workspace-page-wrap .window-header,
+.workspace-page-wrap .modal-header {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.workspace-page-wrap .modal-body,
+.workspace-page-wrap .window-body {
+  flex: 1;
+  overflow-x: auto;
+}
+
+/* Minimalistic, Centered Empty States across all Workspace Pages */
+.workspace-page-wrap .empty-box,
+.workspace-page-wrap .empty-state,
+.workspace-page-wrap .empty-breakdown {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  gap: 10px !important;
+  min-height: 280px;
+  max-width: 460px;
+  margin: 36px auto !important;
+  padding: 40px 28px !important;
+  border-radius: 20px !important;
+  border: 1px dashed rgba(255, 255, 255, 0.14) !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.workspace-page-wrap .empty-box svg,
+.workspace-page-wrap .empty-state svg,
+.workspace-page-wrap .empty-icon {
+  width: 54px !important;
+  height: 54px !important;
+  padding: 13px !important;
+  border-radius: 16px !important;
+  background: rgba(99, 102, 241, 0.12) !important;
+  color: #818cf8 !important;
+  margin-bottom: 4px !important;
+  opacity: 1 !important;
+}
+
+.workspace-page-wrap .empty-box h3,
+.workspace-page-wrap .empty-state h3,
+.workspace-page-wrap .empty-title {
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  color: var(--text-primary, #f8fafc) !important;
+  margin: 0 !important;
+}
+
+.workspace-page-wrap .empty-box p,
+.workspace-page-wrap .empty-state p,
+.workspace-page-wrap .empty-sub {
+  font-size: 0.86rem !important;
+  color: var(--text-muted, #94a3b8) !important;
+  max-width: 340px !important;
+  line-height: 1.5 !important;
+  margin: 0 !important;
+}
+
+.workspace-page-wrap table td.empty-cell,
+.workspace-page-wrap table td.empty-row {
+  text-align: center !important;
+  padding: 56px 24px !important;
+  color: var(--text-muted, #94a3b8) !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .empty-box,
+[data-theme="light"] .workspace-page-wrap .empty-state,
+[data-theme="light"] .workspace-page-wrap .empty-breakdown {
+  border-color: #cbd5e1 !important;
+  background: #ffffff !important;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04) !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .empty-box svg,
+[data-theme="light"] .workspace-page-wrap .empty-state svg,
+[data-theme="light"] .workspace-page-wrap .empty-icon {
+  background: #eef2ff !important;
+  color: #4f46e5 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .empty-box h3,
+[data-theme="light"] .workspace-page-wrap .empty-state h3,
+[data-theme="light"] .workspace-page-wrap .empty-title {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .empty-box p,
+[data-theme="light"] .workspace-page-wrap .empty-state p,
+[data-theme="light"] .workspace-page-wrap .empty-sub {
+  color: #64748b !important;
+}
+
+.workspace-page-wrap table {
+  width: 100%;
+}
+
+/* ============================================================
+   ATTRACTIVE LIGHT MODE FOR ALL WORKSPACE PAGES
+   ============================================================ */
+[data-theme="light"] .workspace-page-wrap {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .catalog-page,
+[data-theme="light"] .workspace-page-wrap .catalog-window,
+[data-theme="light"] .workspace-page-wrap .customers-window,
+[data-theme="light"] .workspace-page-wrap .stock-window,
+[data-theme="light"] .workspace-page-wrap .suppliers-window,
+[data-theme="light"] .workspace-page-wrap .reports-window,
+[data-theme="light"] .workspace-page-wrap .modal-card {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .window-header,
+[data-theme="light"] .workspace-page-wrap .modal-header {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .window-header h2,
+[data-theme="light"] .workspace-page-wrap .modal-header h2,
+[data-theme="light"] .workspace-page-wrap .modal-header h3,
+[data-theme="light"] .workspace-page-wrap h1,
+[data-theme="light"] .workspace-page-wrap h2,
+[data-theme="light"] .workspace-page-wrap h3,
+[data-theme="light"] .workspace-page-wrap h4,
+[data-theme="light"] .workspace-page-wrap strong {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .subtitle,
+[data-theme="light"] .workspace-page-wrap .window-sub,
+[data-theme="light"] .workspace-page-wrap p {
+  color: #64748b !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .window-tabs-bar,
+[data-theme="light"] .workspace-page-wrap .tabs-bar,
+[data-theme="light"] .workspace-page-wrap .toolbar,
+[data-theme="light"] .workspace-page-wrap .filter-bar,
+[data-theme="light"] .workspace-page-wrap .controls-bar {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .tab-btn {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .tab-btn:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .tab-btn.active {
+  background: #eef2ff !important;
+  color: #4f46e5 !important;
+  border-color: #c7d2fe !important;
+}
+
+[data-theme="light"] .workspace-page-wrap input:not([type="checkbox"]):not([type="radio"]),
+[data-theme="light"] .workspace-page-wrap select,
+[data-theme="light"] .workspace-page-wrap textarea {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap input::placeholder,
+[data-theme="light"] .workspace-page-wrap textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .search-box,
+[data-theme="light"] .workspace-page-wrap .search-bar,
+[data-theme="light"] .workspace-page-wrap .search-input-box,
+[data-theme="light"] .workspace-page-wrap .sidebar-search {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .search-box input:not([type="checkbox"]):not([type="radio"]),
+[data-theme="light"] .workspace-page-wrap .search-bar input:not([type="checkbox"]):not([type="radio"]),
+[data-theme="light"] .workspace-page-wrap .search-input-box input:not([type="checkbox"]):not([type="radio"]),
+[data-theme="light"] .workspace-page-wrap .sidebar-search input:not([type="checkbox"]):not([type="radio"]),
+[data-theme="light"] .workspace-page-wrap input.styled-search-input:not([type="checkbox"]):not([type="radio"]) {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .card,
+[data-theme="light"] .workspace-page-wrap .stat-card,
+[data-theme="light"] .workspace-page-wrap .summary-card,
+[data-theme="light"] .workspace-page-wrap .kpi-card,
+[data-theme="light"] .workspace-page-wrap .panel,
+[data-theme="light"] .workspace-page-wrap .table-wrapper,
+[data-theme="light"] .workspace-page-wrap .table-container,
+[data-theme="light"] .workspace-page-wrap .list-card {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04) !important;
+}
+
+[data-theme="light"] .workspace-page-wrap table th {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap table td {
+  color: #1e293b !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap table tbody tr:hover td {
+  background: #f8fafc !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .btn-tool,
+[data-theme="light"] .workspace-page-wrap .btn-close,
+[data-theme="light"] .workspace-page-wrap .btn-close-window,
+[data-theme="light"] .workspace-page-wrap .btn-secondary {
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .btn-tool:hover,
+[data-theme="light"] .workspace-page-wrap .btn-close:hover,
+[data-theme="light"] .workspace-page-wrap .btn-close-window:hover,
+[data-theme="light"] .workspace-page-wrap .btn-secondary:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .submodal-card,
+[data-theme="light"] .workspace-page-wrap .drawer-panel,
+[data-theme="light"] .workspace-page-wrap .branch-card,
+[data-theme="light"] .workspace-page-wrap .staff-card,
+[data-theme="light"] .workspace-page-wrap .settings-card,
+[data-theme="light"] .workspace-page-wrap .section-card,
+[data-theme="light"] .workspace-page-wrap .report-card,
+[data-theme="light"] .workspace-page-wrap .audit-card,
+[data-theme="light"] .workspace-page-wrap .filter-bar,
+[data-theme="light"] .workspace-page-wrap .metric-card,
+[data-theme="light"] .workspace-page-wrap .info-banner,
+[data-theme="light"] .workspace-page-wrap .profile-card {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04) !important;
+}
+
+[data-theme="light"] .workspace-page-wrap label,
+[data-theme="light"] .workspace-page-wrap .field-label,
+[data-theme="light"] .workspace-page-wrap .m-label {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .badge,
+[data-theme="light"] .workspace-page-wrap .role-pill,
+[data-theme="light"] .workspace-page-wrap .status-badge {
+  border-color: #e2e8f0 !important;
+}
+
+/* ============================================================
+   MINIMALISTIC REDESIGN: CUSTOMERS, QUOTATIONS, WHOLESALE, RETURNS
+   ============================================================ */
+/* Shared centered empty / loading states */
+.workspace-page-wrap .state-placeholder,
+.workspace-page-wrap .empty-preview-state,
+.workspace-page-wrap .preview-empty {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  gap: 10px !important;
+  min-height: 300px;
+  max-width: 460px;
+  margin: 40px auto !important;
+  padding: 40px 28px !important;
+  border-radius: 20px !important;
+  border: 1px dashed rgba(255, 255, 255, 0.14) !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .state-placeholder,
+[data-theme="light"] .workspace-page-wrap .empty-preview-state,
+[data-theme="light"] .workspace-page-wrap .preview-empty {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* Customers Page: Segmented Header Tabs & Cards */
+[data-theme="light"] .workspace-page-wrap .header-tabs {
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  padding: 4px !important;
+  border-radius: 12px !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .header-tabs .tab-btn {
+  background: transparent !important;
+  color: #475569 !important;
+  border-radius: 9px !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .header-tabs .tab-btn.active {
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+  border-color: #4f46e5 !important;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25) !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .btn-add-customer,
+[data-theme="light"] .workspace-page-wrap .btn-create,
+[data-theme="light"] .workspace-page-wrap .btn-print-doc,
+[data-theme="light"] .workspace-page-wrap .btn-lookup {
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 10px !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .btn-add-customer:hover,
+[data-theme="light"] .workspace-page-wrap .btn-create:hover,
+[data-theme="light"] .workspace-page-wrap .btn-print-doc:hover,
+[data-theme="light"] .workspace-page-wrap .btn-lookup:hover {
+  background: #4338ca !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .customer-card,
+[data-theme="light"] .workspace-page-wrap .quote-card,
+[data-theme="light"] .workspace-page-wrap .return-card,
+[data-theme="light"] .workspace-page-wrap .aging-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  border-radius: 16px !important;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* Quotations Page: Clean Filter Strip & Status Tabs */
+[data-theme="light"] .workspace-page-wrap .filter-strip {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 12px 24px !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .status-tabs {
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  padding: 4px !important;
+  border-radius: 11px !important;
+  gap: 4px !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .status-tabs .tab-btn {
+  background: transparent !important;
+  color: #475569 !important;
+  border: none !important;
+  border-radius: 8px !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .status-tabs .tab-btn.active {
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+}
+
+/* Wholesale Invoices & Delivery Notes: Clean Light Split Pane */
+[data-theme="light"] .workspace-page-wrap .docs-workspace {
+  background: #f6f8fb !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .orders-sidebar {
+  background: #ffffff !important;
+  border-right: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .sidebar-search {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 10px !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .doc-type-toggle {
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  padding: 4px !important;
+  border-radius: 11px !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .doc-type-toggle .type-btn {
+  background: transparent !important;
+  color: #475569 !important;
+  border-radius: 8px !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .doc-type-toggle .type-btn.active {
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .doc-preview-pane,
+[data-theme="light"] .workspace-page-wrap .document-preview-area,
+[data-theme="light"] .workspace-page-wrap .preview-canvas {
+  background: #f6f8fb !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .order-picker-item {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .order-picker-item.active {
+  background: #eef2ff !important;
+  border-color: #4f46e5 !important;
+}
+
+/* Sales Returns & Refunds: Clean Tab Strip & Step Cards */
+[data-theme="light"] .workspace-page-wrap .tab-strip {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 12px 24px !important;
+  gap: 8px !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .nav-tab-btn {
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .nav-tab-btn:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .nav-tab-btn.active {
+  background: #4f46e5 !important;
+  border-color: #4f46e5 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .form-card,
+[data-theme="light"] .workspace-page-wrap .step-card,
+[data-theme="light"] .workspace-page-wrap .matched-order-banner {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  border-radius: 16px !important;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04) !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .step-num {
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+}
+
+/* ============================================================
+   MINIMALISTIC REDESIGN: CATALOG, STOCK, SUPPLIERS, BARCODES
+   ============================================================ */
+[data-theme="light"] .workspace-page-wrap .catalog-toolbar,
+[data-theme="light"] .workspace-page-wrap .stock-toolbar {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 14px 24px !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .kpi-strip {
+  background: #f6f8fb !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 16px 24px !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .kpi-mini-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04) !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .kpi-mini-label,
+[data-theme="light"] .workspace-page-wrap .kpi-mini-sub {
+  color: #64748b !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .kpi-mini-val {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .clerk-pill {
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .filter-pills {
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  padding: 4px !important;
+  border-radius: 11px !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .pill-btn {
+  background: transparent !important;
+  border: none !important;
+  color: #475569 !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .pill-btn.active {
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .btn-primary-action,
+[data-theme="light"] .workspace-page-wrap .btn-add,
+[data-theme="light"] .workspace-page-wrap .btn-print {
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 10px !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .btn-primary-action:hover,
+[data-theme="light"] .workspace-page-wrap .btn-add:hover,
+[data-theme="light"] .workspace-page-wrap .btn-print:hover:not(:disabled) {
+  background: #4338ca !important;
+}
+
+/* Barcode Labels Generator Split Pane */
+[data-theme="light"] .workspace-page-wrap .labels-workspace {
+  background: #f6f8fb !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .sidebar-config {
+  background: #ffffff !important;
+  border-right: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .preview-stage {
+  background: #f6f8fb !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .search-mini {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 9px !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .search-mini input:not([type="checkbox"]):not([type="radio"]) {
+  border: none !important;
+  background: transparent !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .catalog-mini-item,
+[data-theme="light"] .workspace-page-wrap .queue-item {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .catalog-mini-item:hover {
+  border-color: #4f46e5 !important;
+  background: #eef2ff !important;
+}
+
+@media (max-width: 900px) {
+  .workspace-page-wrap .labels-workspace {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .workspace-page-wrap .sidebar-config {
+    width: 100% !important;
+    max-width: none !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-color, #e2e8f0) !important;
+  }
+
+  .workspace-page-wrap .kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    padding: 12px 14px !important;
+  }
+
+  .workspace-page-wrap .catalog-toolbar,
+  .workspace-page-wrap .stock-toolbar {
+    padding: 12px 14px !important;
+    flex-wrap: wrap !important;
+  }
+}
+
+@media (max-width: 540px) {
+  .workspace-page-wrap .kpi-strip {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ============================================================
+   MINIMALISTIC REDESIGN: REPORTS, AUDIT, STAFF, BRANCHES
+   ============================================================ */
+[data-theme="light"] .workspace-page-wrap .date-range-toolbar,
+[data-theme="light"] .workspace-page-wrap .filters-bar {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 12px 24px !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .range-pill {
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .range-pill.active,
+[data-theme="light"] .workspace-page-wrap .btn-apply-range {
+  background: #4f46e5 !important;
+  border-color: #4f46e5 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .owner-badge {
+  background: #eef2ff !important;
+  color: #4f46e5 !important;
+  border: 1px solid #c7d2fe !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .btn-refresh,
+[data-theme="light"] .workspace-page-wrap .btn-view {
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+  border-radius: 8px !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .btn-refresh:hover,
+[data-theme="light"] .workspace-page-wrap .btn-view:hover {
+  background: #4f46e5 !important;
+  border-color: #4f46e5 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .stats-row {
+  gap: 14px !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .stat-card .stat-label {
+  color: #64748b !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .stat-card .stat-value {
+  color: #0f172a !important;
+}
+
+/* Fix Report Sections, Payment/Split Cards, Branch Title & Staff Action Contrast in Light Mode */
+[data-theme="light"] .workspace-page-wrap .report-section,
+[data-theme="light"] .workspace-page-wrap .payment-card,
+[data-theme="light"] .workspace-page-wrap .split-card,
+[data-theme="light"] .workspace-page-wrap .channel-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04) !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .report-section .section-title h4,
+[data-theme="light"] .workspace-page-wrap .p-amt,
+[data-theme="light"] .workspace-page-wrap .branch-title,
+[data-theme="light"] .workspace-page-wrap .staff-name {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .p-type,
+[data-theme="light"] .workspace-page-wrap .branch-meta,
+[data-theme="light"] .workspace-page-wrap .address-text {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .btn-add-staff,
+[data-theme="light"] .workspace-page-wrap .btn-add-branch {
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 10px !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .btn-add-staff:hover,
+[data-theme="light"] .workspace-page-wrap .btn-add-branch:hover {
+  background: #4338ca !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .btn-action-sm,
+[data-theme="light"] .workspace-page-wrap .action-btn {
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+[data-theme="light"] .workspace-page-wrap .btn-action-sm:hover,
+[data-theme="light"] .workspace-page-wrap .action-btn:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+@media (max-width: 900px) {
+  .workspace-page-wrap .stats-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .workspace-page-wrap .date-range-toolbar,
+  .workspace-page-wrap .filters-bar {
+    padding: 12px 14px !important;
+    flex-wrap: wrap !important;
+  }
+}
+
+@media (max-width: 540px) {
+  .workspace-page-wrap .stats-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Responsive Stacking for Split Panes & Toolbars */
+@media (max-width: 900px) {
+  .workspace-page-wrap .docs-workspace {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .workspace-page-wrap .orders-sidebar {
+    width: 100% !important;
+    max-width: none !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-color, #e2e8f0) !important;
+  }
+
+  .workspace-page-wrap .filter-strip,
+  .workspace-page-wrap .tab-strip,
+  .workspace-page-wrap .toolbar {
+    padding: 12px 14px !important;
+    flex-wrap: wrap !important;
+  }
+
+  .workspace-page-wrap .search-order-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+}
+
+/* ============================================================
+   RESPONSIVE WORKSPACE PAGES (TABLET & MOBILE)
+   ============================================================ */
+@media (max-width: 900px) {
+  .workspace-page-wrap .window-header,
+  .workspace-page-wrap .modal-header {
+    padding: 14px 16px !important;
+  }
+
+  .workspace-page-wrap .modal-body,
+  .workspace-page-wrap .window-body {
+    padding: 14px 16px !important;
+  }
+
+  .workspace-page-wrap .split-layout,
+  .workspace-page-wrap .two-col-grid,
+  .workspace-page-wrap .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .workspace-page-wrap .window-header,
+  .workspace-page-wrap .modal-header {
+    padding: 12px !important;
+  }
+
+  .workspace-page-wrap .header-actions,
+  .workspace-page-wrap .header-right {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .workspace-page-wrap .window-tabs-bar,
+  .workspace-page-wrap .tabs-bar {
+    overflow-x: auto;
+    padding: 8px 12px !important;
+  }
+}
+
 

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { store } from '../store'
+import { t } from '../i18n'
 import api from '../api'
 import { 
   Search, Barcode, ShoppingCart, Trash2, Plus, Minus, 
@@ -220,7 +221,7 @@ const proceedToCheckout = () => {
 </script>
 
 <template>
-  <div class="stationery-workspace">
+  <div class="stationery-workspace" :data-theme="store.theme">
     <!-- LEFT PANEL: Catalog, Search & Barcode -->
     <section class="catalog-section">
       <!-- SELLING MODE TOGGLE & QUICK ACTIONS TOOLBAR -->
@@ -232,7 +233,7 @@ const proceedToCheckout = () => {
             @click="setSellingMode('RETAIL')"
           >
             <ShoppingCart :size="15" />
-            <span>Walk-in Retail</span>
+            <span>{{ t('pos.walkInRetail') }}</span>
           </button>
           <button 
             class="mode-btn wholesale-btn" 
@@ -240,34 +241,38 @@ const proceedToCheckout = () => {
             @click="setSellingMode('WHOLESALE')"
           >
             <Building :size="15" />
-            <span>Wholesale B2B (15% Off)</span>
+            <span>{{ t('pos.wholesaleB2b') }}</span>
           </button>
         </div>
 
         <div class="quick-nav-actions">
-          <button class="btn-quick-nav" @click="store.activeModal = 'quotations'" title="Wholesale Quotations">
-            <FileText :size="14" class="text-indigo" />
-            <span>Quotations</span>
+          <button class="btn-quick-nav" @click="store.activeModal = null" :title="t('nav.dashboard')">
+            <BookOpen :size="14" />
+            <span>{{ t('nav.dashboard') }}</span>
           </button>
-          <button class="btn-quick-nav" @click="store.activeModal = 'stationery_returns'" title="Sales Returns & Refunds">
-            <RotateCcw :size="14" class="text-rose" />
-            <span>Returns</span>
+          <button class="btn-quick-nav" @click="store.activeModal = 'quotations'" :title="t('nav.quotations')">
+            <FileText :size="14" />
+            <span>{{ t('nav.quotations') }}</span>
           </button>
-          <button class="btn-quick-nav" @click="store.activeModal = 'expenses'" title="Operating Expenses">
-            <DollarSign :size="14" class="text-amber" />
-            <span>Expenses</span>
+          <button class="btn-quick-nav" @click="store.activeModal = 'stationery_returns'" :title="t('nav.returns')">
+            <RotateCcw :size="14" />
+            <span>{{ t('nav.returns') }}</span>
           </button>
-          <button class="btn-quick-nav" @click="store.activeModal = 'barcode_labels'" title="Print Barcode Labels">
-            <Barcode :size="14" class="text-amber" />
-            <span>Barcodes</span>
+          <button class="btn-quick-nav" @click="store.activeModal = 'expenses'" :title="t('nav.expenses')">
+            <DollarSign :size="14" />
+            <span>{{ t('nav.expenses') }}</span>
           </button>
-          <button class="btn-quick-nav" @click="store.activeModal = 'product_import'" title="Bulk Import Products">
-            <FileSpreadsheet :size="14" class="text-emerald" />
-            <span>Import</span>
+          <button class="btn-quick-nav" @click="store.activeModal = 'barcode_labels'" :title="t('nav.barcodeLabels')">
+            <Barcode :size="14" />
+            <span>{{ t('nav.barcodeLabels') }}</span>
           </button>
-          <button class="btn-quick-nav" @click="store.activeModal = 'wholesale_docs'" title="Wholesale Tax Invoices & Delivery Notes">
-            <Truck :size="14" class="text-blue" />
-            <span>Invoices</span>
+          <button class="btn-quick-nav" @click="store.activeModal = 'product_import'" :title="t('pos.import')">
+            <FileSpreadsheet :size="14" />
+            <span>{{ t('pos.import') }}</span>
+          </button>
+          <button class="btn-quick-nav" @click="store.activeModal = 'wholesale_docs'" :title="t('nav.wholesaleInvoices')">
+            <Truck :size="14" />
+            <span>{{ t('nav.wholesaleInvoices') }}</span>
           </button>
         </div>
       </div>
@@ -276,12 +281,12 @@ const proceedToCheckout = () => {
       <div v-if="store.stationeryMode === 'WHOLESALE'" class="wholesale-banner">
         <Building :size="18" class="text-blue" />
         <div class="ws-banner-text">
-          <strong>Wholesale Selling Mode Active:</strong> Automatic 15% wholesale tier pricing is applied.
+          <strong>{{ t('pos.wholesaleActiveTitle') }}</strong> {{ t('pos.wholesaleActiveDesc') }}
           <span v-if="!store.selectedCustomer" class="ws-alert-highlight">
-            Attach a registered customer before checkout.
+            {{ t('pos.wholesaleAttachWarn') }}
           </span>
           <span v-else>
-            Invoiced to: <strong>{{ store.selectedCustomer.name }}</strong>.
+            {{ t('pos.wholesaleInvoicedTo') }} <strong>{{ store.selectedCustomer.name }}</strong>.
           </span>
         </div>
       </div>
@@ -294,7 +299,7 @@ const proceedToCheckout = () => {
           <input 
             v-model="searchQuery" 
             type="text" 
-            placeholder="Search stationery products by name or SKU..." 
+            :placeholder="t('pos.searchPlaceholder')" 
             class="text-input"
           />
           <button v-if="searchQuery" class="clear-input-btn" @click="searchQuery = ''">
@@ -308,7 +313,7 @@ const proceedToCheckout = () => {
           <input 
             v-model="barcodeInput" 
             type="text" 
-            placeholder="Scan Barcode + Enter" 
+            :placeholder="t('pos.barcodePlaceholder')" 
             class="text-input barcode-input"
             @keyup.enter="handleBarcodeScan"
           />
@@ -323,7 +328,7 @@ const proceedToCheckout = () => {
           @click="selectedCategory = null"
         >
           <BookOpen :size="14" />
-          <span>All Products ({{ products.length }})</span>
+          <span>{{ t('pos.allProducts') }} ({{ products.length }})</span>
         </button>
         <button 
           v-for="cat in categories" 
@@ -340,13 +345,23 @@ const proceedToCheckout = () => {
       <div class="products-container">
         <div v-if="loading" class="state-placeholder">
           <div class="spinner"></div>
-          <p>Loading stationery catalog...</p>
+          <p>{{ t('pos.loadingCatalog') }}</p>
         </div>
 
         <div v-else-if="filteredProducts.length === 0" class="state-placeholder">
-          <Package :size="48" class="empty-icon" />
-          <h3>No products found</h3>
-          <p>Try adjusting your search query or selected category.</p>
+          <div class="empty-icon-wrap">
+            <Package :size="28" />
+          </div>
+          <h3>{{ t('pos.noProducts') }}</h3>
+          <p>{{ t('pos.noProductsSub') }}</p>
+          <button
+            v-if="store.isOwner || store.isStationeryManager"
+            class="btn-empty-cta"
+            @click="store.activeModal = 'catalog_management'"
+          >
+            <Plus :size="15" />
+            <span>{{ t('dash.registerProduct') }}</span>
+          </button>
         </div>
 
         <div v-else class="products-grid">
@@ -438,7 +453,7 @@ const proceedToCheckout = () => {
                   @click="handleAddToCart(prod, 1, true)"
                 >
                   <Plus :size="16" />
-                  <span>Add to Ticket</span>
+                  <span>{{ t('pos.addToTicket') }}</span>
                 </button>
               </template>
             </div>
@@ -454,8 +469,8 @@ const proceedToCheckout = () => {
         <div class="header-title-box">
           <ShoppingCart :size="20" class="header-icon" />
           <div>
-            <h3>Current Order</h3>
-            <span class="ticket-subtitle">Stationery POS Register</span>
+            <h3>{{ t('pos.currentOrder') }}</h3>
+            <span class="ticket-subtitle">{{ t('pos.registerSub') }}</span>
           </div>
         </div>
 
@@ -464,48 +479,48 @@ const proceedToCheckout = () => {
           <button 
             class="btn-ticket-nav"
             :class="{ 'has-held-badge': store.currentUnitHeldSales.length > 0 }"
-            :title="`View ${store.currentUnitHeldSales.length} Suspended / Held Tickets`"
+            :title="t('pos.modal.heldTitle')"
             @click="showHeldSalesDrawer = true"
           >
             <Clock :size="13" />
-            <span>Held ({{ store.currentUnitHeldSales.length }})</span>
+            <span>{{ t('pos.held') }} ({{ store.currentUnitHeldSales.length }})</span>
           </button>
 
           <!-- Hold Current Sale Button -->
           <button 
             v-if="store.cart.length > 0 && store.canRecordSales"
             class="btn-ticket-nav btn-hold"
-            title="Suspend / Hold current order ticket"
+            :title="t('pos.modal.holdTitle')"
             @click="openHoldDialog"
           >
             <PauseCircle :size="13" />
-            <span>Hold</span>
+            <span>{{ t('pos.hold') }}</span>
           </button>
 
           <!-- Create Quotation from Cart -->
           <button 
             v-if="store.cart.length > 0"
             class="btn-ticket-nav btn-quote"
-            title="Save current cart items as formal Quotation"
+            :title="t('nav.quotations')"
             @click="saveAsQuotation"
           >
             <FileText :size="13" />
-            <span>Quote</span>
+            <span>{{ t('pos.quote') }}</span>
           </button>
 
           <button 
             class="btn-quick-sales"
-            :title="store.isManagerOrOwner ? 'View Sales Records' : 'View My Sold Stationery & Transactions'"
+            :title="store.isManagerOrOwner ? t('nav.salesRecords') : t('nav.mySales')"
             @click="store.activeModal = 'sales_records'"
           >
             <Receipt :size="14" />
-            <span>{{ store.isManagerOrOwner ? 'Sales' : 'My Sales' }}</span>
+            <span>{{ store.isManagerOrOwner ? t('pos.sales') : t('pos.mySales') }}</span>
           </button>
 
           <button 
             v-if="store.cart.length > 0" 
             class="btn-clear" 
-            title="Clear all ticket items"
+            :title="t('common.reset')"
             @click="store.clearCart"
           >
             <Trash2 :size="16" />
@@ -518,19 +533,19 @@ const proceedToCheckout = () => {
         <Boxes v-if="store.isStockClerk" :size="20" class="oversight-icon" />
         <ShieldCheck v-else :size="20" class="oversight-icon" />
         <div class="oversight-text">
-          <div class="oversight-title">{{ store.isStockClerk ? 'Stock Clerk Inventory Mode' : 'Management Oversight Mode' }}</div>
+          <div class="oversight-title">{{ store.isStockClerk ? t('pos.clerkTitle') : t('pos.oversightTitle') }}</div>
           <div class="oversight-desc">
-            Signed in as <strong>@{{ store.user?.username }} ({{ store.user?.role?.toUpperCase() }})</strong>.
+            {{ t('pos.signedInAs') }} <strong>@{{ store.user?.username }} ({{ store.user?.role?.toUpperCase() }})</strong>.
             <span v-if="store.isStockClerk">
-              Inventory custody & goods receiving. Point-of-sale customer sales are handled by frontline Stationery Cashiers.
+              {{ t('pos.clerkDesc') }}
             </span>
             <span v-else>
-              Sales recording is reserved for frontline Stationery Cashiers. Use the left sidebar to access Reports, Stock & Reorder, Debtors, Suppliers, and Approvals.
+              {{ t('pos.oversightDesc') }}
             </span>
           </div>
           <button v-if="store.isStockClerk" class="btn-banner-action" @click="store.activeModal = 'stock_inventory'">
             <Boxes :size="14" />
-            <span>Open Inventory & Stock Control</span>
+            <span>{{ t('pos.openStockControl') }}</span>
           </button>
         </div>
       </div>
@@ -563,7 +578,7 @@ const proceedToCheckout = () => {
           @click="showCustomerPicker = true"
         >
           <UserPlus :size="16" />
-          <span>Attach Customer (Credit Account)</span>
+          <span>{{ t('pos.attachCustomer') }}</span>
         </button>
       </div>
 
@@ -571,8 +586,8 @@ const proceedToCheckout = () => {
       <div class="ticket-items-scroll">
         <div v-if="store.cart.length === 0" class="ticket-empty">
           <ShoppingCart :size="48" class="empty-cart-icon" />
-          <h4>Order Ticket is Empty</h4>
-          <p>Scan a barcode or tap products from the catalog to add items.</p>
+          <h4>{{ t('pos.ticketEmpty') }}</h4>
+          <p>{{ t('pos.ticketEmptySub') }}</p>
         </div>
 
         <div v-else class="items-list">
@@ -623,11 +638,11 @@ const proceedToCheckout = () => {
       <div class="ticket-footer">
         <div class="totals-breakdown">
           <div class="summary-line">
-            <span>Items Count:</span>
+            <span>{{ t('pos.itemsCount') }}:</span>
             <span>{{ store.cartItemCount }}</span>
           </div>
           <div class="summary-line grand-total-line">
-            <span>Total Payable:</span>
+            <span>{{ t('pos.totalPayable') }}:</span>
             <span class="grand-total-amount">TSH {{ store.cartSubtotal.toFixed(2) }}</span>
           </div>
         </div>
@@ -636,11 +651,11 @@ const proceedToCheckout = () => {
         <button 
           class="btn-checkout" 
           :disabled="store.cart.length === 0 || !store.canRecordSales"
-          :title="!store.canRecordSales ? 'Frontline Stationery Cashier role required to record sales' : 'Proceed to Payment'"
+          :title="!store.canRecordSales ? 'Frontline Stationery Cashier role required to record sales' : t('pos.proceedPayment')"
           @click="proceedToCheckout"
         >
           <CreditCard :size="20" />
-          <span>Proceed to Payment</span>
+          <span>{{ t('pos.proceedPayment') }}</span>
           <ChevronRight :size="20" />
         </button>
       </div>
@@ -651,8 +666,8 @@ const proceedToCheckout = () => {
       <div class="customer-picker-dialog">
         <div class="picker-header">
           <div class="picker-title-box">
-            <UserCheck :size="20" class="text-cyan" />
-            <h3>Select Stationery Customer</h3>
+            <UserCheck :size="20" />
+            <h3>{{ t('pos.modal.selectCustomer') }}</h3>
           </div>
           <button class="btn-close-modal" @click="showCustomerPicker = false">
             <X :size="18" />
@@ -664,7 +679,7 @@ const proceedToCheckout = () => {
           <input 
             v-model="customerSearch" 
             type="text" 
-            placeholder="Search by school, business name, or phone..." 
+            :placeholder="t('pos.modal.searchCustomer')" 
             class="picker-search-input"
           />
         </div>
@@ -681,15 +696,15 @@ const proceedToCheckout = () => {
               <span class="cust-contact">{{ c.contact_person }} • {{ c.phone }}</span>
             </div>
             <div class="cust-limits">
-              <span class="badge-limit">Limit: TSH {{ parseFloat(c.credit_limit).toFixed(2) }}</span>
+              <span class="badge-limit">{{ t('pos.limit') }}: TSH {{ parseFloat(c.credit_limit).toFixed(2) }}</span>
               <span class="badge-balance" :class="{ 'has-debt': parseFloat(c.current_balance) > 0 }">
-                Owed: TSH {{ parseFloat(c.current_balance).toFixed(2) }}
+                {{ t('pos.owed') }}: TSH {{ parseFloat(c.current_balance).toFixed(2) }}
               </span>
             </div>
           </div>
 
           <div v-if="filteredCustomers.length === 0" class="picker-empty">
-            <p>No customers found matching "{{ customerSearch }}".</p>
+            <p>{{ t('pos.modal.noCustomers') }} "{{ customerSearch }}".</p>
           </div>
         </div>
       </div>
@@ -700,29 +715,29 @@ const proceedToCheckout = () => {
       <div class="hold-dialog-card">
         <div class="hold-dialog-header">
           <div class="dialog-title">
-            <PauseCircle :size="20" class="text-amber" />
-            <h3>Hold Current Sale Ticket</h3>
+            <PauseCircle :size="20" />
+            <h3>{{ t('pos.modal.holdTitle') }}</h3>
           </div>
           <button class="btn-close-modal" @click="showHoldNoteModal = false">
             <X :size="18" />
           </button>
         </div>
         <div class="hold-dialog-body">
-          <p class="dialog-desc">This ticket will be safely parked so you can serve the next customer. You can resume it anytime.</p>
-          <label class="field-label">Note or Customer Reference (Optional):</label>
+          <p class="dialog-desc">{{ t('pos.modal.holdDesc') }}</p>
+          <label class="field-label">{{ t('pos.modal.holdNoteLabel') }}</label>
           <input 
             v-model="holdCustomNote" 
             type="text" 
-            placeholder="e.g. Customer fetching cash, or School rep name..." 
+            :placeholder="t('pos.modal.holdNotePlaceholder')" 
             class="styled-hold-input"
             @keyup.enter="confirmHoldSale"
           />
         </div>
         <div class="hold-dialog-footer">
-          <button class="btn-cancel-modal" @click="showHoldNoteModal = false">Cancel</button>
+          <button class="btn-cancel-modal" @click="showHoldNoteModal = false">{{ t('common.cancel') }}</button>
           <button class="btn-confirm-hold" @click="confirmHoldSale">
             <PauseCircle :size="16" />
-            <span>Confirm & Hold Sale</span>
+            <span>{{ t('pos.modal.confirmHold') }}</span>
           </button>
         </div>
       </div>
@@ -733,10 +748,10 @@ const proceedToCheckout = () => {
       <div class="held-tickets-modal">
         <div class="held-header">
           <div class="held-title-box">
-            <Clock :size="20" class="text-amber" />
+            <Clock :size="20" />
             <div>
-              <h3>Suspended & Held Tickets</h3>
-              <p class="subtitle">{{ store.currentUnitHeldSales.length }} order ticket(s) currently parked</p>
+              <h3>{{ t('pos.modal.heldTitle') }}</h3>
+              <p class="subtitle">{{ store.currentUnitHeldSales.length }} {{ t('pos.modal.heldSub') }}</p>
             </div>
           </div>
           <button class="btn-close-modal" @click="showHeldSalesDrawer = false">
@@ -747,8 +762,8 @@ const proceedToCheckout = () => {
         <div class="held-body-scroll">
           <div v-if="store.currentUnitHeldSales.length === 0" class="held-empty-state">
             <Clock :size="40" class="text-muted" />
-            <h4>No Held Tickets</h4>
-            <p>When you hold a sale, it will be kept safely here until you are ready to resume.</p>
+            <h4>{{ t('pos.modal.noHeldTitle') }}</h4>
+            <p>{{ t('pos.modal.noHeldDesc') }}</p>
           </div>
 
           <div v-else class="held-cards-grid">
@@ -764,7 +779,7 @@ const proceedToCheckout = () => {
               </div>
 
               <div class="held-items-preview">
-                <span class="item-count">{{ s.itemCount }} item(s):</span>
+                <span class="item-count">{{ s.itemCount }} {{ t('pos.modal.itemsLabel') }}</span>
                 <span class="items-summary-text">
                   {{ s.items.map(i => `${i.quantity}x ${i.product.name}`).slice(0, 3).join(', ') }}
                   <template v-if="s.items.length > 3">...</template>
@@ -772,16 +787,16 @@ const proceedToCheckout = () => {
               </div>
 
               <div class="held-total-row">
-                <span class="total-lbl">Total Payable:</span>
+                <span class="total-lbl">{{ t('pos.totalPayable') }}:</span>
                 <span class="total-val">TSH {{ parseFloat(s.total).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
               </div>
 
               <div class="held-actions">
                 <button class="btn-resume-ticket" @click="resumeSale(s.id)">
                   <PlayCircle :size="15" />
-                  <span>Resume Ticket</span>
+                  <span>{{ t('pos.modal.resume') }}</span>
                 </button>
-                <button class="btn-discard-ticket" @click="discardSale(s.id)" title="Discard suspended ticket">
+                <button class="btn-discard-ticket" @click="discardSale(s.id)" :title="t('pos.modal.discard')">
                   <Trash2 :size="15" />
                 </button>
               </div>
@@ -794,881 +809,556 @@ const proceedToCheckout = () => {
 </template>
 
 <style scoped>
+/* ============================================================
+   STATIONERY POS — MINIMALISTIC LIGHT & DARK MODE (FEW COLORS)
+   ============================================================ */
 .stationery-workspace {
+  --p-bg: #0b0f19;
+  --p-surface: #111827;
+  --p-card: #161f30;
+  --p-elevated: #1e293b;
+  --p-input: #0f1623;
+  --p-border: rgba(255, 255, 255, 0.08);
+  --p-border-strong: rgba(255, 255, 255, 0.16);
+  --p-text: #f8fafc;
+  --p-text-sec: #cbd5e1;
+  --p-text-muted: #94a3b8;
+  --p-accent: #6366f1;
+  --p-accent-hover: #4f46e5;
+  --p-accent-soft: rgba(99, 102, 241, 0.15);
+  --p-positive: #10b981;
+  --p-positive-soft: rgba(16, 185, 129, 0.14);
+  --p-danger: #f43f5e;
+  --p-danger-soft: rgba(244, 63, 94, 0.14);
+  --p-shadow: 0 2px 14px rgba(0, 0, 0, 0.28);
+
   display: grid;
-  grid-template-columns: 1fr 420px;
-  gap: 1.5rem;
-  height: 100%;
-  padding: 1.25rem 1.75rem;
-  overflow: hidden;
+  grid-template-columns: minmax(0, 1fr) 390px;
+  gap: 20px;
+  padding: 20px;
+  min-height: 100vh;
+  background: var(--p-bg);
+  color: var(--p-text);
+  align-items: start;
+}
+
+.stationery-workspace[data-theme="light"] {
+  --p-bg: #f6f8fb;
+  --p-surface: #ffffff;
+  --p-card: #ffffff;
+  --p-elevated: #f1f5f9;
+  --p-input: #ffffff;
+  --p-border: #e2e8f0;
+  --p-border-strong: #cbd5e1;
+  --p-text: #0f172a;
+  --p-text-sec: #334155;
+  --p-text-muted: #64748b;
+  --p-accent: #4f46e5;
+  --p-accent-hover: #4338ca;
+  --p-accent-soft: #eef2ff;
+  --p-positive: #059669;
+  --p-positive-soft: #ecfdf5;
+  --p-danger: #e11d48;
+  --p-danger-soft: #fff1f2;
+  --p-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 6px 20px rgba(15, 23, 42, 0.03);
 }
 
 /* LEFT CATALOG SECTION */
 .catalog-section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  overflow: hidden;
+  gap: 16px;
+  min-width: 0;
 }
 
-/* TOP TOOLBAR: SELLING MODE & QUICK ACTIONS */
 .pos-top-toolbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  justify-content: space-between;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
 .selling-mode-toggle {
-  display: flex;
-  background: rgba(15, 23, 42, 0.6);
-  padding: 0.25rem;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  gap: 0.35rem;
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  gap: 4px;
+  box-shadow: var(--p-shadow);
 }
 
 .mode-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  padding: 0.45rem 0.85rem;
-  border-radius: 8px;
-  font-size: 0.825rem;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  font-size: 0.82rem;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
+  background: transparent;
+  color: var(--p-text-muted);
+  transition: all 0.16s ease;
+}
+
+.mode-btn:hover {
+  color: var(--p-text);
 }
 
 .mode-btn.active {
-  background: rgba(16, 185, 129, 0.2);
-  color: #34d399;
-}
-
-.wholesale-btn.active {
-  background: rgba(59, 130, 246, 0.25) !important;
-  color: #60a5fa !important;
+  background: var(--p-accent);
+  color: #ffffff;
 }
 
 .quick-nav-actions {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .btn-quick-nav {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  background: rgba(30, 41, 59, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #cbd5e1;
-  padding: 0.45rem 0.75rem;
-  border-radius: 8px;
-  font-size: 0.775rem;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.8rem;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  color: var(--p-text-sec);
+  transition: all 0.16s ease;
 }
 
 .btn-quick-nav:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
-  transform: translateY(-1px);
+  border-color: var(--p-border-strong);
+  color: var(--p-text);
+  background: var(--p-elevated);
 }
 
-.text-indigo { color: #818cf8; }
-.text-rose { color: #fb7185; }
-.text-amber { color: #fbbf24; }
-.text-emerald { color: #34d399; }
-.text-blue { color: #60a5fa; }
-
-/* WHOLESALE ALERT BANNER */
 .wholesale-banner {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  background: rgba(37, 99, 235, 0.12);
-  border: 1px solid rgba(37, 99, 235, 0.3);
-  border-radius: 10px;
-  padding: 0.65rem 1rem;
-}
-
-.ws-banner-text {
-  font-size: 0.825rem;
-  color: #bfdbfe;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--p-accent-soft);
+  border: 1px solid var(--p-accent);
+  color: var(--p-text);
+  font-size: 0.84rem;
 }
 
 .ws-alert-highlight {
-  color: #facc15;
-  font-weight: 600;
-  margin-left: 0.35rem;
-}
-
-/* WHOLESALE PRICING IN CARDS */
-.wholesale-price-box {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.ws-tag-pill {
-  font-size: 0.65rem;
-  font-weight: 800;
-  color: #60a5fa;
-  background: rgba(37, 99, 235, 0.2);
-  padding: 0.15rem 0.4rem;
-  border-radius: 4px;
-  width: fit-content;
-}
-
-.ws-price-row {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-}
-
-.retail-cross {
-  font-size: 0.75rem;
-  color: #64748b;
-  text-decoration: line-through;
-}
-
-/* TICKET HEADER BUTTONS */
-.btn-ticket-nav {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #94a3b8;
-  padding: 0.4rem 0.65rem;
-  border-radius: 8px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-ticket-nav:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #f1f5f9;
-}
-
-.has-held-badge {
-  background: rgba(245, 158, 11, 0.2) !important;
-  color: #fbbf24 !important;
-  border-color: #f59e0b !important;
-}
-
-.btn-hold {
-  color: #fbbf24;
-}
-
-.btn-quote {
-  color: #818cf8;
-}
-
-/* HOLD SALE MODAL */
-.hold-dialog-card {
-  background: #0f172a;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  width: 100%;
-  max-width: 480px;
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.hold-dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.dialog-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.dialog-title h3 {
-  font-size: 1.1rem;
-  color: #f1f5f9;
-  margin: 0;
-}
-
-.hold-dialog-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.dialog-desc {
-  font-size: 0.85rem;
-  color: #94a3b8;
-  margin: 0;
-}
-
-.field-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #cbd5e1;
-}
-
-.styled-hold-input {
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: white;
-  border-radius: 8px;
-  padding: 0.65rem 0.85rem;
-  font-size: 0.875rem;
-  outline: none;
-}
-
-.styled-hold-input:focus { border-color: #f59e0b; }
-
-.hold-dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-}
-
-.btn-cancel-modal {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #cbd5e1;
-  padding: 0.55rem 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.btn-confirm-hold {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: #d97706;
-  color: white;
-  border: none;
-  padding: 0.55rem 1.2rem;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-confirm-hold:hover { background: #b45309; }
-
-/* HELD TICKETS MODAL */
-.held-tickets-modal {
-  background: #0f172a;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  width: 100%;
-  max-width: 650px;
-  max-height: 85vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.held-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.held-title-box {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.held-title-box h3 {
-  font-size: 1.15rem;
-  color: #f1f5f9;
-  margin: 0;
-}
-
-.held-body-scroll {
-  padding: 1.25rem 1.5rem;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.held-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 1rem;
-  text-align: center;
-  color: #64748b;
-}
-
-.held-empty-state h4 {
-  color: #cbd5e1;
-  margin: 0.75rem 0 0.25rem;
-}
-
-.held-cards-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
-.held-ticket-card {
-  background: rgba(30, 41, 59, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 1rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.card-top-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.held-id {
-  font-family: monospace;
+  color: var(--p-danger);
   font-weight: 700;
-  color: #fbbf24;
-  font-size: 0.9rem;
+  margin-left: 4px;
 }
 
-.held-time {
-  font-size: 0.75rem;
-  color: #64748b;
-}
-
-.held-note-box {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.note-text {
-  font-size: 0.9rem;
-  color: #f1f5f9;
-}
-
-.cust-tag {
-  background: rgba(6, 182, 212, 0.15);
-  color: #22d3ee;
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  font-size: 0.725rem;
-}
-
-.held-items-preview {
-  font-size: 0.785rem;
-  color: #94a3b8;
-}
-
-.held-total-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(15, 23, 42, 0.5);
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  margin-top: 0.25rem;
-}
-
-.total-lbl { font-size: 0.8rem; color: #94a3b8; }
-.total-val { font-size: 0.95rem; font-weight: 800; color: #38bdf8; }
-
-.held-actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.35rem;
-}
-
-.btn-resume-ticket {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  background: #0284c7;
-  color: white;
-  border: none;
-  padding: 0.5rem;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 0.825rem;
-  cursor: pointer;
-}
-
-.btn-resume-ticket:hover { background: #0369a1; }
-
-.btn-discard-ticket {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #f87171;
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
+/* Search & Barcode Row */
 .search-toolbar {
   display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1.7fr) minmax(200px, 1fr);
+  gap: 12px;
 }
 
-.search-input-box, .barcode-input-box {
+.search-input-box,
+.barcode-input-box {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  background: rgba(18, 24, 38, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--p-input);
+  border: 1px solid var(--p-border-strong);
   border-radius: 12px;
-  padding: 0.6rem 1rem;
-  backdrop-filter: blur(10px);
+  padding: 0 12px;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
-.search-input-box:focus-within {
-  border-color: #06b6d4;
-  box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
-}
-
+.search-input-box:focus-within,
 .barcode-input-box:focus-within {
-  border-color: #10b981;
-  box-shadow: 0 0 15px rgba(16, 185, 129, 0.25);
+  border-color: var(--p-accent);
+  box-shadow: 0 0 0 3px var(--p-accent-soft);
 }
 
 .input-icon {
-  color: #94a3b8;
-}
-
-.barcode-icon {
-  color: #10b981;
+  color: var(--p-text-muted);
+  flex-shrink: 0;
 }
 
 .text-input {
-  background: transparent;
+  width: 100%;
+  padding: 11px 10px;
   border: none;
   outline: none;
-  color: #f1f5f9;
-  font-size: 0.95rem;
-  width: 100%;
+  background: transparent;
+  color: var(--p-text);
+  font-size: 0.88rem;
+  font-family: inherit;
+}
+
+.text-input::placeholder {
+  color: var(--p-text-muted);
 }
 
 .clear-input-btn {
   background: transparent;
-  border: none;
-  color: #64748b;
-  cursor: pointer;
+  color: var(--p-text-muted);
+  padding: 4px;
 }
 
-/* Category Chips */
+/* Category Pills */
 .categories-strip {
   display: flex;
-  gap: 0.6rem;
+  align-items: center;
+  gap: 8px;
   overflow-x: auto;
-  padding-bottom: 0.25rem;
+  padding-bottom: 2px;
 }
 
 .cat-chip {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.45rem 0.9rem;
-  background: rgba(30, 41, 59, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
-  color: #94a3b8;
-  font-size: 0.85rem;
-  cursor: pointer;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  color: var(--p-text-sec);
   white-space: nowrap;
-  transition: all 0.2s;
+  transition: all 0.16s ease;
 }
 
 .cat-chip:hover {
-  background: rgba(30, 41, 59, 0.8);
-  color: #f8fafc;
+  border-color: var(--p-border-strong);
+  color: var(--p-text);
 }
 
 .cat-chip.active {
-  background: rgba(6, 182, 212, 0.2);
-  border-color: #06b6d4;
-  color: #22d3ee;
-  font-weight: 600;
+  background: var(--p-accent);
+  border-color: var(--p-accent);
+  color: #ffffff;
 }
 
-/* Products Grid */
+/* Products Grid & Empty State */
 .products-container {
   flex: 1;
-  overflow-y: auto;
-  padding-right: 0.5rem;
+}
+
+.state-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  min-height: 360px;
+  max-width: 440px;
+  margin: 28px auto;
+  padding: 40px 28px;
+  border-radius: 20px;
+  background: var(--p-surface);
+  border: 1px dashed var(--p-border-strong);
+}
+
+.empty-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--p-elevated);
+  color: var(--p-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.state-placeholder h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--p-text);
+}
+
+.state-placeholder p {
+  font-size: 0.85rem;
+  color: var(--p-text-muted);
+  line-height: 1.5;
+}
+
+.btn-empty-cta {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  background: var(--p-accent);
+  color: #ffffff;
+}
+
+.btn-empty-cta:hover {
+  background: var(--p-accent-hover);
 }
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  gap: 14px;
 }
 
 .product-card {
+  background: var(--p-card);
+  border: 1px solid var(--p-border);
+  border-radius: 16px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  background: rgba(18, 24, 38, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 1rem;
-  transition: all 0.25s ease;
-  backdrop-filter: blur(12px);
+  gap: 10px;
+  box-shadow: var(--p-shadow);
+  transition: transform 0.16s ease, border-color 0.16s ease;
 }
 
 .product-card:hover {
-  transform: translateY(-3px);
-  border-color: rgba(6, 182, 212, 0.4);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  transform: translateY(-2px);
+  border-color: var(--p-accent);
 }
 
-.card-pack {
-  border-left: 3px solid #06b6d4;
+.product-card.out-of-stock {
+  opacity: 0.55;
 }
 
-.card-low-stock {
-  border-color: rgba(245, 158, 11, 0.4);
+.product-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
 }
 
-.card-header {
-  margin-bottom: 0.75rem;
+.sku-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: monospace;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--p-elevated);
+  color: var(--p-text-muted);
+}
+
+.stock-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--p-positive-soft);
+  color: var(--p-positive);
+}
+
+.stock-badge.low,
+.stock-badge.out {
+  background: var(--p-danger-soft);
+  color: var(--p-danger);
 }
 
 .product-name {
-  color: #f8fafc;
-  font-size: 0.95rem;
-  font-weight: 600;
-  margin: 0 0 0.25rem 0;
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: var(--p-text);
   line-height: 1.3;
 }
 
-.sku-tag {
+.product-category {
   font-size: 0.75rem;
-  color: #64748b;
-  font-family: monospace;
+  color: var(--p-text-muted);
 }
 
-.card-badges {
+.product-price-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-top: 0.5rem;
-}
-
-.badge-low-stock {
-  font-size: 0.7rem;
-  font-weight: 600;
-  background: rgba(245, 158, 11, 0.2);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  padding: 0.15rem 0.5rem;
-  border-radius: 6px;
-}
-
-.badge-pack-ratio {
-  font-size: 0.7rem;
-  font-weight: 600;
-  background: rgba(6, 182, 212, 0.15);
-  color: #22d3ee;
-  border: 1px solid rgba(6, 182, 212, 0.3);
-  padding: 0.15rem 0.5rem;
-  border-radius: 6px;
-}
-
-/* Pricing Breakdown */
-.price-breakdown {
-  background: rgba(15, 23, 42, 0.6);
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
-  margin-bottom: 0.75rem;
-}
-
-.pack-price-row, .unit-price-row {
-  display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  align-items: center;
-  font-size: 0.85rem;
-}
-
-.price-label {
-  color: #94a3b8;
-}
-
-.price-amount {
-  color: #10b981;
-  font-weight: 700;
-  font-size: 1rem;
-}
-
-.unit-price-row {
-  margin-top: 0.25rem;
-  padding-top: 0.25rem;
-  border-top: 1px dashed rgba(255, 255, 255, 0.08);
-}
-
-.unit-amount {
-  color: #38bdf8;
-  font-weight: 600;
-}
-
-/* Stock Meter */
-.stock-meter {
-  margin-bottom: 0.75rem;
-}
-
-.meter-bar {
-  height: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
-  overflow: hidden;
-  margin-bottom: 0.25rem;
-}
-
-.meter-fill {
-  height: 100%;
-  border-radius: 2px;
-}
-
-.fill-good {
-  background: #10b981;
-}
-
-.fill-warning {
-  background: #f59e0b;
-}
-
-.stock-text {
-  font-size: 0.72rem;
-  color: #64748b;
-}
-
-/* Action Buttons */
-.card-actions {
-  display: grid;
-  gap: 0.5rem;
   margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid var(--p-border);
 }
 
-.card-actions:has(.btn-unit) {
-  grid-template-columns: 1.2fr 1fr;
+.price-value {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--p-text);
+  font-variant-numeric: tabular-nums;
 }
 
-.btn-action {
+.product-actions {
   display: flex;
+  gap: 6px;
+}
+
+.btn-add-pack,
+.btn-add-unit,
+.btn-action {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 9px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.6rem;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
+  gap: 5px;
 }
 
+.btn-add-pack,
 .btn-standard {
-  background: linear-gradient(135deg, #0284c7, #0369a1);
-  color: white;
+  background: var(--p-accent);
+  color: #ffffff;
 }
 
-.btn-standard:hover {
-  background: linear-gradient(135deg, #0369a1, #075985);
+.btn-add-pack:hover:not(:disabled),
+.btn-standard:hover:not(:disabled) {
+  background: var(--p-accent-hover);
 }
 
-.btn-pack {
-  background: rgba(6, 182, 212, 0.2);
-  color: #22d3ee;
-  border: 1px solid rgba(6, 182, 212, 0.4);
+.btn-add-unit {
+  background: var(--p-elevated);
+  border: 1px solid var(--p-border);
+  color: var(--p-text-sec);
 }
 
-.btn-pack:hover {
-  background: rgba(6, 182, 212, 0.35);
+.btn-add-unit:hover:not(:disabled) {
+  border-color: var(--p-border-strong);
+  color: var(--p-text);
 }
 
-.btn-unit {
-  background: rgba(16, 185, 129, 0.2);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.4);
-}
-
-.btn-unit:hover {
-  background: rgba(16, 185, 129, 0.35);
-}
-
-/* RIGHT TICKET SECTION */
+/* RIGHT PANEL: ORDER TICKET / CART (Fully Light & Dark Themed!) */
 .ticket-section {
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: 20px;
+  box-shadow: var(--p-shadow);
   display: flex;
   flex-direction: column;
-  background: rgba(18, 24, 38, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+  min-height: calc(100vh - 40px);
+  position: sticky;
+  top: 20px;
   overflow: hidden;
-  backdrop-filter: blur(16px);
+  color: var(--p-text);
 }
 
 .ticket-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--p-border);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 1.1rem 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(15, 23, 42, 0.6);
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--p-surface);
+  flex-wrap: wrap;
 }
 
 .header-title-box {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 10px;
 }
 
 .header-icon {
-  color: #06b6d4;
+  color: var(--p-accent);
 }
 
 .header-title-box h3 {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--p-text);
   margin: 0;
-  font-size: 1.1rem;
-  color: #f8fafc;
 }
 
 .ticket-subtitle {
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--p-text-muted);
 }
 
 .ticket-header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.btn-quick-sales {
-  display: flex;
-  align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: rgba(6, 182, 212, 0.15);
-  color: #22d3ee;
-  border: 1px solid rgba(6, 182, 212, 0.35);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  flex-wrap: wrap;
 }
 
-.btn-quick-sales:hover {
-  background: rgba(6, 182, 212, 0.28);
-  border-color: #22d3ee;
-  color: #fff;
-  transform: translateY(-1px);
-}
-
+.btn-ticket-nav,
+.btn-quick-sales,
 .btn-clear {
-  background: transparent;
-  border: none;
-  color: #ef4444;
-  cursor: pointer;
-  padding: 0.4rem;
-  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  background: var(--p-elevated);
+  border: 1px solid var(--p-border);
+  color: var(--p-text-sec);
+  transition: all 0.16s ease;
 }
 
+.btn-ticket-nav:hover,
+.btn-quick-sales:hover,
 .btn-clear:hover {
-  background: rgba(239, 68, 68, 0.15);
+  border-color: var(--p-border-strong);
+  color: var(--p-text);
 }
 
-/* Management Oversight Banner */
 .management-oversight-banner {
+  margin: 14px 16px 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--p-elevated);
+  border: 1px solid var(--p-border);
+  font-size: 0.78rem;
+  color: var(--p-text-sec);
   display: flex;
+  gap: 10px;
   align-items: flex-start;
-  gap: 12px;
-  background: rgba(6, 182, 212, 0.1);
-  border-bottom: 1px solid rgba(6, 182, 212, 0.25);
-  padding: 12px 16px;
-  color: #a5f3fc;
 }
 
-.management-oversight-banner .oversight-icon {
-  color: #22d3ee;
+.oversight-icon {
+  color: var(--p-accent);
   flex-shrink: 0;
   margin-top: 2px;
 }
 
-.oversight-text {
-  font-size: 11.5px;
-  line-height: 1.45;
-}
-
 .oversight-title {
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #67e8f9;
-  margin-bottom: 2px;
+  font-weight: 700;
+  color: var(--p-text);
+  margin-bottom: 3px;
 }
 
 .oversight-desc {
-  color: #cbd5e1;
+  line-height: 1.45;
+  color: var(--p-text-muted);
 }
 
-.management-oversight-banner.clerk-banner {
-  background: rgba(99, 102, 241, 0.12);
-  border-bottom: 1px solid rgba(99, 102, 241, 0.3);
-  color: #c7d2fe;
-}
-
-.management-oversight-banner.clerk-banner .oversight-icon {
-  color: #a5b4fc;
-}
-
-.management-oversight-banner.clerk-banner .oversight-title {
-  color: #c7d2fe;
+.oversight-desc strong {
+  color: var(--p-text);
 }
 
 .btn-banner-action {
-  margin-top: 8px;
+  margin-top: 10px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #6366f1;
-  color: #ffffff;
-  border: none;
-  padding: 6px 12px;
+  padding: 7px 12px;
   border-radius: 8px;
-  font-size: 11px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all 0.15s ease;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: var(--p-accent);
+  color: #ffffff;
 }
 
-.btn-banner-action:hover {
-  background: #4f46e5;
-}
-
-/* Customer Credit Bar */
 .customer-credit-bar {
-  padding: 0.75rem 1.25rem;
-  background: rgba(15, 23, 42, 0.4);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 14px 16px 0;
 }
 
 .btn-attach-customer {
@@ -1676,38 +1366,35 @@ const proceedToCheckout = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.6rem;
-  background: rgba(6, 182, 212, 0.1);
-  border: 1px dashed rgba(6, 182, 212, 0.4);
-  border-radius: 10px;
-  color: #22d3ee;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 11px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: var(--p-elevated);
+  border: 1px dashed var(--p-border-strong);
+  color: var(--p-text-sec);
+  transition: all 0.16s ease;
 }
 
 .btn-attach-customer:hover {
-  background: rgba(6, 182, 212, 0.2);
+  border-color: var(--p-accent);
+  color: var(--p-accent);
 }
 
 .selected-customer-card {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  background: rgba(6, 182, 212, 0.15);
-  border: 1px solid rgba(6, 182, 212, 0.35);
-  border-radius: 10px;
-  padding: 0.6rem 0.8rem;
-}
-
-.customer-avatar {
-  color: #06b6d4;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: var(--p-accent-soft);
+  border: 1px solid var(--p-accent);
 }
 
 .customer-meta {
   flex: 1;
+  min-width: 0;
 }
 
 .customer-name-row {
@@ -1716,358 +1403,428 @@ const proceedToCheckout = () => {
   align-items: center;
 }
 
-.cust-name {
-  color: #f1f5f9;
-  font-size: 0.9rem;
-}
-
-.btn-remove-cust {
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-}
-
-.btn-remove-cust:hover {
-  color: #ef4444;
-}
-
 .customer-financials {
   display: flex;
-  gap: 0.75rem;
-  font-size: 0.75rem;
-  margin-top: 0.15rem;
+  gap: 10px;
+  font-size: 0.74rem;
+  color: var(--p-text-muted);
+  margin-top: 2px;
 }
 
-.owed-text {
-  color: #f59e0b;
-}
-
-.avail-text {
-  color: #10b981;
-}
-
-/* Items Scroll */
 .ticket-items-scroll {
   flex: 1;
+  padding: 16px;
   overflow-y: auto;
-  padding: 0.75rem 1.25rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .ticket-empty {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 3rem 1rem;
-  color: #64748b;
+  gap: 8px;
+  padding: 36px 20px;
+  color: var(--p-text-muted);
 }
 
 .empty-cart-icon {
-  margin-bottom: 0.75rem;
-  opacity: 0.4;
+  opacity: 0.45;
+  margin-bottom: 4px;
+}
+
+.ticket-empty h4 {
+  color: var(--p-text);
+  font-size: 0.94rem;
+  font-weight: 700;
+}
+
+.ticket-empty p {
+  font-size: 0.8rem;
+  max-width: 240px;
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .ticket-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: var(--p-elevated);
+  border: 1px solid var(--p-border);
+  display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 10px;
 }
 
 .row-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .row-title-line {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .row-title {
-  color: #f1f5f9;
-  font-size: 0.88rem;
-  font-weight: 500;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--p-text);
 }
 
 .sale-type-pill {
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-}
-
-.pill-pack {
-  background: rgba(6, 182, 212, 0.2);
-  color: #22d3ee;
-}
-
-.pill-unit {
-  background: rgba(16, 185, 129, 0.2);
-  color: #34d399;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  color: var(--p-text-muted);
 }
 
 .row-price {
-  font-size: 0.75rem;
-  color: #94a3b8;
+  font-size: 0.74rem;
+  color: var(--p-text-muted);
+  margin-top: 2px;
 }
 
-/* Stepper */
 .stepper {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  background: rgba(15, 23, 42, 0.6);
+  gap: 6px;
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
   border-radius: 8px;
-  padding: 0.2rem;
+  padding: 3px 6px;
 }
 
 .step-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: none;
-  color: #f1f5f9;
   width: 22px;
   height: 22px;
   border-radius: 6px;
+  background: transparent;
+  color: var(--p-text);
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
 }
 
 .step-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--p-elevated);
 }
 
 .step-value {
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.82rem;
+  font-weight: 700;
   min-width: 18px;
   text-align: center;
-  color: #f8fafc;
 }
 
 .row-subtotal {
-  font-size: 0.9rem;
+  font-size: 0.84rem;
   font-weight: 700;
-  color: #10b981;
-  min-width: 70px;
-  text-align: right;
+  color: var(--p-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .btn-remove-row {
   background: transparent;
-  border: none;
-  color: #64748b;
-  cursor: pointer;
-  padding: 0.2rem;
+  color: var(--p-text-muted);
+  padding: 4px;
 }
 
 .btn-remove-row:hover {
-  color: #ef4444;
+  color: var(--p-danger);
 }
 
-/* Ticket Footer */
 .ticket-footer {
-  padding: 1.25rem;
-  background: rgba(15, 23, 42, 0.75);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px 20px 20px;
+  border-top: 1px solid var(--p-border);
+  background: var(--p-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .totals-breakdown {
-  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .summary-line {
   display: flex;
   justify-content: space-between;
-  font-size: 0.85rem;
-  color: #94a3b8;
-  margin-bottom: 0.4rem;
+  font-size: 0.84rem;
+  color: var(--p-text-muted);
 }
 
 .grand-total-line {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #f8fafc;
-  margin-top: 0.6rem;
-  padding-top: 0.6rem;
-  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--p-text);
+  align-items: baseline;
 }
 
 .grand-total-amount {
-  color: #22d3ee;
-  font-size: 1.35rem;
+  font-size: 1.25rem;
+  color: var(--p-accent);
+  font-variant-numeric: tabular-nums;
 }
 
 .btn-checkout {
   width: 100%;
-  display: flex;
+  padding: 13px 18px;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  background: var(--p-accent);
+  color: #ffffff;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
-  padding: 0.85rem;
-  background: linear-gradient(135deg, #0891b2, #0e7490);
-  border: none;
-  border-radius: 12px;
-  color: white;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 15px rgba(8, 145, 178, 0.35);
+  gap: 8px;
+  transition: all 0.18s ease;
 }
 
 .btn-checkout:hover:not(:disabled) {
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  background: var(--p-accent-hover);
   transform: translateY(-1px);
 }
 
 .btn-checkout:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
-/* MODAL BACKDROP & DIALOG */
-.modal-backdrop {
+/* Sub-modals (Customer Picker, Held Sales, Hold Note) */
+.modal-backdrop,
+.submodal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
+  z-index: 2200;
+  background: rgba(6, 10, 20, 0.65);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  padding: 16px;
 }
 
-.customer-picker-dialog {
-  background: #111827;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
-  width: 90%;
-  max-width: 520px;
-  max-height: 80vh;
+.customer-picker-dialog,
+.hold-dialog-card,
+.held-tickets-modal,
+.picker-modal,
+.hold-modal,
+.held-drawer {
+  width: 100%;
+  max-width: 500px;
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: 18px;
+  padding: 20px;
+  color: var(--p-text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  gap: 14px;
 }
 
-.picker-header {
+.picker-header,
+.hold-dialog-header,
+.held-header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  padding: 1.1rem 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--p-border);
 }
 
-.picker-title-box {
+.picker-title-box,
+.dialog-title,
+.held-title-box {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 10px;
+  color: var(--p-text);
 }
 
-.picker-title-box h3 {
+.picker-title-box h3,
+.dialog-title h3,
+.held-title-box h3 {
+  font-size: 1rem;
+  font-weight: 800;
   margin: 0;
-  color: #f8fafc;
-  font-size: 1.1rem;
+  color: var(--p-text);
 }
 
 .btn-close-modal {
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--p-elevated);
+  border: 1px solid var(--p-border);
+  color: var(--p-text-sec);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .picker-search-bar {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.8rem 1.25rem;
-  background: rgba(15, 23, 42, 0.6);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--p-input);
+  border: 1px solid var(--p-border-strong);
 }
 
-.picker-search-input {
-  background: transparent;
+.picker-search-input,
+.styled-hold-input {
+  width: 100%;
+  padding: 10px 4px;
   border: none;
   outline: none;
-  color: #f1f5f9;
-  font-size: 0.9rem;
-  width: 100%;
+  background: transparent;
+  color: var(--p-text);
+  font-size: 0.88rem;
 }
 
-.picker-customers-list {
-  flex: 1;
+.styled-hold-input {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--p-input);
+  border: 1px solid var(--p-border-strong);
+  margin-top: 6px;
+}
+
+.picker-customers-list,
+.held-body-scroll {
+  max-height: 340px;
   overflow-y: auto;
-  padding: 0.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.picker-cust-row {
+.picker-cust-row,
+.held-ticket-card {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--p-elevated);
+  border: 1px solid var(--p-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 0.8rem;
-  border-radius: 10px;
+  gap: 10px;
   cursor: pointer;
-  transition: all 0.2s;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.held-ticket-card {
+  flex-direction: column;
+  align-items: stretch;
+  cursor: default;
 }
 
 .picker-cust-row:hover {
-  background: rgba(6, 182, 212, 0.15);
+  border-color: var(--p-accent);
 }
 
-.cust-main {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.cust-main strong {
-  color: #f8fafc;
-  font-size: 0.92rem;
-}
-
-.cust-contact {
-  font-size: 0.75rem;
-  color: #94a3b8;
-}
-
-.cust-limits {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.25rem;
-}
-
-.badge-limit {
-  font-size: 0.72rem;
-  color: #94a3b8;
-}
-
-.badge-balance {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #10b981;
-}
-
-.badge-balance.has-debt {
-  color: #f59e0b;
-}
-
-.picker-empty {
-  padding: 2rem;
+.picker-empty,
+.held-empty-state {
   text-align: center;
-  color: #64748b;
-  font-size: 0.9rem;
+  padding: 32px 16px;
+  color: var(--p-text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.held-empty-state h4 {
+  color: var(--p-text);
+  font-size: 0.95rem;
+}
+
+.hold-dialog-footer,
+.held-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.btn-cancel-modal {
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  background: var(--p-elevated);
+  border: 1px solid var(--p-border);
+  color: var(--p-text-sec);
+}
+
+.btn-confirm-hold,
+.btn-resume-ticket {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  background: var(--p-accent);
+  color: #ffffff;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--p-border-strong);
+  border-top-color: var(--p-accent);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 1080px) {
+  .stationery-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .ticket-section {
+    position: static;
+    min-height: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .stationery-workspace {
+    padding: 12px;
+  }
+
+  .search-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .products-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
