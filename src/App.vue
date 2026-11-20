@@ -4,6 +4,7 @@ import { store } from './store'
 import api from './api'
 
 import SidebarNav from './components/SidebarNav.vue'
+import WorkspaceContextBar from './components/WorkspaceContextBar.vue'
 import BarPos from './components/BarPos.vue'
 import StationeryPos from './components/StationeryPos.vue'
 import StationeryDashboard from './components/StationeryDashboard.vue'
@@ -86,6 +87,9 @@ onMounted(() => {
 
     <!-- Main Workspace (Right) -->
     <main class="main-workspace">
+      <!-- Top Minimalistic Active Business & Branch Context Bar -->
+      <WorkspaceContextBar />
+
       <!-- Full-Workspace Pages (All Sidebar Navigation Views) -->
       <div
         v-if="[
@@ -107,6 +111,7 @@ onMounted(() => {
           'account_settings',
           'shift'
         ].includes(store.activeModal)"
+        :key="`${store.activeUnit}-${store.activeBranchId}`"
         class="workspace-page-wrap"
       >
         <CatalogManagementModal
@@ -180,13 +185,13 @@ onMounted(() => {
       </div>
 
       <!-- Stationery POS Counter View -->
-      <StationeryPos v-else-if="store.activeUnit === 'stationery' && store.activeModal === 'stationery_pos'" />
+      <StationeryPos v-else-if="store.activeUnit === 'stationery' && store.activeModal === 'stationery_pos'" :key="`pos-${store.activeBranchId}`" />
 
       <!-- Stationery Role-Aware Dashboard (Default Landing Page for Stationery) -->
-      <StationeryDashboard v-else-if="store.activeUnit === 'stationery'" />
+      <StationeryDashboard v-else-if="store.activeUnit === 'stationery'" :key="`dash-${store.activeBranchId}`" />
 
       <!-- Bar & Lounge POS View -->
-      <BarPos v-else />
+      <BarPos v-else :key="`bar-${store.activeBranchId}`" />
     </main>
 
     <!-- Modals & Overlays -->

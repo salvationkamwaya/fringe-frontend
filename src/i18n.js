@@ -54,6 +54,11 @@ export const translations = {
     'common.viewAll': 'View All',
     'common.allInventory': 'All Inventory',
     'common.language': 'Language',
+    'ctx.business': 'Business',
+    'ctx.branch': 'Active Branch',
+    'ctx.allBranches': 'All Branches',
+    'ctx.switchBranch': 'Switch Branch',
+    'ctx.combinedScope': 'All Businesses & Branches',
 
     // Dashboard
     'dash.morning': 'Good morning',
@@ -486,6 +491,11 @@ export const translations = {
     'common.viewAll': 'Tazama Zote',
     'common.allInventory': 'Stoo Yote',
     'common.language': 'Lugha',
+    'ctx.business': 'Biashara',
+    'ctx.branch': 'Tawi la Sasa',
+    'ctx.allBranches': 'Matawi Yote',
+    'ctx.switchBranch': 'Badilisha Tawi',
+    'ctx.combinedScope': 'Biashara na Matawi Yote',
 
     // Dashboard
     'dash.morning': 'Habari za asubuhi',

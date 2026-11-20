@@ -315,11 +315,27 @@ export const store = reactive({
   async fetchBranches() {
     if (!store.isAuthenticated) return
     try {
-      const response = await api.get('/core/branches/')
+      const config = store.user?.role === 'owner' ? { headers: { 'X-Business-Unit': 'all' } } : {}
+      const response = await api.get('/core/branches/', config)
       store.branches = response.data || []
       if (store.user?.role === 'owner') {
         const saved = localStorage.getItem('fringe_active_branch') || 'all'
-        store.activeBranchId = saved
+        if (store.activeUnit === 'all') {
+          store.activeBranchId = 'all'
+        } else {
+          const unitBranches = store.branches.filter(
+            b => (b.business_unit_id || b.business_unit) === store.activeUnit && b.is_active !== false
+          )
+          const matchesSaved = unitBranches.some(b => String(b.id) === String(saved))
+          if (matchesSaved) {
+            store.activeBranchId = saved
+          } else if (unitBranches.length > 0) {
+            store.activeBranchId = String(unitBranches[0].id)
+            localStorage.setItem('fringe_active_branch', store.activeBranchId)
+          } else {
+            store.activeBranchId = 'all'
+          }
+        }
       } else {
         store.activeBranchId = store.user?.branch || null
       }
@@ -354,6 +370,18 @@ export const store = reactive({
     if (!store.isOwner) return
     store.activeUnit = unitId
     localStorage.setItem('fringe_active_unit', unitId)
+    if (unitId === 'all') {
+      store.activeBranchId = 'all'
+    } else {
+      const unitBranches = (store.branches || []).filter(
+        b => (b.business_unit_id || b.business_unit) === unitId && b.is_active !== false
+      )
+      const currentValid = unitBranches.some(b => String(b.id) === String(store.activeBranchId))
+      if (!currentValid) {
+        store.activeBranchId = unitBranches.length > 0 ? String(unitBranches[0].id) : 'all'
+      }
+    }
+    localStorage.setItem('fringe_active_branch', store.activeBranchId || 'all')
     store.clearCart()
     store.fetchActiveShift()
     store.showToast(`Switched view to ${unitId.toUpperCase()}`, 'info')
