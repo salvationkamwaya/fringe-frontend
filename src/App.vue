@@ -33,6 +33,7 @@ import BarcodeLabelsModal from './components/BarcodeLabelsModal.vue'
 import BranchManagementModal from './components/BranchManagementModal.vue'
 import BusinessSetupModal from './components/BusinessSetupModal.vue'
 import IdleTimeoutModal from './components/IdleTimeoutModal.vue'
+import ConfirmModal from './components/ConfirmModal.vue'
 import { initIdleTracker } from './idleTracker'
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-vue-next'
 
@@ -224,6 +225,9 @@ onMounted(() => {
 
     <!-- Inactivity Auto-Logout Warning Overlay -->
     <IdleTimeoutModal v-if="store.isIdleWarningActive" />
+
+    <!-- Global Centered Confirmation Modal -->
+    <ConfirmModal />
 
     <!-- Global Rich Toast Notifications -->
     <transition name="toast-slide">

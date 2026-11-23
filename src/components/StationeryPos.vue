@@ -30,10 +30,53 @@ const holdCustomNote = ref('')
 const setSellingMode = (mode) => {
   store.stationeryMode = mode
   if (mode === 'WHOLESALE') {
-    store.showToast('🏢 Wholesale B2B Mode Active. 15% wholesale tier pricing applied. Registered customer required.', 'info')
+    store.showToast(
+      store.locale === 'sw'
+        ? 'Hali ya Jumla (B2B) Imewashwa. Punguzo la 15% limetumika.'
+        : 'Wholesale B2B Mode Active. 15% wholesale tier pricing applied. Registered customer required.',
+      'info'
+    )
   } else {
-    store.showToast('🛒 Retail Walk-in Mode Active. Standard retail counter pricing applied.', 'info')
+    store.showToast(
+      store.locale === 'sw'
+        ? 'Hali ya Rejareja Imewashwa. Bei za kawaida za rejareja zinatumika.'
+        : 'Retail Walk-in Mode Active. Standard retail counter pricing applied.',
+      'info'
+    )
   }
+}
+
+// Safe numeric pricing & formatting helpers (prevents DecimalField string .toFixed errors)
+const formatTsh = (val) => {
+  const num = Number(val)
+  if (!Number.isFinite(num)) return '0'
+  return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+}
+
+const getRetailPackPrice = (prod) => {
+  const p = parseFloat(prod?.selling_price)
+  return Number.isFinite(p) ? p : 0
+}
+
+const getPackPrice = (prod) => {
+  const base = getRetailPackPrice(prod)
+  return store.stationeryMode === 'WHOLESALE' ? base * 0.85 : base
+}
+
+const getWholesaleSavings = (prod) => {
+  return Math.max(0, getRetailPackPrice(prod) - getPackPrice(prod))
+}
+
+const getRetailSinglePrice = (prod) => {
+  const split = parseFloat(prod?.split_unit_price)
+  if (Number.isFinite(split) && split > 0) return split
+  const ratio = Math.max(1, parseInt(prod?.pack_unit_ratio || 1, 10))
+  return getRetailPackPrice(prod) / ratio
+}
+
+const getSinglePrice = (prod) => {
+  const base = getRetailSinglePrice(prod)
+  return store.stationeryMode === 'WHOLESALE' ? base * 0.85 : base
 }
 
 // Fetch catalog and categories for Stationery
@@ -369,90 +412,120 @@ const proceedToCheckout = () => {
             v-for="prod in filteredProducts" 
             :key="prod.id"
             class="product-card"
-            :class="{ 'card-pack': prod.is_pack, 'card-low-stock': prod.is_low_stock }"
+            :class="{
+              'card-pack': prod.is_pack,
+              'card-low-stock': prod.is_low_stock,
+              'card-wholesale': store.stationeryMode === 'WHOLESALE'
+            }"
           >
-            <!-- Card Header: Title & Badges -->
-            <div class="card-header">
-              <div class="product-title-group">
-                <h4 class="product-name" :title="prod.name">{{ prod.name }}</h4>
-                <div class="sku-tag" v-if="prod.sku">{{ prod.sku }}</div>
-              </div>
-
-              <!-- Badges -->
-              <div class="card-badges">
-                <span v-if="prod.is_low_stock" class="badge-low-stock" title="Low stock threshold reached">
-                  Low: {{ parseFloat(prod.stock_quantity).toFixed(0) }} left
-                </span>
-                <span v-if="prod.is_pack" class="badge-pack-ratio">
-                  {{ prod.pack_name || 'Pack' }} ({{ prod.pack_unit_ratio }} {{ prod.unit_name || 'pcs' }})
-                </span>
-              </div>
-            </div>
-
-            <!-- Pricing Breakdown -->
-            <div class="price-breakdown">
-              <div v-if="store.stationeryMode === 'WHOLESALE'" class="wholesale-price-box">
-                <div class="ws-tag-pill">WHOLESALE 15% OFF</div>
-                <div class="ws-price-row">
-                  <span class="price-amount text-blue">TSH {{ (parseFloat(prod.selling_price) * 0.85).toFixed(2) }}</span>
-                  <span class="retail-cross">TSH {{ parseFloat(prod.selling_price).toFixed(2) }}</span>
+            <!-- Top Row: Product Title, SKU & Compact Badges -->
+            <div class="pcard-head">
+              <div class="pcard-title-wrap">
+                <h4 class="pcard-name" :title="prod.name">{{ prod.name }}</h4>
+                <div class="pcard-meta-row">
+                  <span v-if="prod.sku" class="pcard-sku">{{ prod.sku }}</span>
+                  <span v-if="prod.is_pack" class="pcard-pack-pill">
+                    <Package :size="11" />
+                    <span>{{ prod.pack_name || 'Pack' }} · {{ prod.pack_unit_ratio }} {{ prod.unit_name || 'pcs' }}</span>
+                  </span>
                 </div>
               </div>
-              <div v-else class="pack-price-row">
-                <span class="price-label">{{ prod.is_pack ? `${prod.pack_name || 'Pack'}:` : 'Price:' }}</span>
-                <span class="price-amount">TSH {{ parseFloat(prod.selling_price).toFixed(2) }}</span>
-              </div>
-
-              <!-- Split Unit Price if applicable -->
-              <div v-if="prod.is_pack && prod.allow_split_sale" class="unit-price-row">
-                <span class="price-label">Single {{ prod.unit_name || 'Piece' }}:</span>
-                <span class="unit-amount">
-                  TSH {{ (store.stationeryMode === 'WHOLESALE' ? ((prod.split_unit_price || (prod.selling_price / prod.pack_unit_ratio)) * 0.85) : (prod.split_unit_price || (prod.selling_price / prod.pack_unit_ratio))).toFixed(2) }}
-                </span>
-              </div>
+              <span v-if="prod.is_low_stock" class="pcard-low-badge" title="Low stock threshold reached">
+                {{ store.locale === 'sw' ? 'Chache' : 'Low' }}: {{ parseFloat(prod.stock_quantity || 0).toFixed(0) }}
+              </span>
             </div>
 
-            <!-- Stock Level Indicator -->
-            <div class="stock-meter">
-              <div class="meter-bar">
+            <!-- Pricing Panel -->
+            <div class="pcard-pricing" :class="{ 'is-wholesale': store.stationeryMode === 'WHOLESALE' }">
+              <!-- Wholesale Mode Pricing -->
+              <template v-if="store.stationeryMode === 'WHOLESALE'">
+                <div class="ws-header-row">
+                  <span class="ws-discount-pill">
+                    {{ store.locale === 'sw' ? 'JUMLA -15%' : 'WHOLESALE -15%' }}
+                  </span>
+                  <span class="ws-save-text">
+                    {{ store.locale === 'sw' ? 'Okoa' : 'Save' }} TSH {{ formatTsh(getWholesaleSavings(prod)) }}
+                  </span>
+                </div>
+
+                <div class="pcard-main-price-row">
+                  <div class="pcard-price-stack">
+                    <span class="pcard-price-main">TSH {{ formatTsh(getPackPrice(prod)) }}</span>
+                    <span class="pcard-price-unit">/ {{ prod.is_pack ? (prod.pack_name || 'Pack') : (prod.unit_name || 'Unit') }}</span>
+                  </div>
+                  <span class="pcard-price-strike">TSH {{ formatTsh(getRetailPackPrice(prod)) }}</span>
+                </div>
+
+                <div v-if="prod.is_pack && prod.allow_split_sale" class="pcard-split-row">
+                  <span class="pcard-split-label">
+                    {{ store.locale === 'sw' ? 'Kipande 1' : 'Single' }} {{ prod.unit_name || 'Piece' }}
+                  </span>
+                  <div class="pcard-split-prices">
+                    <span class="pcard-split-val">TSH {{ formatTsh(getSinglePrice(prod)) }}</span>
+                    <span class="pcard-split-strike">TSH {{ formatTsh(getRetailSinglePrice(prod)) }}</span>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Retail Mode Pricing -->
+              <template v-else>
+                <div class="pcard-retail-row">
+                  <span class="pcard-retail-label">
+                    {{ prod.is_pack ? (prod.pack_name || 'Pack') : (store.locale === 'sw' ? 'Bei' : 'Price') }}
+                  </span>
+                  <span class="pcard-price-main">TSH {{ formatTsh(getPackPrice(prod)) }}</span>
+                </div>
+
+                <div v-if="prod.is_pack && prod.allow_split_sale" class="pcard-split-row">
+                  <span class="pcard-split-label">
+                    {{ store.locale === 'sw' ? 'Kipande 1' : 'Single' }} {{ prod.unit_name || 'Piece' }}
+                  </span>
+                  <span class="pcard-split-val">TSH {{ formatTsh(getSinglePrice(prod)) }}</span>
+                </div>
+              </template>
+            </div>
+
+            <!-- Stock Level Bar -->
+            <div class="pcard-stock-row">
+              <div class="pcard-meter-track">
                 <div 
-                  class="meter-fill" 
-                  :style="{ width: `${Math.min(100, (parseFloat(prod.stock_quantity) / Math.max(1, parseFloat(prod.reorder_threshold) * 3)) * 100)}%` }"
-                  :class="prod.is_low_stock ? 'fill-warning' : 'fill-good'"
+                  class="pcard-meter-fill" 
+                  :style="{ width: `${Math.min(100, (parseFloat(prod.stock_quantity || 0) / Math.max(1, parseFloat(prod.reorder_threshold || 5) * 3)) * 100)}%` }"
+                  :class="prod.is_low_stock ? 'fill-low' : 'fill-ok'"
                 ></div>
               </div>
-              <span class="stock-text">Stock: {{ parseFloat(prod.stock_quantity).toFixed(1) }} {{ prod.is_pack ? prod.pack_name + 's' : 'units' }}</span>
+              <span class="pcard-stock-label" :class="{ 'is-low': prod.is_low_stock }">
+                {{ parseFloat(prod.stock_quantity || 0).toFixed(0) }} {{ prod.is_pack ? (prod.pack_name || 'Pack') + 's' : (store.locale === 'sw' ? 'vipande' : 'units') }}
+              </span>
             </div>
 
-            <!-- Action Buttons: Pack vs Unit -->
-            <div class="card-actions">
-              <!-- If product is a pack with split selling allowed -->
+            <!-- Action Buttons -->
+            <div class="pcard-actions">
               <template v-if="prod.is_pack && prod.allow_split_sale">
                 <button 
-                  class="btn-action btn-pack" 
+                  class="btn-pcard btn-pcard-primary" 
                   @click="handleAddToCart(prod, 1, true)"
-                  title="Add 1 full pack to cart"
+                  :title="store.locale === 'sw' ? 'Ongeza pakiti 1 kamili' : 'Add 1 full pack to cart'"
                 >
                   <Package :size="14" />
-                  <span>Full {{ prod.pack_name || 'Pack' }}</span>
+                  <span>{{ store.locale === 'sw' ? 'Pakiti' : 'Full' }} {{ prod.pack_name || 'Pack' }}</span>
                 </button>
                 <button 
-                  class="btn-action btn-unit" 
+                  class="btn-pcard btn-pcard-secondary" 
                   @click="handleAddToCart(prod, 1, false)"
-                  title="Sell individual piece from this pack"
+                  :title="store.locale === 'sw' ? 'Uza kipande kimoja' : 'Sell individual piece from this pack'"
                 >
                   <Layers :size="14" />
                   <span>1 {{ prod.unit_name || 'Piece' }}</span>
                 </button>
               </template>
 
-              <!-- Standard product or pack-only sale -->
               <template v-else>
                 <button 
-                  class="btn-action btn-standard" 
+                  class="btn-pcard btn-pcard-primary" 
                   @click="handleAddToCart(prod, 1, true)"
                 >
-                  <Plus :size="16" />
+                  <Plus :size="15" />
                   <span>{{ t('pos.addToTicket') }}</span>
                 </button>
               </template>
@@ -1106,8 +1179,8 @@ const proceedToCheckout = () => {
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
 }
 
 .product-card {
@@ -1117,119 +1190,309 @@ const proceedToCheckout = () => {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   box-shadow: var(--p-shadow);
-  transition: transform 0.16s ease, border-color 0.16s ease;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .product-card:hover {
   transform: translateY(-2px);
   border-color: var(--p-accent);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.product-card.card-low-stock {
+  border-color: rgba(239, 68, 68, 0.35);
 }
 
 .product-card.out-of-stock {
   opacity: 0.55;
 }
 
-.product-card-top {
+/* Card Header */
+.pcard-head {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
+  gap: 8px;
+}
+
+.pcard-title-wrap {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
 }
 
-.sku-badge {
-  font-size: 0.7rem;
+.pcard-name {
+  margin: 0;
+  font-size: 0.96rem;
   font-weight: 700;
-  font-family: monospace;
+  color: var(--p-text);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pcard-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pcard-sku {
+  font-size: 0.69rem;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   padding: 2px 7px;
   border-radius: 6px;
   background: var(--p-elevated);
   color: var(--p-text-muted);
+  border: 1px solid var(--p-border);
 }
 
-.stock-badge {
-  font-size: 0.7rem;
-  font-weight: 700;
+.pcard-pack-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--p-positive-soft);
-  color: var(--p-positive);
+  background: var(--p-elevated);
+  color: var(--p-text-sec);
+  border: 1px solid var(--p-border);
 }
 
-.stock-badge.low,
-.stock-badge.out {
+.pcard-low-badge {
+  flex-shrink: 0;
+  font-size: 0.69rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
   background: var(--p-danger-soft);
   color: var(--p-danger);
+  white-space: nowrap;
 }
 
-.product-name {
-  font-size: 0.94rem;
+/* Pricing Panel */
+.pcard-pricing {
+  background: var(--p-elevated);
+  border: 1px solid var(--p-border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pcard-pricing.is-wholesale {
+  background: var(--p-accent-soft);
+  border-color: rgba(79, 70, 229, 0.25);
+}
+
+.ws-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.ws-discount-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--p-accent);
+  color: #ffffff;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.ws-save-text {
+  font-size: 0.71rem;
   font-weight: 700;
-  color: var(--p-text);
-  line-height: 1.3;
+  color: var(--p-positive);
+  font-variant-numeric: tabular-nums;
 }
 
-.product-category {
-  font-size: 0.75rem;
-  color: var(--p-text-muted);
-}
-
-.product-price-row {
+.pcard-main-price-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-top: auto;
-  padding-top: 6px;
-  border-top: 1px solid var(--p-border);
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.price-value {
-  font-size: 1rem;
+.pcard-price-stack {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.pcard-price-main {
+  font-size: 1.12rem;
   font-weight: 800;
+  color: var(--p-text);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.pcard-pricing.is-wholesale .pcard-price-main {
+  color: var(--p-accent);
+}
+
+.pcard-price-unit {
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: var(--p-text-muted);
+}
+
+.pcard-price-strike {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--p-text-muted);
+  text-decoration: line-through;
+  font-variant-numeric: tabular-nums;
+}
+
+.pcard-retail-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pcard-retail-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--p-text-muted);
+}
+
+.pcard-split-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--p-border-strong);
+}
+
+.pcard-split-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--p-text-sec);
+}
+
+.pcard-split-prices {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.pcard-split-val {
+  font-size: 0.84rem;
+  font-weight: 700;
   color: var(--p-text);
   font-variant-numeric: tabular-nums;
 }
 
-.product-actions {
-  display: flex;
-  gap: 6px;
+.pcard-split-strike {
+  font-size: 0.72rem;
+  color: var(--p-text-muted);
+  text-decoration: line-through;
+  font-variant-numeric: tabular-nums;
 }
 
-.btn-add-pack,
-.btn-add-unit,
-.btn-action {
+/* Stock Meter Row */
+.pcard-stock-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pcard-meter-track {
   flex: 1;
-  padding: 8px 10px;
-  border-radius: 9px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--p-elevated);
+  overflow: hidden;
+}
+
+.pcard-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+
+.pcard-meter-fill.fill-ok {
+  background: var(--p-positive);
+}
+
+.pcard-meter-fill.fill-low {
+  background: var(--p-danger);
+}
+
+.pcard-stock-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--p-text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pcard-stock-label.is-low {
+  color: var(--p-danger);
+  font-weight: 700;
+}
+
+/* Action Buttons */
+.pcard-actions {
+  margin-top: auto;
+  display: flex;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.btn-pcard {
+  flex: 1;
+  padding: 9px 10px;
+  border-radius: 10px;
   font-size: 0.78rem;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 6px;
+  white-space: nowrap;
+  transition: all 0.16s ease;
 }
 
-.btn-add-pack,
-.btn-standard {
+.btn-pcard-primary {
   background: var(--p-accent);
   color: #ffffff;
+  border: 1px solid transparent;
 }
 
-.btn-add-pack:hover:not(:disabled),
-.btn-standard:hover:not(:disabled) {
+.btn-pcard-primary:hover:not(:disabled) {
   background: var(--p-accent-hover);
 }
 
-.btn-add-unit {
-  background: var(--p-elevated);
-  border: 1px solid var(--p-border);
-  color: var(--p-text-sec);
+.btn-pcard-secondary {
+  background: var(--p-surface);
+  color: var(--p-text);
+  border: 1px solid var(--p-border-strong);
 }
 
-.btn-add-unit:hover:not(:disabled) {
-  border-color: var(--p-border-strong);
-  color: var(--p-text);
+.btn-pcard-secondary:hover:not(:disabled) {
+  border-color: var(--p-accent);
+  color: var(--p-accent);
+  background: var(--p-accent-soft);
 }
 
 /* RIGHT PANEL: ORDER TICKET / CART (Fully Light & Dark Themed!) */

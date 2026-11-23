@@ -144,7 +144,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
 
   position: sticky;
   top: 0;
-  z-index: 400;
+  z-index: 40;
   width: 100%;
   padding: 9px 24px;
   background: var(--cb-bg);
@@ -278,7 +278,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   display: flex;
   flex-direction: column;
   gap: 2px;
-  z-index: 600;
+  z-index: 60;
 }
 
 .dd-divider {

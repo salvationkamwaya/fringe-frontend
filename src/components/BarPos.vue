@@ -108,9 +108,19 @@ const handleDrinkClick = (drink, is_pack_sale = true) => {
 }
 
 // Clear order ticket with confirmation
-const requestClearCart = () => {
+const requestClearCart = async () => {
   if (store.cart.length === 0) return
-  if (confirm(`Clear all ${store.cartItemCount} drink(s) from current ticket?`)) {
+  const isSw = store.locale === 'sw'
+  const confirmed = await store.confirm({
+    title: isSw ? 'Futa Orodha ya Oda?' : 'Clear Order Ticket?',
+    message: isSw
+      ? `Hii itaondoa vinywaji vyote ${store.cartItemCount} kutoka kwenye oda ya sasa.`
+      : `This will remove all ${store.cartItemCount} drink(s) from the current ticket.`,
+    confirmText: isSw ? 'Futa Oda' : 'Clear Ticket',
+    cancelText: isSw ? 'Ghairi' : 'Cancel',
+    variant: 'warning'
+  })
+  if (confirmed) {
     store.clearCart()
     store.showToast('Order ticket cleared.', 'info')
   }

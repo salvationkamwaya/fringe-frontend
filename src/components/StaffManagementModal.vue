@@ -318,7 +318,18 @@ const handleToggleActive = async (staff) => {
   }
 
   const actionText = staff.is_active ? 'suspend' : 'activate'
-  if (!confirm(`Are you sure you want to ${actionText} the account for ${staff.first_name || staff.username}?`)) {
+  const isSw = store.locale === 'sw'
+  const confirmed = await store.confirm({
+    title: isSw ? 'Badilisha Hali ya Akaunti?' : `${actionText === 'deactivate' ? 'Deactivate' : 'Reactivate'} Staff Account?`,
+    message: isSw
+      ? 'Je, una uhakika unataka kubadilisha hali ya akaunti ya mfanyakazi huyu?'
+      : `Are you sure you want to ${actionText} this staff member's account?`,
+    itemLabel: staff.first_name || staff.username,
+    confirmText: isSw ? 'Thibitisha' : (actionText === 'deactivate' ? 'Deactivate' : 'Reactivate'),
+    cancelText: isSw ? 'Ghairi' : 'Cancel',
+    variant: actionText === 'deactivate' ? 'danger' : 'primary'
+  })
+  if (!confirmed) {
     return
   }
 

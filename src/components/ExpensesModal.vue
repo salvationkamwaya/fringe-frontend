@@ -123,7 +123,18 @@ const handleCreateExpense = async () => {
 }
 
 const handleDeleteExpense = async (exp) => {
-  if (!confirm(`Are you sure you want to delete expense "${exp.title}" (TSH ${parseFloat(exp.amount).toLocaleString()})?`)) {
+  const isSw = store.locale === 'sw'
+  const confirmed = await store.confirm({
+    title: isSw ? 'Futa Kumbukumbu ya Matumizi?' : 'Delete Expense Record?',
+    message: isSw
+      ? 'Kitendo hiki kitafuta kumbukumbu hii ya matumizi na kusasisha ripoti za faida halisi.'
+      : 'This will permanently remove this expense record and recalculate net profit.',
+    itemLabel: `${exp.title} — TSH ${parseFloat(exp.amount).toLocaleString()}`,
+    confirmText: isSw ? 'Ndio, Futa' : 'Yes, Delete',
+    cancelText: isSw ? 'Ghairi' : 'Cancel',
+    variant: 'danger'
+  })
+  if (!confirmed) {
     return
   }
 

@@ -25,15 +25,17 @@ const selectedRange = ref('all') // 'all' | 'today' | 'this_month' | 'last_month
 const customStartDate = ref('')
 const customEndDate = ref('')
 
-const rangePresets = [
-  { id: 'all', label: 'All Time' },
-  { id: 'today', label: 'Today' },
-  { id: 'this_month', label: 'This Month' },
-  { id: 'last_month', label: 'Last Month' },
-  { id: 'this_year', label: 'This Year' },
-  { id: 'last_year', label: 'Last Year' },
-  { id: 'custom', label: 'Custom Range' },
-]
+const isSw = computed(() => store.locale === 'sw')
+
+const rangePresets = computed(() => [
+  { id: 'all', label: isSw.value ? 'Muda Wote' : 'All Time' },
+  { id: 'today', label: isSw.value ? 'Leo' : 'Today' },
+  { id: 'this_month', label: isSw.value ? 'Mwezi Huu' : 'This Month' },
+  { id: 'last_month', label: isSw.value ? 'Mwezi Uliopita' : 'Last Month' },
+  { id: 'this_year', label: isSw.value ? 'Mwaka Huu' : 'This Year' },
+  { id: 'last_year', label: isSw.value ? 'Mwaka Uliopita' : 'Last Year' },
+  { id: 'custom', label: isSw.value ? 'Tarehe Maalum' : 'Custom Range' },
+])
 
 const setRange = (rangeId) => {
   selectedRange.value = rangeId
@@ -178,7 +180,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="modal-backdrop" @click.self="emit('close')">
+  <div class="modal-backdrop" :data-theme="store.theme" @click.self="emit('close')">
     <div class="reports-window print-report-window">
       <!-- Window Header -->
       <div class="window-header">
@@ -241,11 +243,11 @@ onMounted(() => {
         <!-- Custom Date Range Inputs -->
         <div v-if="selectedRange === 'custom'" class="custom-range-inputs">
           <div class="date-field">
-            <label>From:</label>
+            <label>{{ isSw ? 'Kuanzia:' : 'From:' }}</label>
             <input type="date" v-model="customStartDate" class="date-input" />
           </div>
           <div class="date-field">
-            <label>To:</label>
+            <label>{{ isSw ? 'Hadi:' : 'To:' }}</label>
             <input type="date" v-model="customEndDate" class="date-input" />
           </div>
           <button 
@@ -254,7 +256,7 @@ onMounted(() => {
             @click="applyCustomRange"
           >
             <Check :size="14" />
-            <span>Apply</span>
+            <span>{{ isSw ? 'Tumia' : 'Apply' }}</span>
           </button>
         </div>
 
@@ -330,38 +332,38 @@ onMounted(() => {
       <div class="report-body">
         <div v-if="loading" class="state-placeholder">
           <div class="spinner"></div>
-          <p>Compiling comprehensive Stationery business reports...</p>
+          <p>{{ isSw ? 'Inaandaa ripoti kamili za biashara ya steshenari...' : 'Compiling comprehensive Stationery business reports...' }}</p>
         </div>
 
         <div v-else-if="!reportData" class="state-placeholder">
-          <p>No report data available.</p>
+          <p>{{ isSw ? 'Hakuna taarifa za ripoti zinazopatikana.' : 'No report data available.' }}</p>
         </div>
 
         <div v-else class="content-wrapper">
           
           <!-- TAB 1: END-OF-DAY FINANCIAL RECONCILIATION -->
           <div v-if="activeTab === 'eod'" class="tab-pane">
-            <!-- Financial Totals Grid -->
+            <!-- Financial Totals Grid (4 balanced cards) -->
             <div class="eod-metrics-grid">
-              <div class="metric-card highlight-card">
+              <div class="metric-card">
                 <span class="m-title">{{ t('rep.grossRevenue') }}</span>
-                <strong class="m-val text-cyan">TSH {{ parseFloat(reportData.end_of_day.total_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <strong class="m-val">TSH {{ parseFloat(reportData.end_of_day.total_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
                 <span class="m-sub">{{ reportData.end_of_day.total_orders || 0 }} {{ t('sales.ordersUnit') }}</span>
               </div>
 
-              <div class="metric-card drawer-card">
+              <div class="metric-card">
                 <span class="m-title">{{ t('rep.expectedCash') }}</span>
-                <strong class="m-val text-green">TSH {{ parseFloat(reportData.end_of_day.expected_cash_drawer || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="m-sub">{{ t('dash.cash') }}</span>
+                <strong class="m-val">TSH {{ parseFloat(reportData.end_of_day.expected_cash_drawer || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="m-sub">{{ store.locale === 'sw' ? 'Taslimu + Madeni yaliyolipwa' : 'Cash Sales + Debt Recovered' }}</span>
               </div>
 
-              <div class="metric-card profit-card">
+              <div class="metric-card">
                 <span class="m-title">{{ t('rep.grossProfit') }}</span>
                 <strong class="m-val text-emerald">TSH {{ parseFloat(reportData.end_of_day.gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="m-sub">Margin: <strong>{{ reportData.end_of_day.gross_margin_percent || '0.0%' }}</strong></span>
+                <span class="m-sub">{{ store.locale === 'sw' ? 'Uwiano' : 'Margin' }}: <strong>{{ reportData.end_of_day.gross_margin_percent || '0.0%' }}</strong></span>
               </div>
 
-              <div class="metric-card net-profit-card">
+              <div class="metric-card">
                 <span class="m-title">{{ t('rep.netProfit') }}</span>
                 <strong class="m-val" :class="parseFloat(reportData.end_of_day.net_profit || 0) >= 0 ? 'text-emerald' : 'text-rose'">
                   TSH {{ parseFloat(reportData.end_of_day.net_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
@@ -372,19 +374,64 @@ onMounted(() => {
               </div>
             </div>
 
+            <!-- Business Worth & Stock Valuation -->
+            <div class="report-section valuation-section">
+              <div class="section-header-row">
+                <div class="section-title">
+                  <div class="section-icon-pill">
+                    <BarChart3 :size="16" />
+                  </div>
+                  <div>
+                    <h4>{{ store.locale === 'sw' ? 'Thamani ya Biashara (Stoo Iliyopo)' : 'Business Worth & Inventory Valuation' }}</h4>
+                    <span class="section-sub">
+                      {{ store.locale === 'sw'
+                        ? `Jumla ya bidhaa ${reportData.inventory_valuation?.total_items || 0} (${parseFloat(reportData.inventory_valuation?.total_stock_units || 0).toLocaleString()} kwenye stoo)`
+                        : `${reportData.inventory_valuation?.total_items || 0} active product(s) · ${parseFloat(reportData.inventory_valuation?.total_stock_units || 0).toLocaleString()} total stock units` }}
+                    </span>
+                  </div>
+                </div>
+                <span class="valuation-margin-pill">
+                  {{ store.locale === 'sw' ? 'Faida Tarajiwa' : 'Expected Margin' }}:
+                  <strong>{{ reportData.inventory_valuation?.expected_margin_percent || '0.0%' }}</strong>
+                </span>
+              </div>
+
+              <div class="valuation-grid">
+                <div class="val-card">
+                  <span class="val-label">{{ store.locale === 'sw' ? 'Thamani ya Stoo (Bei ya Kununua)' : 'Stock Worth (Buying Price)' }}</span>
+                  <strong class="val-amount">TSH {{ parseFloat(reportData.inventory_valuation?.valuation_at_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                  <span class="val-hint">{{ store.locale === 'sw' ? 'Mtaji uliowekezwa kwenye stoo ya sasa' : 'Total cost capital invested in current stock' }}</span>
+                </div>
+
+                <div class="val-card">
+                  <span class="val-label">{{ store.locale === 'sw' ? 'Thamani ya Stoo (Bei ya Kuuza)' : 'Stock Worth (Selling Price)' }}</span>
+                  <strong class="val-amount text-accent">TSH {{ parseFloat(reportData.inventory_valuation?.valuation_at_retail || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                  <span class="val-hint">{{ store.locale === 'sw' ? 'Mapato yanayotarajiwa stoo yote ikiuzwa' : 'Projected revenue when current stock is sold' }}</span>
+                </div>
+
+                <div class="val-card val-card-profit">
+                  <span class="val-label">{{ store.locale === 'sw' ? 'Faida Inayotarajiwa (Kwenye Stoo)' : 'Expected Profit (From Stock)' }}</span>
+                  <strong class="val-amount text-emerald">TSH {{ parseFloat(reportData.inventory_valuation?.potential_gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                  <span class="val-hint">{{ store.locale === 'sw' ? 'Thamani ya kuuza ukitoa thamani ya kununua' : 'Selling worth minus buying cost' }}</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Payment Tenders Breakdown -->
             <div class="report-section">
               <div class="section-title">
-                <Coins :size="18" class="text-amber" />
+                <div class="section-icon-pill">
+                  <Coins :size="16" />
+                </div>
                 <h4>{{ t('rep.revByPayment') }}</h4>
               </div>
 
               <div class="payments-grid">
                 <div class="payment-card">
                   <div class="pay-icon-box cash">
-                    <Coins :size="20" />
+                    <Coins :size="18" />
                   </div>
-                  <div>
+                  <div class="pay-info">
                     <span class="p-type">{{ t('rep.cashCollected') }}</span>
                     <strong class="p-amt">TSH {{ parseFloat(reportData.end_of_day.cash_sales || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
                   </div>
@@ -392,80 +439,83 @@ onMounted(() => {
 
                 <div class="payment-card">
                   <div class="pay-icon-box momo">
-                    <Smartphone :size="20" />
+                    <Smartphone :size="18" />
                   </div>
-                  <div>
-                    <span class="p-type">Mobile Money</span>
+                  <div class="pay-info">
+                    <span class="p-type">{{ store.locale === 'sw' ? 'Pesa za Simu' : 'Mobile Money' }}</span>
                     <strong class="p-amt">TSH {{ parseFloat(reportData.end_of_day.mobile_sales || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
                   </div>
                 </div>
 
                 <div class="payment-card">
                   <div class="pay-icon-box credit">
-                    <CreditCard :size="20" />
+                    <CreditCard :size="18" />
                   </div>
-                  <div>
-                    <span class="p-type">Customer Credit</span>
+                  <div class="pay-info">
+                    <span class="p-type">{{ store.locale === 'sw' ? 'Mauzo ya Mkopo' : 'Customer Credit' }}</span>
                     <strong class="p-amt">TSH {{ parseFloat(reportData.end_of_day.credit_sales || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
                   </div>
                 </div>
 
                 <div class="payment-card">
                   <div class="pay-icon-box debt">
-                    <ArrowDownRight :size="20" />
+                    <ArrowDownRight :size="18" />
                   </div>
-                  <div>
-                    <span class="p-type">Debt Recovered</span>
+                  <div class="pay-info">
+                    <span class="p-type">{{ store.locale === 'sw' ? 'Madeni Yaliyolipwa' : 'Debt Recovered' }}</span>
                     <strong class="p-amt">TSH {{ parseFloat(reportData.end_of_day.debt_recovered || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Pack vs Single Sale Ratio Breakdown -->
-            <div class="report-section">
-              <div class="section-title">
-                <Package :size="18" class="text-cyan" />
-                <h4>Pack vs Single Item Split Ratio</h4>
-              </div>
-
-              <div class="split-ratio-grid">
-                <div class="ratio-card">
-                  <div class="ratio-badge">WHOLE PACKS</div>
-                  <span class="ratio-label">Full Pack Sales</span>
-                  <strong class="ratio-val">TSH {{ parseFloat(reportData.end_of_day.pack_sales_rev || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                  <span class="ratio-sub">{{ reportData.end_of_day.pack_sales_count || 0 }} boxes/cartons sold</span>
+            <!-- Two-Column Insights Row: Pack vs Single & Retail vs Wholesale -->
+            <div class="insights-two-col">
+              <!-- Pack vs Single Sale Ratio Breakdown -->
+              <div class="report-section">
+                <div class="section-title">
+                  <div class="section-icon-pill">
+                    <Package :size="16" />
+                  </div>
+                  <h4>{{ store.locale === 'sw' ? 'Mauzo ya Pakiti dhidi ya Vipande' : 'Pack vs Single Item Split' }}</h4>
                 </div>
 
-                <div class="ratio-card">
-                  <div class="ratio-badge single">SINGLE PIECES</div>
-                  <span class="ratio-label">Split Single Sales</span>
-                  <strong class="ratio-val">TSH {{ parseFloat(reportData.end_of_day.single_sales_rev || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                  <span class="ratio-sub">{{ reportData.end_of_day.single_sales_count || 0 }} individual pieces sold</span>
+                <div class="split-ratio-grid">
+                  <div class="ratio-card">
+                    <span class="ratio-badge">{{ store.locale === 'sw' ? 'PAKITI KAMILI' : 'WHOLE PACKS' }}</span>
+                    <strong class="ratio-val">TSH {{ parseFloat(reportData.end_of_day.pack_sales_rev || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                    <span class="ratio-sub">{{ reportData.end_of_day.pack_sales_count || 0 }} {{ store.locale === 'sw' ? 'pakiti zimeuzwa' : 'packs/boxes sold' }}</span>
+                  </div>
+
+                  <div class="ratio-card">
+                    <span class="ratio-badge single">{{ store.locale === 'sw' ? 'VIPANDE MOJA MOJA' : 'SINGLE PIECES' }}</span>
+                    <strong class="ratio-val">TSH {{ parseFloat(reportData.end_of_day.single_sales_rev || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                    <span class="ratio-sub">{{ reportData.end_of_day.single_sales_count || 0 }} {{ store.locale === 'sw' ? 'vipande vimeuzwa' : 'pieces sold' }}</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Retail vs Wholesale Sales Breakdown (F1.2, F4, F5) -->
-            <div class="report-section">
-              <div class="section-title">
-                <Building :size="18" class="text-blue" />
-                <h4>Sales Channels: Walk-in Retail vs B2B Wholesale</h4>
-              </div>
-
-              <div class="split-ratio-grid">
-                <div class="ratio-card">
-                  <div class="ratio-badge retail-badge">WALK-IN RETAIL</div>
-                  <span class="ratio-label">Retail Counter Sales</span>
-                  <strong class="ratio-val">TSH {{ parseFloat(reportData.end_of_day.retail_sales_rev || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                  <span class="ratio-sub">{{ reportData.end_of_day.retail_sales_count || 0 }} retail ticket(s) completed</span>
+              <!-- Retail vs Wholesale Sales Breakdown -->
+              <div class="report-section">
+                <div class="section-title">
+                  <div class="section-icon-pill">
+                    <Building :size="16" />
+                  </div>
+                  <h4>{{ store.locale === 'sw' ? 'Njia za Mauzo: Rejareja dhidi ya Jumla' : 'Sales Channels: Retail vs Wholesale' }}</h4>
                 </div>
 
-                <div class="ratio-card">
-                  <div class="ratio-badge wholesale-badge">B2B WHOLESALE</div>
-                  <span class="ratio-label">Wholesale Institutional Sales</span>
-                  <strong class="ratio-val text-blue">TSH {{ parseFloat(reportData.end_of_day.wholesale_sales_rev || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                  <span class="ratio-sub">{{ reportData.end_of_day.wholesale_sales_count || 0 }} bulk order(s) (cartons/boxes)</span>
+                <div class="split-ratio-grid">
+                  <div class="ratio-card">
+                    <span class="ratio-badge retail-badge">{{ store.locale === 'sw' ? 'REJAREJA' : 'WALK-IN RETAIL' }}</span>
+                    <strong class="ratio-val">TSH {{ parseFloat(reportData.end_of_day.retail_sales_rev || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                    <span class="ratio-sub">{{ reportData.end_of_day.retail_sales_count || 0 }} {{ store.locale === 'sw' ? 'oda za rejareja' : 'retail ticket(s)' }}</span>
+                  </div>
+
+                  <div class="ratio-card">
+                    <span class="ratio-badge wholesale-badge">{{ store.locale === 'sw' ? 'JUMLA (B2B)' : 'B2B WHOLESALE' }}</span>
+                    <strong class="ratio-val text-accent">TSH {{ parseFloat(reportData.end_of_day.wholesale_sales_rev || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                    <span class="ratio-sub">{{ reportData.end_of_day.wholesale_sales_count || 0 }} {{ store.locale === 'sw' ? 'oda za jumla' : 'bulk order(s)' }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -473,29 +523,31 @@ onMounted(() => {
 
           <!-- TAB: OPERATING EXPENSES & NET PROFIT -->
           <div v-else-if="activeTab === 'expenses'" class="tab-pane">
-            <div class="expenses-summary-card">
-              <div class="exp-stat-box">
-                <span class="stat-lbl">Total Operating Expenses</span>
-                <strong class="stat-num text-rose">TSH {{ parseFloat(reportData.expenses?.total_expenses || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="stat-sub">{{ reportData.expenses?.count || 0 }} expense transactions recorded</span>
+            <div class="eod-metrics-grid cols-3">
+              <div class="metric-card">
+                <span class="m-title">{{ isSw ? 'Jumla ya Matumizi ya Uendeshaji' : 'Total Operating Expenses' }}</span>
+                <strong class="m-val text-rose">TSH {{ parseFloat(reportData.expenses?.total_expenses || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="m-sub">{{ reportData.expenses?.count || 0 }} {{ isSw ? 'miamala ya matumizi' : 'expense transactions recorded' }}</span>
               </div>
-              <div class="exp-stat-box">
-                <span class="stat-lbl">Gross Profit</span>
-                <strong class="stat-num text-cyan">TSH {{ parseFloat(reportData.end_of_day.gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="stat-sub">Revenue minus COGS</span>
+              <div class="metric-card">
+                <span class="m-title">{{ t('rep.grossProfit') }}</span>
+                <strong class="m-val text-accent">TSH {{ parseFloat(reportData.end_of_day.gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="m-sub">{{ isSw ? 'Mapato ukitoa gharama ya bidhaa (COGS)' : 'Revenue minus COGS' }}</span>
               </div>
-              <div class="exp-stat-box highlight">
-                <span class="stat-lbl">Net Bottom-Line Profit</span>
-                <strong class="stat-num text-emerald">TSH {{ parseFloat(reportData.end_of_day.net_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="stat-sub">Net Margin: {{ reportData.end_of_day.net_margin_percent || '0.0%' }}</span>
+              <div class="metric-card">
+                <span class="m-title">{{ t('rep.netProfit') }}</span>
+                <strong class="m-val" :class="parseFloat(reportData.end_of_day.net_profit || 0) >= 0 ? 'text-emerald' : 'text-rose'">
+                  TSH {{ parseFloat(reportData.end_of_day.net_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
+                </strong>
+                <span class="m-sub">{{ isSw ? 'Uwiano wa Faida Halisi' : 'Net Margin' }}: <strong>{{ reportData.end_of_day.net_margin_percent || '0.0%' }}</strong></span>
               </div>
             </div>
 
             <!-- Expense Categories Breakdown -->
             <div class="report-section" v-if="reportData.expenses?.categories && Object.keys(reportData.expenses.categories).length > 0">
               <div class="section-title">
-                <BarChart3 :size="18" class="text-amber" />
-                <h4>Expenses by Category</h4>
+                <div class="section-icon-pill"><BarChart3 :size="16" /></div>
+                <h4>{{ isSw ? 'Matumizi kwa Kategoria' : 'Expenses by Category' }}</h4>
               </div>
               <div class="cat-expense-bars">
                 <div v-for="(amt, cat) in reportData.expenses.categories" :key="cat" class="cat-bar-row">
@@ -516,30 +568,30 @@ onMounted(() => {
             <!-- Recent Expenses Table -->
             <div class="report-section">
               <div class="section-title">
-                <FileText :size="18" class="text-cyan" />
-                <h4>Recorded Operating Expenses</h4>
+                <div class="section-icon-pill"><FileText :size="16" /></div>
+                <h4>{{ isSw ? 'Kumbukumbu za Matumizi ya Uendeshaji' : 'Recorded Operating Expenses' }}</h4>
               </div>
               <div class="table-container">
                 <table class="report-table">
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>Category</th>
-                      <th>Description</th>
-                      <th>Recorded By</th>
-                      <th style="text-align: right;">Amount (TSH)</th>
+                      <th>{{ isSw ? 'Tarehe' : 'Date' }}</th>
+                      <th>{{ isSw ? 'Kategoria' : 'Category' }}</th>
+                      <th>{{ isSw ? 'Maelezo' : 'Description' }}</th>
+                      <th>{{ isSw ? 'Aliyerekodi' : 'Recorded By' }}</th>
+                      <th style="text-align: right;">{{ isSw ? 'Kiasi (TSH)' : 'Amount (TSH)' }}</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-if="!reportData.expenses?.recent || reportData.expenses.recent.length === 0">
-                      <td colspan="5" class="text-center empty-cell">No operating expenses recorded for this period.</td>
+                      <td colspan="5" class="text-center empty-cell">{{ isSw ? 'Hakuna matumizi ya uendeshaji yaliyorekodiwa katika kipindi hiki.' : 'No operating expenses recorded for this period.' }}</td>
                     </tr>
                     <tr v-for="e in reportData.expenses?.recent" :key="e.id">
                       <td>{{ e.date }}</td>
                       <td><span class="cat-tag">{{ e.category }}</span></td>
                       <td>{{ e.description }}</td>
                       <td><span class="user-tag">@{{ e.recorded_by }}</span></td>
-                      <td style="text-align: right; font-weight: 700; color: #fb7185;">
+                      <td style="text-align: right; font-weight: 700; color: #e11d48;">
                         TSH {{ parseFloat(e.amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
                       </td>
                     </tr>
@@ -555,23 +607,23 @@ onMounted(() => {
               <input 
                 v-model="searchQuery" 
                 type="text" 
-                placeholder="Filter stationery products..." 
+                :placeholder="isSw ? 'Tafuta bidhaa za steshenari...' : 'Filter stationery products...'" 
                 class="table-search-input"
               />
-              <span class="record-counter">{{ filteredProductSales.length }} items sold</span>
+              <span class="record-counter">{{ filteredProductSales.length }} {{ isSw ? 'bidhaa zimeuzwa' : 'items sold' }}</span>
             </div>
 
             <div class="table-container">
               <table class="report-table">
                 <thead>
                   <tr>
-                    <th>Product Name</th>
-                    <th>Sale Mode</th>
-                    <th class="text-right">Units Sold</th>
-                    <th class="text-right">Total Revenue</th>
-                    <th class="text-right">COGS</th>
-                    <th class="text-right">Gross Profit</th>
-                    <th class="text-right">Margin %</th>
+                    <th>{{ isSw ? 'Jina la Bidhaa' : 'Product Name' }}</th>
+                    <th>{{ isSw ? 'Aina ya Mauzo' : 'Sale Mode' }}</th>
+                    <th class="text-right">{{ isSw ? 'Idadi Iliyouzwa' : 'Units Sold' }}</th>
+                    <th class="text-right">{{ isSw ? 'Jumla ya Mapato' : 'Total Revenue' }}</th>
+                    <th class="text-right">{{ isSw ? 'Gharama (COGS)' : 'COGS' }}</th>
+                    <th class="text-right">{{ isSw ? 'Faida Ghafi' : 'Gross Profit' }}</th>
+                    <th class="text-right">{{ isSw ? 'Uwiano %' : 'Margin %' }}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -579,17 +631,17 @@ onMounted(() => {
                     <td class="bold">{{ item.product__name }}</td>
                     <td>
                       <span class="badge" :class="item.is_pack_sale ? 'badge-pack' : 'badge-single'">
-                        {{ item.sale_type || (item.is_pack_sale ? 'Whole Pack' : 'Single Piece') }}
+                        {{ item.is_pack_sale ? (isSw ? 'Pakiti Kamili' : 'Whole Pack') : (isSw ? 'Kipande Kimoja' : 'Single Piece') }}
                       </span>
                     </td>
                     <td class="text-right">{{ item.total_quantity }}</td>
-                    <td class="text-right bold price">TSH {{ parseFloat(item.total_revenue).toFixed(2) }}</td>
-                    <td class="text-right text-muted">TSH {{ parseFloat(item.total_cogs || 0).toFixed(2) }}</td>
-                    <td class="text-right text-success bold">TSH {{ parseFloat(item.line_profit || 0).toFixed(2) }}</td>
+                    <td class="text-right bold price">TSH {{ parseFloat(item.total_revenue).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right text-muted">TSH {{ parseFloat(item.total_cogs || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right text-emerald bold">TSH {{ parseFloat(item.line_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
                     <td class="text-right">{{ item.margin_percent || '0.0%' }}</td>
                   </tr>
                   <tr v-if="filteredProductSales.length === 0">
-                    <td colspan="7" class="empty-row">No product sales found matching criteria.</td>
+                    <td colspan="7" class="empty-row">{{ isSw ? 'Hakuna mauzo ya bidhaa yaliyopatikana.' : 'No product sales found matching criteria.' }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -600,19 +652,24 @@ onMounted(() => {
           <div v-else-if="activeTab === 'stock'" class="tab-pane">
             <div class="eod-metrics-grid">
               <div class="metric-card">
-                <span class="m-title">Total Catalog Products</span>
-                <strong class="m-val text-cyan">{{ reportData.inventory_valuation?.total_items || reportData.stock_on_hand.length }}</strong>
-                <span class="m-sub">Stationery and retail stock lines</span>
+                <span class="m-title">{{ store.locale === 'sw' ? 'Jumla ya Bidhaa' : 'Total Catalog Products' }}</span>
+                <strong class="m-val">{{ reportData.inventory_valuation?.total_items || reportData.stock_on_hand.length }}</strong>
+                <span class="m-sub">{{ parseFloat(reportData.inventory_valuation?.total_stock_units || 0).toLocaleString() }} {{ store.locale === 'sw' ? 'vipande/pakiti stoo' : 'units in stock' }}</span>
               </div>
               <div class="metric-card">
-                <span class="m-title">Stock Valuation at Cost</span>
-                <strong class="m-val text-muted">TSH {{ parseFloat(reportData.inventory_valuation?.valuation_at_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="m-sub">Working capital tied up in stationery</span>
+                <span class="m-title">{{ store.locale === 'sw' ? 'Thamani ya Stoo (Kununua)' : 'Stock Worth (Buying Price)' }}</span>
+                <strong class="m-val">TSH {{ parseFloat(reportData.inventory_valuation?.valuation_at_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="m-sub">{{ store.locale === 'sw' ? 'Mtaji uliopo kwenye stoo' : 'Capital invested in stock' }}</span>
               </div>
               <div class="metric-card">
-                <span class="m-title">Stock Value at Retail</span>
-                <strong class="m-val text-emerald">TSH {{ parseFloat(reportData.inventory_valuation?.valuation_at_retail || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="m-sub">Potential Profit: TSH {{ parseFloat(reportData.inventory_valuation?.potential_gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
+                <span class="m-title">{{ store.locale === 'sw' ? 'Thamani ya Stoo (Kuuza)' : 'Stock Worth (Selling Price)' }}</span>
+                <strong class="m-val text-accent">TSH {{ parseFloat(reportData.inventory_valuation?.valuation_at_retail || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="m-sub">{{ store.locale === 'sw' ? 'Mapato yanayotarajiwa' : 'Projected retail value' }}</span>
+              </div>
+              <div class="metric-card">
+                <span class="m-title">{{ store.locale === 'sw' ? 'Faida Inayotarajiwa' : 'Expected Stock Profit' }}</span>
+                <strong class="m-val text-emerald">TSH {{ parseFloat(reportData.inventory_valuation?.potential_gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="m-sub">{{ store.locale === 'sw' ? 'Uwiano' : 'Margin' }}: <strong>{{ reportData.inventory_valuation?.expected_margin_percent || '0.0%' }}</strong></span>
               </div>
             </div>
 
@@ -620,12 +677,12 @@ onMounted(() => {
               <input 
                 v-model="searchQuery" 
                 type="text" 
-                placeholder="Search stock..." 
+                :placeholder="isSw ? 'Tafuta kwenye stoo...' : 'Search stock...'" 
                 class="table-search-input"
               />
               <div class="alert-pills">
-                <span class="pill-tag low-tag">Low Stock Alerts: {{ reportData.inventory_valuation?.low_stock_count || 0 }}</span>
-                <span class="pill-tag out-tag">Out of Stock: {{ reportData.inventory_valuation?.out_of_stock_count || 0 }}</span>
+                <span class="pill-tag low-tag">{{ isSw ? 'Stoo Chache' : 'Low Stock Alerts' }}: {{ reportData.inventory_valuation?.low_stock_count || 0 }}</span>
+                <span class="pill-tag out-tag">{{ isSw ? 'Zimeisha Stoo' : 'Out of Stock' }}: {{ reportData.inventory_valuation?.out_of_stock_count || 0 }}</span>
               </div>
             </div>
 
@@ -633,14 +690,15 @@ onMounted(() => {
               <table class="report-table">
                 <thead>
                   <tr>
-                    <th>Product Name</th>
-                    <th>Type</th>
-                    <th class="text-right">Stock Qty</th>
-                    <th class="text-right">Reorder Level</th>
-                    <th class="text-right">Cost Price</th>
-                    <th class="text-right">Selling Price</th>
-                    <th class="text-right">Value at Cost</th>
-                    <th>Status</th>
+                    <th>{{ isSw ? 'Jina la Bidhaa' : 'Product Name' }}</th>
+                    <th>{{ isSw ? 'Aina' : 'Type' }}</th>
+                    <th class="text-right">{{ isSw ? 'Stoo Iliyopo' : 'Stock Qty' }}</th>
+                    <th class="text-right">{{ isSw ? 'Kiwango cha Tahadhari' : 'Reorder Level' }}</th>
+                    <th class="text-right">{{ isSw ? 'Bei ya Kununua' : 'Buying Price' }}</th>
+                    <th class="text-right">{{ isSw ? 'Bei ya Kuuza' : 'Selling Price' }}</th>
+                    <th class="text-right">{{ isSw ? 'Thamani (Kununua)' : 'Worth (Buying)' }}</th>
+                    <th class="text-right">{{ isSw ? 'Thamani (Kuuza)' : 'Worth (Selling)' }}</th>
+                    <th>{{ isSw ? 'Hali' : 'Status' }}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -648,22 +706,27 @@ onMounted(() => {
                     <td class="bold">{{ prod.name }}</td>
                     <td>
                       <span class="badge" :class="prod.is_pack ? 'badge-pack' : 'badge-single'">
-                        {{ prod.is_pack ? (prod.pack_name || 'Pack') : 'Unit' }}
+                        {{ prod.is_pack ? (prod.pack_name || 'Pack') : (isSw ? 'Kipande' : 'Unit') }}
                       </span>
                     </td>
                     <td class="text-right bold" :class="{ 'text-danger': Number(prod.stock_quantity) <= Number(prod.reorder_threshold) }">
                       {{ Number(prod.stock_quantity).toFixed(1) }}
                     </td>
                     <td class="text-right">{{ prod.reorder_threshold }}</td>
-                    <td class="text-right">TSH {{ parseFloat(prod.cost_price).toFixed(2) }}</td>
-                    <td class="text-right">TSH {{ parseFloat(prod.selling_price).toFixed(2) }}</td>
-                    <td class="text-right bold">TSH {{ parseFloat(prod.valuation_cost || (prod.stock_quantity * prod.cost_price)).toFixed(2) }}</td>
+                    <td class="text-right">TSH {{ parseFloat(prod.cost_price).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right">TSH {{ parseFloat(prod.selling_price).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right bold">TSH {{ parseFloat(prod.valuation_cost || (prod.stock_quantity * prod.cost_price)).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right bold text-accent">TSH {{ parseFloat(prod.valuation_retail || (prod.stock_quantity * prod.selling_price)).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
                     <td>
                       <span 
                         class="badge" 
                         :class="Number(prod.stock_quantity) <= 0 ? 'badge-danger' : (Number(prod.stock_quantity) <= Number(prod.reorder_threshold) ? 'badge-warning' : 'badge-good')"
                       >
-                        {{ prod.status || (Number(prod.stock_quantity) <= 0 ? 'Out of Stock' : (Number(prod.stock_quantity) <= Number(prod.reorder_threshold) ? 'Low Stock' : 'Optimal')) }}
+                        {{ Number(prod.stock_quantity) <= 0
+                          ? (isSw ? 'Imeisha' : 'Out of Stock')
+                          : (Number(prod.stock_quantity) <= Number(prod.reorder_threshold)
+                            ? (isSw ? 'Chache' : 'Low Stock')
+                            : (isSw ? 'Inatosha' : 'Optimal')) }}
                       </span>
                     </td>
                   </tr>
@@ -674,47 +737,47 @@ onMounted(() => {
 
           <!-- TAB 4: DEBTORS & CREDIT AGING -->
           <div v-else-if="activeTab === 'debtors'" class="tab-pane">
-            <div class="eod-metrics-grid">
-              <div class="metric-card highlight-card">
-                <span class="m-title">Total Customer Debt</span>
-                <strong class="m-val text-cyan">TSH {{ parseFloat(reportData.debtors?.total_balance || reportData.end_of_day?.total_debtors_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="m-sub">{{ reportData.debtors?.active_debtors_count || 0 }} accounts with pending balances</span>
+            <div class="eod-metrics-grid cols-3">
+              <div class="metric-card">
+                <span class="m-title">{{ isSw ? 'Jumla ya Madeni ya Wateja' : 'Total Customer Debt' }}</span>
+                <strong class="m-val text-accent">TSH {{ parseFloat(reportData.debtors?.total_balance || reportData.end_of_day?.total_debtors_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="m-sub">{{ reportData.debtors?.active_debtors_count || 0 }} {{ isSw ? 'akaunti zenye madeni' : 'accounts with pending balances' }}</span>
               </div>
               <div class="metric-card">
-                <span class="m-title">Current Debts (0-30 Days)</span>
-                <strong class="m-val text-green">TSH {{ parseFloat(reportData.debtors?.aging_0_30 || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="m-sub">Within standard payment terms</span>
+                <span class="m-title">{{ isSw ? 'Madeni ya Sasa (Siku 0-30)' : 'Current Debts (0-30 Days)' }}</span>
+                <strong class="m-val text-emerald">TSH {{ parseFloat(reportData.debtors?.aging_0_30 || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="m-sub">{{ isSw ? 'Ndani ya muda wa malipo' : 'Within standard payment terms' }}</span>
               </div>
               <div class="metric-card">
-                <span class="m-title">Overdue (60+ & 90+ Days)</span>
-                <strong class="m-val text-danger">TSH {{ (parseFloat(reportData.debtors?.aging_61_90 || 0) + parseFloat(reportData.debtors?.aging_90_plus || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="m-sub">Requires urgent recovery follow-up</span>
+                <span class="m-title">{{ isSw ? 'Yaliyochelewa (Siku 60+ & 90+)' : 'Overdue (60+ & 90+ Days)' }}</span>
+                <strong class="m-val text-rose">TSH {{ (parseFloat(reportData.debtors?.aging_61_90 || 0) + parseFloat(reportData.debtors?.aging_90_plus || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="m-sub">{{ isSw ? 'Yanahitaji ufuatiliaji wa haraka' : 'Requires urgent recovery follow-up' }}</span>
               </div>
             </div>
 
             <!-- Aging Buckets Breakdown -->
             <div class="report-section">
               <div class="section-title">
-                <Users :size="18" class="text-cyan" />
-                <h4>Statutory Aging Buckets</h4>
+                <div class="section-icon-pill"><Users :size="16" /></div>
+                <h4>{{ isSw ? 'Mchanganuo wa Umri wa Madeni' : 'Statutory Aging Buckets' }}</h4>
               </div>
 
               <div class="aging-buckets-grid">
                 <div class="aging-box current">
-                  <span class="ab-label">Current (0-30 days)</span>
-                  <strong class="ab-val">TSH {{ parseFloat(reportData.debtors?.aging_0_30 || 0).toFixed(2) }}</strong>
+                  <span class="ab-label">{{ isSw ? 'Sasa (Siku 0-30)' : 'Current (0-30 days)' }}</span>
+                  <strong class="ab-val">TSH {{ parseFloat(reportData.debtors?.aging_0_30 || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
                 </div>
                 <div class="aging-box moderate">
-                  <span class="ab-label">31-60 days</span>
-                  <strong class="ab-val">TSH {{ parseFloat(reportData.debtors?.aging_31_60 || 0).toFixed(2) }}</strong>
+                  <span class="ab-label">{{ isSw ? 'Siku 31-60' : '31-60 days' }}</span>
+                  <strong class="ab-val">TSH {{ parseFloat(reportData.debtors?.aging_31_60 || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
                 </div>
                 <div class="aging-box late">
-                  <span class="ab-label">61-90 days</span>
-                  <strong class="ab-val">TSH {{ parseFloat(reportData.debtors?.aging_61_90 || 0).toFixed(2) }}</strong>
+                  <span class="ab-label">{{ isSw ? 'Siku 61-90' : '61-90 days' }}</span>
+                  <strong class="ab-val">TSH {{ parseFloat(reportData.debtors?.aging_61_90 || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
                 </div>
                 <div class="aging-box critical">
-                  <span class="ab-label">90+ days</span>
-                  <strong class="ab-val">TSH {{ parseFloat(reportData.debtors?.aging_90_plus || 0).toFixed(2) }}</strong>
+                  <span class="ab-label">{{ isSw ? 'Siku 90+' : '90+ days' }}</span>
+                  <strong class="ab-val">TSH {{ parseFloat(reportData.debtors?.aging_90_plus || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
                 </div>
               </div>
             </div>
@@ -722,26 +785,26 @@ onMounted(() => {
             <!-- Top Debtors Table -->
             <div class="report-section" v-if="reportData.debtors?.top_debtors && reportData.debtors.top_debtors.length > 0">
               <div class="section-title">
-                <h4>Top Accounts Receivable</h4>
+                <h4>{{ isSw ? 'Wadaiwa Wakuu' : 'Top Accounts Receivable' }}</h4>
               </div>
               <div class="table-container">
                 <table class="report-table">
                   <thead>
                     <tr>
-                      <th>Customer / School Name</th>
-                      <th>Phone</th>
-                      <th class="text-right">Credit Limit</th>
-                      <th class="text-right">Available Credit</th>
-                      <th class="text-right">Current Balance Owed</th>
+                      <th>{{ isSw ? 'Mteja / Shule' : 'Customer / School Name' }}</th>
+                      <th>{{ isSw ? 'Simu' : 'Phone' }}</th>
+                      <th class="text-right">{{ isSw ? 'Kikomo cha Mkopo' : 'Credit Limit' }}</th>
+                      <th class="text-right">{{ isSw ? 'Mkopo Uliobaki' : 'Available Credit' }}</th>
+                      <th class="text-right">{{ isSw ? 'Deni la Sasa' : 'Current Balance Owed' }}</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-for="c in reportData.debtors.top_debtors" :key="c.id">
                       <td class="bold">{{ c.name }}</td>
                       <td>{{ c.phone || 'N/A' }}</td>
-                      <td class="text-right">TSH {{ parseFloat(c.credit_limit).toFixed(2) }}</td>
-                      <td class="text-right">TSH {{ parseFloat(c.available_credit).toFixed(2) }}</td>
-                      <td class="text-right text-danger bold">TSH {{ parseFloat(c.current_balance).toFixed(2) }}</td>
+                      <td class="text-right">TSH {{ parseFloat(c.credit_limit).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                      <td class="text-right">TSH {{ parseFloat(c.available_credit).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                      <td class="text-right text-rose bold">TSH {{ parseFloat(c.current_balance).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -751,31 +814,33 @@ onMounted(() => {
 
           <!-- TAB 5: SUPPLIER PAYABLES -->
           <div v-else-if="activeTab === 'payables'" class="tab-pane">
-            <div class="eod-metrics-grid">
+            <div class="eod-metrics-grid cols-3">
               <div class="metric-card">
-                <span class="m-title">Registered Suppliers</span>
-                <strong class="m-val text-cyan">{{ reportData.payables?.suppliers_count || 0 }}</strong>
-                <span class="m-sub">Active supply chain vendors</span>
-              </div>
-              <div class="metric-card highlight-card">
-                <span class="m-title">Total PO Commitments</span>
-                <strong class="m-val text-muted">TSH {{ parseFloat(reportData.payables?.total_po_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="m-sub">{{ reportData.payables?.total_po_count || 0 }} purchase orders placed</span>
+                <span class="m-title">{{ isSw ? 'Wasambazaji Waliosajiliwa' : 'Registered Suppliers' }}</span>
+                <strong class="m-val text-accent">{{ reportData.payables?.suppliers_count || 0 }}</strong>
+                <span class="m-sub">{{ isSw ? 'Wasambazaji hai wa steshenari' : 'Active supply chain vendors' }}</span>
               </div>
               <div class="metric-card">
-                <span class="m-title">Outstanding Payables Owed</span>
-                <strong class="m-val text-danger">TSH {{ parseFloat(reportData.payables?.outstanding_payables || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="m-sub">Total Paid: TSH {{ parseFloat(reportData.payables?.total_paid || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
+                <span class="m-title">{{ isSw ? 'Jumla ya Oda za Ununuzi (PO)' : 'Total PO Commitments' }}</span>
+                <strong class="m-val">TSH {{ parseFloat(reportData.payables?.total_po_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="m-sub">{{ reportData.payables?.total_po_count || 0 }} {{ isSw ? 'oda zilizotolewa' : 'purchase orders placed' }}</span>
+              </div>
+              <div class="metric-card">
+                <span class="m-title">{{ isSw ? 'Madeni ya Wasambazaji' : 'Outstanding Payables Owed' }}</span>
+                <strong class="m-val text-rose">TSH {{ parseFloat(reportData.payables?.outstanding_payables || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="m-sub">{{ isSw ? 'Yaliyolipwa' : 'Total Paid' }}: TSH {{ parseFloat(reportData.payables?.total_paid || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
               </div>
             </div>
 
             <div class="report-section">
               <div class="section-title">
-                <Truck :size="18" class="text-amber" />
-                <h4>Payables Position Overview</h4>
+                <div class="section-icon-pill"><Truck :size="16" /></div>
+                <h4>{{ isSw ? 'Muhtasari wa Madeni ya Wasambazaji' : 'Payables Position Overview' }}</h4>
               </div>
               <p class="payables-desc">
-                Supplier payables represent short-term liabilities to stationery vendors. All purchase orders and payments are tracked to ensure supplier goodwill and timely stock delivery.
+                {{ isSw
+                  ? 'Madeni ya wasambazaji yanaonyesha kiasi kinachodaiwa na wasambazaji wa bidhaa za steshenari. Oda zote za ununuzi na malipo hufuatiliwa ili kuhakikisha usambazaji endelevu.'
+                  : 'Supplier payables represent short-term liabilities to stationery vendors. All purchase orders and payments are tracked to ensure supplier goodwill and timely stock delivery.' }}
               </p>
             </div>
           </div>
@@ -784,79 +849,79 @@ onMounted(() => {
           <div v-else-if="activeTab === 'consolidated' && consolidatedData" class="tab-pane">
             <div class="consolidated-hero">
               <div class="hero-left">
-                <Building :size="32" class="text-cyan" />
+                <div class="section-icon-pill"><Building :size="20" /></div>
                 <div>
                   <h3>The Fringe Enterprises Tanzania</h3>
-                  <p>Consolidated Executive Summary • Bar & Lounge + Stationery & Retail</p>
+                  <p>{{ isSw ? 'Muhtasari wa Pamoja • Baa na Steshenari' : 'Consolidated Executive Summary • Bar & Lounge + Stationery & Retail' }}</p>
                 </div>
               </div>
               <button class="btn-tool btn-download" @click="downloadCSV">
                 <Download :size="16" />
-                <span>Download Consolidated CSV</span>
+                <span>{{ isSw ? 'Pakua CSV ya Pamoja' : 'Download Consolidated CSV' }}</span>
               </button>
             </div>
 
             <!-- Group Financial Totals Grid -->
-            <div class="eod-metrics-grid">
-              <div class="metric-card highlight-card">
-                <span class="m-title">Total Group Revenue</span>
-                <strong class="m-val text-cyan">TSH {{ parseFloat(consolidatedData.group_summary?.group_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="m-sub">Gross sales across Bar & Stationery</span>
+            <div class="eod-metrics-grid cols-3">
+              <div class="metric-card">
+                <span class="m-title">{{ isSw ? 'Jumla ya Mapato (Biashara Zote)' : 'Total Group Revenue' }}</span>
+                <strong class="m-val text-accent">TSH {{ parseFloat(consolidatedData.group_summary?.group_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="m-sub">{{ isSw ? 'Mauzo yote ya Baa na Steshenari' : 'Gross sales across Bar & Stationery' }}</span>
               </div>
-              <div class="metric-card profit-card">
-                <span class="m-title">Group Gross Profit</span>
+              <div class="metric-card">
+                <span class="m-title">{{ isSw ? 'Faida Ghafi ya Pamoja' : 'Group Gross Profit' }}</span>
                 <strong class="m-val text-emerald">TSH {{ parseFloat(consolidatedData.group_summary?.group_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="m-sub">Group Margin: <strong>{{ consolidatedData.group_summary?.group_margin_percent }}</strong></span>
+                <span class="m-sub">{{ isSw ? 'Uwiano' : 'Group Margin' }}: <strong>{{ consolidatedData.group_summary?.group_margin_percent }}</strong></span>
               </div>
-              <div class="metric-card drawer-card">
-                <span class="m-title">Total Drawer Cash</span>
-                <strong class="m-val text-green">TSH {{ parseFloat(consolidatedData.group_summary?.group_drawer_cash || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="m-sub">Cash across Bar & Stationery registers</span>
+              <div class="metric-card">
+                <span class="m-title">{{ isSw ? 'Jumla ya Taslimu Kwenye Droo' : 'Total Drawer Cash' }}</span>
+                <strong class="m-val">TSH {{ parseFloat(consolidatedData.group_summary?.group_drawer_cash || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="m-sub">{{ isSw ? 'Taslimu ya Baa na Steshenari' : 'Cash across Bar & Stationery registers' }}</span>
               </div>
             </div>
 
             <!-- Working Capital Snapshot -->
             <div class="working-capital-grid">
               <div class="wc-card">
-                <span class="wc-title">Working Capital in Stock</span>
+                <span class="wc-title">{{ isSw ? 'Mtaji Kwenye Stoo' : 'Working Capital in Stock' }}</span>
                 <strong class="wc-val">TSH {{ parseFloat(consolidatedData.group_summary?.group_inventory_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="wc-sub">Combined Inventory at Cost</span>
+                <span class="wc-sub">{{ isSw ? 'Stoo ya pamoja kwa bei ya kununua' : 'Combined Inventory at Cost' }}</span>
               </div>
               <div class="wc-card">
-                <span class="wc-title">Accounts Receivable (Debtors)</span>
-                <strong class="wc-val text-cyan">TSH {{ parseFloat(consolidatedData.group_summary?.total_receivables || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="wc-sub">Stationery customer credit</span>
+                <span class="wc-title">{{ isSw ? 'Madeni ya Wateja' : 'Accounts Receivable (Debtors)' }}</span>
+                <strong class="wc-val text-accent">TSH {{ parseFloat(consolidatedData.group_summary?.total_receivables || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="wc-sub">{{ isSw ? 'Mikopo ya wateja wa steshenari' : 'Stationery customer credit' }}</span>
               </div>
               <div class="wc-card">
-                <span class="wc-title">Accounts Payable (Suppliers)</span>
-                <strong class="wc-val text-danger">TSH {{ parseFloat(consolidatedData.group_summary?.total_payables || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="wc-sub">Outstanding vendor bills</span>
+                <span class="wc-title">{{ isSw ? 'Madeni ya Wasambazaji' : 'Accounts Payable (Suppliers)' }}</span>
+                <strong class="wc-val text-rose">TSH {{ parseFloat(consolidatedData.group_summary?.total_payables || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                <span class="wc-sub">{{ isSw ? 'Bili za wasambazaji zinazodaiwa' : 'Outstanding vendor bills' }}</span>
               </div>
               <div class="wc-card highlight">
-                <span class="wc-title">Net Working Capital Position</span>
+                <span class="wc-title">{{ isSw ? 'Mtaji Halisi wa Uendeshaji' : 'Net Working Capital Position' }}</span>
                 <strong class="wc-val text-emerald">TSH {{ parseFloat(consolidatedData.group_summary?.net_working_capital || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="wc-sub">(Cash + Receivables + Stock) - Payables</span>
+                <span class="wc-sub">{{ isSw ? '(Taslimu + Wadaiwa + Stoo) - Madeni' : '(Cash + Receivables + Stock) - Payables' }}</span>
               </div>
             </div>
 
             <!-- Comparison Table -->
             <div class="report-section">
               <div class="section-title">
-                <h4>Unit Breakdown & Performance</h4>
+                <h4>{{ isSw ? 'Mchanganuo na Utendaji wa Kila Biashara' : 'Unit Breakdown & Performance' }}</h4>
               </div>
               <div class="table-container">
                 <table class="report-table">
                   <thead>
                     <tr>
-                      <th>Business Unit</th>
-                      <th class="text-right">Gross Revenue</th>
-                      <th class="text-right">Share of Business</th>
-                      <th class="text-right">Orders</th>
-                      <th class="text-right">COGS</th>
-                      <th class="text-right">Gross Profit</th>
-                      <th class="text-right">Margin %</th>
-                      <th class="text-right">Drawer Cash</th>
-                      <th class="text-right">Stock (Cost)</th>
+                      <th>{{ isSw ? 'Kitengo cha Biashara' : 'Business Unit' }}</th>
+                      <th class="text-right">{{ isSw ? 'Mapato Ghafi' : 'Gross Revenue' }}</th>
+                      <th class="text-right">{{ isSw ? 'Mchango %' : 'Share of Business' }}</th>
+                      <th class="text-right">{{ isSw ? 'Oda' : 'Orders' }}</th>
+                      <th class="text-right">{{ isSw ? 'COGS' : 'COGS' }}</th>
+                      <th class="text-right">{{ isSw ? 'Faida Ghafi' : 'Gross Profit' }}</th>
+                      <th class="text-right">{{ isSw ? 'Uwiano %' : 'Margin %' }}</th>
+                      <th class="text-right">{{ isSw ? 'Taslimu' : 'Drawer Cash' }}</th>
+                      <th class="text-right">{{ isSw ? 'Stoo (Kununua)' : 'Stock (Cost)' }}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -866,7 +931,7 @@ onMounted(() => {
                       <td class="text-right">{{ consolidatedData.units?.bar?.share_percent }}</td>
                       <td class="text-right">{{ consolidatedData.units?.bar?.orders_count }}</td>
                       <td class="text-right">TSH {{ parseFloat(consolidatedData.units?.bar?.cogs || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
-                      <td class="text-right text-success bold">TSH {{ parseFloat(consolidatedData.units?.bar?.gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                      <td class="text-right text-emerald bold">TSH {{ parseFloat(consolidatedData.units?.bar?.gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
                       <td class="text-right">{{ consolidatedData.units?.bar?.gross_margin_percent }}</td>
                       <td class="text-right">TSH {{ parseFloat(consolidatedData.units?.bar?.cash_in_drawer || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
                       <td class="text-right">TSH {{ parseFloat(consolidatedData.units?.bar?.inventory_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
@@ -877,7 +942,7 @@ onMounted(() => {
                       <td class="text-right">{{ consolidatedData.units?.stationery?.share_percent }}</td>
                       <td class="text-right">{{ consolidatedData.units?.stationery?.orders_count }}</td>
                       <td class="text-right">TSH {{ parseFloat(consolidatedData.units?.stationery?.cogs || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
-                      <td class="text-right text-success bold">TSH {{ parseFloat(consolidatedData.units?.stationery?.gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                      <td class="text-right text-emerald bold">TSH {{ parseFloat(consolidatedData.units?.stationery?.gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
                       <td class="text-right">{{ consolidatedData.units?.stationery?.gross_margin_percent }}</td>
                       <td class="text-right">TSH {{ parseFloat(consolidatedData.units?.stationery?.cash_in_drawer || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
                       <td class="text-right">TSH {{ parseFloat(consolidatedData.units?.stationery?.inventory_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
@@ -1232,7 +1297,7 @@ onMounted(() => {
 
 /* Report Body */
 .report-body {
-  padding: 24px;
+  padding: 24px 24px 72px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -1250,181 +1315,375 @@ onMounted(() => {
   gap: 20px;
 }
 
-/* Metrics Grids */
+/* Metrics Grids & Redesigned Report Cards (Light & Dark Themed) */
+.modal-backdrop {
+  --r-surface: #0f172a;
+  --r-card: #111827;
+  --r-elevated: #1e293b;
+  --r-border: rgba(148, 163, 184, 0.16);
+  --r-border-strong: rgba(148, 163, 184, 0.28);
+  --r-text: #f8fafc;
+  --r-text-sec: #cbd5e1;
+  --r-text-muted: #94a3b8;
+  --r-accent: #6366f1;
+  --r-accent-soft: rgba(99, 102, 241, 0.14);
+  --r-emerald: #10b981;
+  --r-emerald-soft: rgba(16, 185, 129, 0.14);
+  --r-rose: #f43f5e;
+  --r-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+}
+
+.modal-backdrop[data-theme="light"] {
+  --r-surface: #f8fafc;
+  --r-card: #ffffff;
+  --r-elevated: #f8fafc;
+  --r-border: #e2e8f0;
+  --r-border-strong: #cbd5e1;
+  --r-text: #0f172a;
+  --r-text-sec: #334155;
+  --r-text-muted: #64748b;
+  --r-accent: #4f46e5;
+  --r-accent-soft: #eef2ff;
+  --r-emerald: #059669;
+  --r-emerald-soft: #ecfdf5;
+  --r-rose: #dc2626;
+  --r-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 4px 12px rgba(15, 23, 42, 0.03);
+}
+
 .eod-metrics-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
+  align-items: start;
+  height: auto !important;
+  flex: none !important;
+}
+
+.eod-metrics-grid.cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .metric-card {
-  background: rgba(30, 41, 59, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  padding: 16px;
+  background: var(--r-card);
+  border: 1px solid var(--r-border);
+  border-radius: 16px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  height: auto !important;
+  min-height: 0 !important;
+  flex: none !important;
+  box-shadow: var(--r-shadow);
+  transition: border-color 0.16s ease, transform 0.16s ease;
 }
 
-.metric-card.highlight-card {
-  border-color: rgba(6, 182, 212, 0.35);
-  background: rgba(6, 182, 212, 0.05);
-}
-
-.metric-card.drawer-card {
-  border-color: rgba(34, 197, 94, 0.35);
-  background: rgba(34, 197, 94, 0.05);
-}
-
-.metric-card.profit-card {
-  border-color: rgba(16, 185, 129, 0.35);
-  background: rgba(16, 185, 129, 0.05);
+.metric-card:hover {
+  border-color: var(--r-border-strong);
+  transform: translateY(-1px);
 }
 
 .m-title {
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 0.72rem;
+  font-weight: 700;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: var(--r-text-muted);
   letter-spacing: 0.05em;
 }
 
 .m-val {
-  font-size: 22px;
-  font-weight: 900;
-  color: #f8fafc;
+  font-size: 1.32rem;
+  font-weight: 800;
+  color: var(--r-text);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
-.text-cyan { color: #22d3ee; }
-.text-green { color: #4ade80; }
-.text-emerald { color: #34d399; }
-.text-amber { color: #fbbf24; }
-.text-danger { color: #f87171; }
-.text-muted { color: #94a3b8; }
+.text-cyan { color: var(--r-accent); }
+.text-accent { color: var(--r-accent); }
+.text-green { color: var(--r-emerald); }
+.text-emerald { color: var(--r-emerald); }
+.text-rose { color: var(--r-rose); }
+.text-amber { color: #d97706; }
+.text-danger { color: var(--r-rose); }
+.text-muted { color: var(--r-text-muted); }
 
 .m-sub {
-  font-size: 11.5px;
-  color: #64748b;
+  font-size: 0.78rem;
+  color: var(--r-text-muted);
+}
+
+.m-sub strong {
+  color: var(--r-text-sec);
 }
 
 /* Sections */
 .report-section {
-  background: rgba(30, 41, 59, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  padding: 16px;
+  background: var(--r-card);
+  border: 1px solid var(--r-border);
+  border-radius: 16px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--r-shadow);
+}
+
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .section-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.section-title h4 {
-  font-size: 13.5px;
-  font-weight: 800;
-  color: #e2e8f0;
-  margin: 0;
-}
-
-/* Payments Grid */
-.payments-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
 }
 
-.payment-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+.section-icon-pill {
+  width: 34px;
+  height: 34px;
   border-radius: 10px;
-  padding: 12px;
-}
-
-.pay-icon-box {
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
+  background: var(--r-accent-soft);
+  color: var(--r-accent);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.pay-icon-box.cash { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
-.pay-icon-box.momo { background: rgba(6, 182, 212, 0.15); color: #22d3ee; }
-.pay-icon-box.credit { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-.pay-icon-box.debt { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+.section-title h4 {
+  font-size: 0.94rem;
+  font-weight: 800;
+  color: var(--r-text);
+  margin: 0;
+}
+
+.section-sub {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--r-text-muted);
+  margin-top: 2px;
+}
+
+/* Business Worth / Inventory Valuation */
+.valuation-margin-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--r-emerald-soft);
+  color: var(--r-emerald);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.valuation-margin-pill strong {
+  font-weight: 800;
+}
+
+.valuation-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.val-card {
+  background: var(--r-elevated);
+  border: 1px solid var(--r-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.val-card-profit {
+  background: var(--r-emerald-soft);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.val-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--r-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.val-amount {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--r-text);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.val-hint {
+  font-size: 0.76rem;
+  color: var(--r-text-muted);
+  line-height: 1.4;
+}
+
+/* Payments Grid */
+.payments-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.payment-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--r-elevated);
+  border: 1px solid var(--r-border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  transition: border-color 0.16s ease;
+}
+
+.payment-card:hover {
+  border-color: var(--r-border-strong);
+}
+
+.pay-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pay-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pay-icon-box.cash { background: rgba(16, 185, 129, 0.14); color: #059669; }
+.pay-icon-box.momo { background: rgba(79, 70, 229, 0.12); color: #4f46e5; }
+.pay-icon-box.credit { background: rgba(245, 158, 11, 0.14); color: #d97706; }
+.pay-icon-box.debt { background: rgba(139, 92, 246, 0.14); color: #7c3aed; }
 
 .p-type {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: #94a3b8;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--r-text-muted);
   display: block;
 }
 
 .p-amt {
-  font-size: 14px;
-  color: #f8fafc;
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: var(--r-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Two-Column Insights Row */
+.insights-two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 /* Split Ratio */
 .split-ratio-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
 .ratio-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 14px;
+  background: var(--r-elevated);
+  border: 1px solid var(--r-border);
+  border-radius: 14px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  border-left: 4px solid #06b6d4;
+  gap: 6px;
 }
 
 .ratio-badge {
   display: inline-block;
   align-self: flex-start;
-  font-size: 9px;
+  font-size: 0.66rem;
   font-weight: 800;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(6, 182, 212, 0.2);
-  color: #22d3ee;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--r-accent-soft);
+  color: var(--r-accent);
 }
 
 .ratio-badge.single {
-  background: rgba(168, 85, 247, 0.2);
-  color: #c084fc;
+  background: rgba(139, 92, 246, 0.14);
+  color: #7c3aed;
+}
+
+.ratio-badge.retail-badge {
+  background: var(--r-emerald-soft);
+  color: var(--r-emerald);
+}
+
+.ratio-badge.wholesale-badge {
+  background: var(--r-accent-soft);
+  color: var(--r-accent);
 }
 
 .ratio-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--r-text-sec);
 }
 
 .ratio-val {
-  font-size: 18px;
-  font-weight: 900;
-  color: #f8fafc;
+  font-size: 1.12rem;
+  font-weight: 800;
+  color: var(--r-text);
+  font-variant-numeric: tabular-nums;
 }
 
 .ratio-sub {
-  font-size: 11px;
-  color: #64748b;
+  font-size: 0.75rem;
+  color: var(--r-text-muted);
+}
+
+@media (max-width: 1100px) {
+  .eod-metrics-grid,
+  .eod-metrics-grid.cols-3,
+  .payments-grid,
+  .aging-buckets-grid,
+  .working-capital-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .valuation-grid {
+    grid-template-columns: 1fr;
+  }
+  .insights-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .eod-metrics-grid,
+  .eod-metrics-grid.cols-3,
+  .payments-grid,
+  .split-ratio-grid,
+  .aging-buckets-grid,
+  .working-capital-grid {
+    grid-template-columns: 1fr;
+  }
+  .report-body {
+    padding: 14px 14px 64px;
+  }
 }
 
 /* Aging Buckets */

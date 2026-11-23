@@ -1,9 +1,35 @@
-import { reactive, computed } from 'vue'
+import { reactive, computed, watch } from 'vue'
 import api from './api'
+
+const PERSISTABLE_PAGES = new Set([
+  'catalog_management',
+  'sales_records',
+  'customers',
+  'quotations',
+  'wholesale_docs',
+  'stationery_returns',
+  'stock_inventory',
+  'suppliers',
+  'barcode_labels',
+  'expenses',
+  'reports',
+  'stationery_reports',
+  'audit',
+  'staff_management',
+  'branch_management',
+  'account_settings',
+  'shift',
+  'stationery_pos',
+])
 
 // Initialize state from storage
 const storedUser = localStorage.getItem('fringe_user')
 const initialUser = storedUser ? JSON.parse(storedUser) : null
+const initialToken = localStorage.getItem('fringe_token') || null
+const savedPage = localStorage.getItem('fringe_active_page')
+const initialPage = (initialUser && initialToken && savedPage && PERSISTABLE_PAGES.has(savedPage))
+  ? savedPage
+  : null
 const initialUnit = (initialUser && initialUser.role !== 'owner' && initialUser.business_unit)
   ? initialUser.business_unit
   : (localStorage.getItem('fringe_active_unit') || 'bar')
@@ -13,7 +39,7 @@ const initialBranch = (initialUser && initialUser.role !== 'owner' && initialUse
 
 export const store = reactive({
   user: initialUser,
-  token: localStorage.getItem('fringe_token') || null,
+  token: initialToken,
   activeUnit: initialUnit,
   activeBranchId: initialBranch,
   businessUnits: [],
@@ -25,7 +51,7 @@ export const store = reactive({
   selectedTab: null,
   selectedCustomer: null,
   isAgeVerified: false,
-  activeModal: null, // 'login', 'age_check', 'manager_pin', 'payment', 'tabs', 'shift', 'reports', 'audit', 'customers', 'suppliers', 'stationery_reports'
+  activeModal: initialPage, // persisted workspace page or transient modal
   pinModalConfig: {
     action: 'GENERIC_OVERRIDE',
     title: 'Manager Authorization Required',
@@ -39,6 +65,16 @@ export const store = reactive({
     title: '',
     type: 'info', // 'success', 'error', 'warning', 'info'
     timeoutId: null,
+  },
+  confirmDialog: {
+    show: false,
+    title: '',
+    message: '',
+    itemLabel: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    variant: 'danger', // 'danger' | 'warning' | 'primary'
+    resolver: null,
   },
   soundEnabled: localStorage.getItem('fringe_sound') !== 'false',
   orderNotes: '',
@@ -205,6 +241,37 @@ export const store = reactive({
     store.toast.show = false
   },
 
+  confirm({
+    title = '',
+    message = '',
+    itemLabel = '',
+    confirmText = '',
+    cancelText = '',
+    variant = 'danger',
+  } = {}) {
+    return new Promise((resolve) => {
+      if (store.confirmDialog.resolver) {
+        store.confirmDialog.resolver(false)
+      }
+      const isSw = store.locale === 'sw'
+      store.confirmDialog.title = title || (isSw ? 'Thibitisha Kitendo' : 'Confirm Action')
+      store.confirmDialog.message = message || (isSw ? 'Je, una uhakika unataka kuendelea?' : 'Are you sure you want to continue?')
+      store.confirmDialog.itemLabel = itemLabel
+      store.confirmDialog.confirmText = confirmText || (variant === 'danger' ? (isSw ? 'Futa' : 'Delete') : (isSw ? 'Thibitisha' : 'Confirm'))
+      store.confirmDialog.cancelText = cancelText || (isSw ? 'Ghairi' : 'Cancel')
+      store.confirmDialog.variant = variant
+      store.confirmDialog.resolver = resolve
+      store.confirmDialog.show = true
+    })
+  },
+
+  resolveConfirm(result) {
+    const resolver = store.confirmDialog.resolver
+    store.confirmDialog.show = false
+    store.confirmDialog.resolver = null
+    if (resolver) resolver(Boolean(result))
+  },
+
   toggleSound() {
     store.soundEnabled = !store.soundEnabled
     localStorage.setItem('fringe_sound', store.soundEnabled ? 'true' : 'false')
@@ -302,6 +369,7 @@ export const store = reactive({
       localStorage.removeItem('fringe_user')
       localStorage.removeItem('fringe_active_unit')
       localStorage.removeItem('fringe_active_branch')
+      localStorage.removeItem('fringe_active_page')
       localStorage.removeItem('fringe_held_sales')
       store.activeModal = 'login'
       if (reason === 'idle_timeout') {
@@ -542,6 +610,18 @@ export const store = reactive({
     store.activeModal = null
   }
 })
+
+// Persist active workspace page across browser refreshes
+watch(
+  () => store.activeModal,
+  (page) => {
+    if (page === null) {
+      localStorage.removeItem('fringe_active_page')
+    } else if (PERSISTABLE_PAGES.has(page)) {
+      localStorage.setItem('fringe_active_page', page)
+    }
+  }
+)
 
 // Listen to custom logout event
 window.addEventListener('fringe-logout', () => {

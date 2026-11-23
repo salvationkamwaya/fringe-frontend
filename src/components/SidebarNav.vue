@@ -5,7 +5,7 @@ import { t } from '../i18n'
 import { 
   Wine, BookOpen, Layers, ShieldCheck, Clock, FileText, 
   LogOut, User as UserIcon, ChevronDown, ChevronLeft, ChevronRight,
-  Users, Truck, BarChart3, UserCheck, Coins, Sparkles, Boxes, Sun, Moon, PlusCircle, Receipt,
+  Users, Truck, BarChart3, UserCheck, Coins, Boxes, Sun, Moon, Receipt,
   Settings, DollarSign, RotateCcw, Barcode, MapPin, LayoutDashboard, Check, Globe
 } from 'lucide-vue-next'
 

@@ -7,7 +7,7 @@ import {
   Wine, BookOpen, Layers, Plus, Search, Edit3, Trash2, 
   X, CheckCircle2, AlertTriangle, ShieldAlert, Sparkles, 
   DollarSign, Package, Tag, RefreshCw, BarChart2, ShieldCheck,
-  Percent, ArrowRight, MapPin
+  Percent, ArrowRight, MapPin, ChevronLeft, ChevronRight
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['close'])
@@ -319,6 +319,51 @@ const filteredProducts = computed(() => {
   return list
 })
 
+// Pagination (10 items per page)
+const currentPage = ref(1)
+const pageSize = 10
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredProducts.value.length / pageSize)))
+
+const paginatedProducts = computed(() => {
+  const safePage = Math.min(currentPage.value, totalPages.value)
+  const start = (safePage - 1) * pageSize
+  return filteredProducts.value.slice(start, start + pageSize)
+})
+
+const pageStart = computed(() => {
+  if (filteredProducts.value.length === 0) return 0
+  return (Math.min(currentPage.value, totalPages.value) - 1) * pageSize + 1
+})
+
+const pageEnd = computed(() => {
+  return Math.min(Math.min(currentPage.value, totalPages.value) * pageSize, filteredProducts.value.length)
+})
+
+const visiblePageNumbers = computed(() => {
+  const total = totalPages.value
+  const curr = currentPage.value
+  const pages = []
+  const start = Math.max(1, curr - 2)
+  const end = Math.min(total, curr + 2)
+  for (let i = start; i <= end; i++) pages.push(i)
+  return pages
+})
+
+const goToPage = (p) => {
+  if (p >= 1 && p <= totalPages.value) {
+    currentPage.value = p
+  }
+}
+
+watch([searchQuery, categoryFilter], () => {
+  currentPage.value = 1
+})
+
+watch(totalPages, (newTotal) => {
+  if (currentPage.value > newTotal) currentPage.value = newTotal
+})
+
 // Margin calculation helper
 const calculateMargin = (selling, cost) => {
   const s = parseFloat(selling) || 0
@@ -345,7 +390,7 @@ const openCreateProduct = () => {
   productForm.value = {
     name: '',
     category: categories.value[0]?.id || '',
-    branch: isBar.value ? defaultBranch : null,
+    branch: defaultBranch,
     sku: '',
     barcode: '',
     description: '',
@@ -432,11 +477,15 @@ const handleSaveProduct = async () => {
   productError.value = ''
 
   try {
+    const fallbackBranch = (store.activeBranchId && store.activeBranchId !== 'all')
+      ? parseInt(store.activeBranchId, 10)
+      : (store.branches[0]?.id || null)
+
     const payload = {
       ...productForm.value,
       cost_price: productForm.value.cost_price || '0.00',
       category: productForm.value.category || null,
-      branch: isBar.value ? productForm.value.branch : null,
+      branch: productForm.value.branch || fallbackBranch,
       is_alcoholic: isBar.value ? Boolean(productForm.value.is_alcoholic) : false,
       volume_ml: (isBar.value && productForm.value.volume_ml) ? parseInt(productForm.value.volume_ml) : null,
       pack_unit_ratio: productForm.value.is_pack ? parseInt(productForm.value.pack_unit_ratio || 1) : 1,
@@ -464,12 +513,25 @@ const handleSaveProduct = async () => {
 
 // Deactivate Product
 const handleDeactivateProduct = async (prod) => {
-  const confirmMsg = `Are you sure you want to deactivate "${prod.name}" from the active catalog?`
-  if (!window.confirm(confirmMsg)) return
+  const isSw = store.locale === 'sw'
+  const confirmed = await store.confirm({
+    title: isSw ? 'Ondoa Bidhaa Kwenye Orodha?' : 'Remove Product from Catalog?',
+    message: isSw
+      ? 'Bidhaa hii itaondolewa kwenye orodha ya mauzo. Unaweza kuisajili tena au kuirejesha baadaye.'
+      : 'This product will be deactivated and hidden from the active catalog and POS.',
+    itemLabel: prod.name,
+    confirmText: isSw ? 'Ndio, Ondoa' : 'Yes, Remove',
+    cancelText: isSw ? 'Ghairi' : 'Cancel',
+    variant: 'danger'
+  })
+  if (!confirmed) return
 
   try {
     await api.delete(`/catalog/products/${prod.id}/`)
-    store.showToast(`Product "${prod.name}" deactivated.`, 'info')
+    store.showToast(
+      isSw ? `Bidhaa "${prod.name}" imeondolewa.` : `Product "${prod.name}" deactivated.`,
+      'info'
+    )
     await fetchData()
   } catch (err) {
     store.showToast(err.response?.data?.detail || 'Failed to deactivate product.', 'error')
@@ -486,7 +548,7 @@ const openCreateCategory = () => {
     name: '',
     slug: '',
     icon: 'tag',
-    branch: isBar.value ? defaultBranch : null,
+    branch: defaultBranch,
     display_order: categories.value.length + 1
   }
   categoryError.value = ''
@@ -518,9 +580,13 @@ const handleSaveCategory = async () => {
   categoryError.value = ''
 
   try {
+    const fallbackBranch = (store.activeBranchId && store.activeBranchId !== 'all')
+      ? parseInt(store.activeBranchId, 10)
+      : (store.branches[0]?.id || null)
+
     const payload = {
       ...categoryForm.value,
-      branch: isBar.value ? categoryForm.value.branch : null
+      branch: categoryForm.value.branch || fallbackBranch
     }
     const res = await api.post('/catalog/categories/', payload)
     store.showToast(`Category "${categoryForm.value.name}" created!`, 'success')
@@ -635,22 +701,24 @@ const handleSaveCategory = async () => {
             <p>{{ isBar ? t('cat.emptyDrinkSub') : t('cat.emptyProductSub') }}</p>
           </div>
 
-          <table v-else class="catalog-table">
-            <thead>
-              <tr>
-                <th>{{ isBar ? 'Beverage / Drink' : 'Product Name' }}</th>
-                <th>Category</th>
-                <th v-if="isBar && store.isOwner">Branch</th>
-                <th>Packaging & Capacity</th>
-                <th class="text-right">Cost Price (TSH)</th>
-                <th class="text-right">Selling Price (TSH)</th>
-                <th class="text-right">Gross Margin</th>
-                <th class="text-right">Current Stock</th>
-                <th class="text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="p in filteredProducts" :key="p.id">
+          <div v-else class="catalog-list-shell">
+            <div class="catalog-table-scroll">
+              <table class="catalog-table">
+                <thead>
+                  <tr>
+                    <th>{{ isBar ? 'Beverage / Drink' : 'Product Name' }}</th>
+                    <th>Category</th>
+                    <th v-if="isBar && store.isOwner">Branch</th>
+                    <th>Packaging & Capacity</th>
+                    <th class="text-right">Cost Price (TSH)</th>
+                    <th class="text-right">Selling Price (TSH)</th>
+                    <th class="text-right">Gross Margin</th>
+                    <th class="text-right">Current Stock</th>
+                    <th class="text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="p in paginatedProducts" :key="p.id">
                 <td>
                   <div class="prod-name-cell">
                     <span class="prod-title">{{ p.name }}</span>
@@ -742,6 +810,82 @@ const handleSaveCategory = async () => {
               </tr>
             </tbody>
           </table>
+            </div>
+
+            <!-- Responsive Mobile Cards (<= 768px) -->
+            <div class="catalog-mobile-cards">
+              <div v-for="p in paginatedProducts" :key="`m-${p.id}`" class="catalog-m-card">
+                <div class="m-card-head">
+                  <div>
+                    <div class="prod-title">{{ p.name }}</div>
+                    <div class="m-card-sub">
+                      <span class="cat-badge">{{ p.category_name || 'Unassigned' }}</span>
+                      <span v-if="p.sku" class="sku-sub">SKU: {{ p.sku }}</span>
+                    </div>
+                  </div>
+                  <div v-if="canManage" class="row-actions">
+                    <button class="btn-icon btn-edit" @click="openEditProduct(p)" title="Edit"><Edit3 :size="15" /></button>
+                    <button class="btn-icon btn-delete" @click="handleDeactivateProduct(p)" title="Deactivate"><Trash2 :size="15" /></button>
+                  </div>
+                </div>
+                <div class="m-card-grid">
+                  <div>
+                    <span class="m-k">Selling Price</span>
+                    <strong class="m-v">TSH {{ parseFloat(p.selling_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                  </div>
+                  <div>
+                    <span class="m-k">Cost Price</span>
+                    <span class="m-v">TSH {{ parseFloat(p.cost_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
+                  </div>
+                  <div>
+                    <span class="m-k">Margin</span>
+                    <span class="margin-pill">{{ calculateMargin(p.selling_price, p.cost_price) }}%</span>
+                  </div>
+                  <div>
+                    <span class="m-k">Stock</span>
+                    <span class="m-v">
+                      {{ p.is_pack ? `${Math.floor(parseFloat(p.stock_quantity || 0))} ${p.pack_name || 'Pack'}` : parseFloat(p.stock_quantity || 0).toLocaleString() }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pagination Bar (10 items per page) -->
+            <div class="catalog-pagination">
+              <span class="pagination-summary">
+                {{ t('sales.showing') }} <strong>{{ pageStart }}–{{ pageEnd }}</strong> {{ t('sales.of') }} <strong>{{ filteredProducts.length }}</strong>
+              </span>
+              <div class="pagination-btns">
+                <button
+                  type="button"
+                  class="pg-btn"
+                  :disabled="currentPage <= 1"
+                  @click="goToPage(currentPage - 1)"
+                >
+                  <ChevronLeft :size="15" />
+                </button>
+                <button
+                  v-for="num in visiblePageNumbers"
+                  :key="num"
+                  type="button"
+                  class="pg-btn"
+                  :class="{ active: num === currentPage }"
+                  @click="goToPage(num)"
+                >
+                  {{ num }}
+                </button>
+                <button
+                  type="button"
+                  class="pg-btn"
+                  :disabled="currentPage >= totalPages"
+                  @click="goToPage(currentPage + 1)"
+                >
+                  <ChevronRight :size="15" />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -783,8 +927,8 @@ const handleSaveCategory = async () => {
               <Wine v-if="isBar" :size="22" class="text-accent" />
               <BookOpen v-else :size="22" class="text-cyan" />
               <div>
-                <h3>{{ isEditing ? 'Edit Catalog Item' : (isBar ? 'Register New Drink' : 'Register New Product') }}</h3>
-                <p class="drawer-sub">Authorized by @{{ store.user?.username || 'Manager' }} • {{ isBar ? 'Bar & Lounge Catalog' : 'Stationery & Retail Catalog' }}</p>
+                <h3>{{ isEditing ? t('cat.drawer.editTitle') : (isBar ? t('cat.drawer.newDrink') : t('cat.drawer.newProduct')) }}</h3>
+                <p class="drawer-sub">@{{ store.user?.username || 'Manager' }} • {{ isBar ? t('nav.barDesc') : t('nav.stationeryDesc') }}</p>
               </div>
             </div>
             <button class="btn-close-sub" @click="showProductDrawer = false"><X :size="18" /></button>
@@ -799,7 +943,7 @@ const handleSaveCategory = async () => {
               @click="setItemType('bar')"
             >
               <Wine :size="14" />
-              <span>Drink / Bar Beverage</span>
+              <span>{{ t('cat.drawer.typeBar') }}</span>
             </button>
             <button 
               type="button" 
@@ -808,7 +952,7 @@ const handleSaveCategory = async () => {
               @click="setItemType('stationery')"
             >
               <BookOpen :size="14" />
-              <span>Stationery / Retail Good</span>
+              <span>{{ t('cat.drawer.typeStat') }}</span>
             </button>
           </div>
 
@@ -818,12 +962,12 @@ const handleSaveCategory = async () => {
               <div class="form-section-card">
                 <div class="form-section-title">
                   <Tag :size="14" />
-                  <span>Step 4: Basic Identification</span>
+                  <span>{{ t('cat.drawer.step4') }}</span>
                 </div>
 
                 <!-- Product Name -->
                 <div class="form-group">
-                  <label>{{ isBar ? 'Drink Name / Brand' : 'Product Name / Brand' }} <span class="req">*</span></label>
+                  <label>{{ isBar ? t('cat.drawer.drinkName') : t('cat.drawer.productName') }} <span class="req">*</span></label>
                   <input 
                     v-model="productForm.name" 
                     type="text" 
@@ -938,16 +1082,16 @@ const handleSaveCategory = async () => {
                   <div class="packaging-rule-banner">
                     <div class="rule-icon">📦</div>
                     <div class="rule-equation">
-                      <span>1 {{ productForm.pack_name || 'Crate' }} of <strong>{{ productForm.name || 'Drink' }}</strong> holds</span>
+                      <span>1 {{ productForm.pack_name || 'Pack' }} {{ t('cat.drawer.of') }} <strong>{{ productForm.name || 'Item' }}</strong> {{ t('cat.drawer.holds') }}</span>
                       <span class="pill-unit-large">{{ productForm.pack_unit_ratio || 1 }}</span>
-                      <span>individual {{ productForm.unit_name || 'Bottles' }}</span>
+                      <span>{{ t('cat.drawer.individual') }} {{ productForm.unit_name || 'Piece' }}</span>
                     </div>
                   </div>
 
                   <!-- Packaging Breakdown Form Inputs -->
                   <div class="form-row">
                     <div class="form-group">
-                      <label>Package / Bulk Container Name <span class="req">*</span></label>
+                      <label>{{ t('cat.drawer.packName') }} <span class="req">*</span></label>
                       <input 
                         v-model="productForm.pack_name" 
                         type="text" 
@@ -955,11 +1099,11 @@ const handleSaveCategory = async () => {
                         class="form-input" 
                         required
                       />
-                      <span class="field-hint">e.g. "Crate" for beers, "Carton" for juice/water boxes.</span>
+                      <span class="field-hint">e.g. "Crate" / "Carton" / "Ream"</span>
                     </div>
 
                     <div class="form-group">
-                      <label>Items / Bottles Per Package <span class="req">*</span></label>
+                      <label>{{ t('cat.drawer.itemsPerPack') }} <span class="req">*</span></label>
                       <div class="input-with-suffix">
                         <input 
                           v-model.number="productForm.pack_unit_ratio" 
@@ -973,11 +1117,11 @@ const handleSaveCategory = async () => {
                         />
                         <span class="suffix-badge">{{ productForm.unit_name || 'units' }}</span>
                       </div>
-                      <span class="field-hint">e.g. 25 for Kilimanjaro beer, 24 for Azam juice/water carton.</span>
+                      <span class="field-hint">e.g. 25, 24, 12, 500</span>
                     </div>
 
                     <div class="form-group">
-                      <label>Single Item Unit Name <span class="req">*</span></label>
+                      <label>{{ t('cat.drawer.singleUnitName') }} <span class="req">*</span></label>
                       <input 
                         v-model="productForm.unit_name" 
                         type="text" 
@@ -985,7 +1129,7 @@ const handleSaveCategory = async () => {
                         class="form-input" 
                         required
                       />
-                      <span class="field-hint">e.g. "Bottle", "Can", or "Pack".</span>
+                      <span class="field-hint">e.g. "Piece", "Pen", "Sheet"</span>
                     </div>
                   </div>
 
@@ -998,9 +1142,9 @@ const handleSaveCategory = async () => {
                       class="form-checkbox"
                     />
                     <label for="chkSplit" class="checkbox-label">
-                      <strong>{{ isBar ? 'Enable Single Bottle / Single Unit Sales at POS Counter' : 'Allow Single Unit Split Sales' }}</strong>
+                      <strong>{{ t('cat.drawer.allowSplit') }}</strong>
                       <span class="sublabel">
-                        When checked, bartenders/cashiers can sell both full {{ productForm.pack_name || 'crates' }} and single {{ productForm.unit_name || 'bottles' }}. Stock automatically deducts 1/{{ productForm.pack_unit_ratio || 1 }} {{ productForm.pack_name || 'crate' }} per single sale.
+                        {{ t('cat.drawer.allowSplitSub') }}
                       </span>
                     </label>
                   </div>
@@ -1011,7 +1155,7 @@ const handleSaveCategory = async () => {
               <div class="form-section-card">
                 <div class="form-section-title">
                   <DollarSign :size="14" />
-                  <span>Step 6: Pricing & Gross Profit (TSH)</span>
+                  <span>{{ t('cat.drawer.step6') }}</span>
                 </div>
 
                 <div class="pricing-dual-grid" v-if="productForm.is_pack && productForm.allow_split_sale">
@@ -1074,7 +1218,7 @@ const handleSaveCategory = async () => {
                 <!-- Single Item Non-Pack Pricing -->
                 <div v-else class="form-row">
                   <div class="form-group">
-                    <label>Retail Selling Price (TSH) <span class="req">*</span></label>
+                    <label>{{ t('cat.drawer.retailPrice') }} <span class="req">*</span></label>
                     <input 
                       v-model="productForm.selling_price" 
                       type="number" 
@@ -1091,8 +1235,8 @@ const handleSaveCategory = async () => {
                 <div class="form-row mt-2">
                   <div class="form-group">
                     <label>
-                      {{ productForm.is_pack ? `Cost Price per ${productForm.pack_name || 'Crate'} (TSH)` : 'Cost Price (TSH)' }}
-                      <span class="opt">(Optional)</span>
+                      {{ t('cat.drawer.costPrice') }}
+                      <span class="opt">{{ t('cat.drawer.optional') }}</span>
                     </label>
                     <input 
                       v-model="productForm.cost_price" 
@@ -1103,14 +1247,14 @@ const handleSaveCategory = async () => {
                       class="form-input"
                     />
                     <span v-if="productForm.is_pack && productForm.cost_price" class="field-hint">
-                      Equates to ~TSH {{ getUnitCost.toLocaleString('en-US', { maximumFractionDigits: 2 }) }} cost per single {{ productForm.unit_name || 'bottle' }}.
+                      ~TSH {{ getUnitCost.toLocaleString('en-US', { maximumFractionDigits: 2 }) }} / {{ productForm.unit_name || 'unit' }}
                     </span>
                   </div>
                   <div class="form-group">
-                    <label>Overall Gross Margin (%)</label>
+                    <label>{{ t('cat.drawer.grossMargin') }}</label>
                     <div class="margin-readonly-display">
                       <span class="margin-pill large">{{ calculateMargin(productForm.selling_price, productForm.cost_price) }}%</span>
-                      <span class="field-hint">Calculated on full package retail selling price.</span>
+                      <span class="field-hint">{{ t('cat.drawer.marginHint') }}</span>
                     </div>
                   </div>
                 </div>
@@ -1518,6 +1662,13 @@ const handleSaveCategory = async () => {
 .table-container {
   flex: 1;
   overflow-y: auto;
+  padding: 16px 24px 24px;
+}
+
+.catalog-table-scroll {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 14px;
+  overflow-x: auto;
 }
 
 .catalog-table {

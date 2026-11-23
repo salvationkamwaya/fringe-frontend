@@ -246,7 +246,18 @@ const handleSaveBranch = async () => {
 
 const handleToggleActive = async (branch) => {
   const actionText = branch.is_active ? 'deactivate' : 'activate'
-  if (!window.confirm(`Are you sure you want to ${actionText} "${branch.name}"?`)) {
+  const isSw = store.locale === 'sw'
+  const confirmed = await store.confirm({
+    title: isSw ? 'Badilisha Hali ya Tawi?' : `${actionText === 'deactivate' ? 'Deactivate' : 'Reactivate'} Branch?`,
+    message: isSw
+      ? `Je, una uhakika unataka kubadilisha hali ya tawi hili?`
+      : `Are you sure you want to ${actionText} this branch location?`,
+    itemLabel: branch.name,
+    confirmText: isSw ? 'Thibitisha' : (actionText === 'deactivate' ? 'Deactivate' : 'Reactivate'),
+    cancelText: isSw ? 'Ghairi' : 'Cancel',
+    variant: actionText === 'deactivate' ? 'danger' : 'primary'
+  })
+  if (!confirmed) {
     return
   }
 
