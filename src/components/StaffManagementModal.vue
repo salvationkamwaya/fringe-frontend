@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { store } from '../store'
 import { t } from '../i18n'
 import api from '../api'
@@ -7,7 +7,7 @@ import {
   Users, UserPlus, Shield, Key, Lock, CheckCircle2,
   XCircle, AlertTriangle, Edit3, RefreshCw, Eye, EyeOff,
   Search, Filter, X, Wine, BookOpen, Layers, Check,
-  RotateCcw, Copy, MapPin
+  RotateCcw, Copy, MapPin, ChevronDown, Crown, Package
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['close'])
@@ -66,20 +66,90 @@ const pinForm = ref({
 })
 const pinSubmitting = ref(false)
 
+const isSw = computed(() => store.locale === 'sw')
+
+// Custom dropdown open state in drawer: 'role' | 'unit' | 'branch' | null
+const openDropdown = ref(null)
+const toggleDropdown = (name) => {
+  openDropdown.value = openDropdown.value === name ? null : name
+}
+const closeDropdowns = () => {
+  openDropdown.value = null
+}
+
 // Role configurations & metadata
 const roleOptions = [
-  { value: 'owner', label: 'Business Owner', unit: null, badgeClass: 'role-owner' },
-  { value: 'bar_manager', label: 'Bar Manager', unit: 'bar', badgeClass: 'role-bar-mgr' },
-  { value: 'bartender', label: 'Bartender / Cashier', unit: 'bar', badgeClass: 'role-bartender' },
-  { value: 'stationery_manager', label: 'Stationery Manager', unit: 'stationery', badgeClass: 'role-stat-mgr' },
-  { value: 'stationery_cashier', label: 'Stationery Cashier', unit: 'stationery', badgeClass: 'role-stat-cashier' },
-  { value: 'stock_clerk', label: 'Stock Clerk', unit: 'stationery', badgeClass: 'role-clerk' },
+  { value: 'owner', label: 'Business Owner', labelSw: 'Mmiliki wa Biashara', desc: 'Full access across all units & branches', descSw: 'Mamlaka kamili kwenye biashara na matawi yote', unit: null, badgeClass: 'role-owner' },
+  { value: 'stationery_manager', label: 'Stationery Manager', labelSw: 'Meneja wa Steshenari', desc: 'Catalog, stock, reports & approvals', descSw: 'Bidhaa, stoo, ripoti na idhini', unit: 'stationery', badgeClass: 'role-stat-mgr' },
+  { value: 'stationery_cashier', label: 'Stationery Cashier', labelSw: 'Keshia wa Steshenari', desc: 'POS counter sales, receipts & shifts', descSw: 'Mauzo ya POS, risiti na zamu', unit: 'stationery', badgeClass: 'role-stat-cashier' },
+  { value: 'stock_clerk', label: 'Stock Clerk', labelSw: 'Karani wa Stoo', desc: 'Inventory receiving & stocktake counts', descSw: 'Kupokea mizigo na kuhesabu stoo', unit: 'stationery', badgeClass: 'role-clerk' },
+  { value: 'bar_manager', label: 'Bar Manager', labelSw: 'Meneja wa Baa', desc: 'Drinks catalog, bar reports & overrides', descSw: 'Vinywaji, ripoti za baa na idhini', unit: 'bar', badgeClass: 'role-bar-mgr' },
+  { value: 'bartender', label: 'Bartender / Cashier', labelSw: 'Mhudumu wa Baa / Keshia', desc: 'Bar POS orders, tabs & shift checkout', descSw: 'Oda za baa, bili na malipo', unit: 'bar', badgeClass: 'role-bartender' },
 ]
 
 const unitOptions = [
-  { value: 'bar', label: '🍷 Bar & Lounge' },
-  { value: 'stationery', label: '📚 Stationery & Retail' },
+  { value: 'stationery', label: 'Stationery & Retail', labelSw: 'Steshenari na Rejareja', desc: 'Books, office supplies & wholesale', descSw: 'Vitabu, vifaa vya ofisi na jumla' },
+  { value: 'bar', label: 'Bar & Lounge', labelSw: 'Baa na Vinywaji', desc: 'Beverages, counter & lounge tabs', descSw: 'Vinywaji, kaunta na bili za meza' },
 ]
+
+// Prioritized role options based on selected business unit
+const prioritizedRoleOptions = computed(() => {
+  const unit = createForm.value.business_unit
+  if (!unit) return roleOptions
+  const matching = roleOptions.filter(r => r.unit === unit)
+  const others = roleOptions.filter(r => r.unit !== unit)
+  return [...matching, ...others]
+})
+
+const selectedRoleObj = computed(() => {
+  return roleOptions.find(r => r.value === createForm.value.role) || roleOptions[0]
+})
+
+const selectedUnitObj = computed(() => {
+  return unitOptions.find(u => u.value === createForm.value.business_unit) || unitOptions[0]
+})
+
+// Branches filtered for the selected business unit in the drawer
+const drawerBranches = computed(() => {
+  const unit = createForm.value.business_unit
+  const list = store.branches || []
+  if (!unit) return list
+  const scoped = list.filter(b => (b.business_unit_id || b.business_unit) === unit)
+  return scoped.length > 0 ? scoped : list
+})
+
+const selectedBranchObj = computed(() => {
+  return drawerBranches.value.find(b => String(b.id) === String(createForm.value.branch)) || null
+})
+
+const selectDrawerRole = (roleVal) => {
+  createForm.value.role = roleVal
+  onRoleChange()
+  openDropdown.value = null
+}
+
+const selectDrawerUnit = (unitVal) => {
+  createForm.value.business_unit = unitVal
+  // Keep role aligned with selected unit (unless owner)
+  const currentRole = roleOptions.find(r => r.value === createForm.value.role)
+  if (currentRole && currentRole.unit && currentRole.unit !== unitVal) {
+    createForm.value.role = unitVal === 'stationery' ? 'stationery_cashier' : 'bartender'
+  }
+  // Pick active branch for this unit if available
+  const unitBranches = (store.branches || []).filter(
+    b => (b.business_unit_id || b.business_unit) === unitVal && b.is_active !== false
+  )
+  const currentValid = unitBranches.some(b => String(b.id) === String(createForm.value.branch))
+  if (!currentValid) {
+    createForm.value.branch = unitBranches[0]?.id || null
+  }
+  openDropdown.value = null
+}
+
+const selectDrawerBranch = (branchId) => {
+  createForm.value.branch = branchId
+  openDropdown.value = null
+}
 
 const fetchUsers = async () => {
   loading.value = true
@@ -133,40 +203,48 @@ const getRoleBadgeClass = (role) => {
   return opt ? opt.badgeClass : 'role-default'
 }
 
-// Auto-align unit when selecting role in creation
+// Auto-align unit & branch when selecting role in creation
 const onRoleChange = () => {
-  if (createForm.value.role === 'bar_manager' || createForm.value.role === 'bartender') {
-    createForm.value.business_unit = 'bar'
-    if (!createForm.value.branch && store.branches.length > 0) {
-      createForm.value.branch = (store.activeBranchId && store.activeBranchId !== 'all')
-        ? parseInt(store.activeBranchId, 10)
-        : store.branches[0].id
+  const roleMeta = roleOptions.find(r => r.value === createForm.value.role)
+  if (!roleMeta || roleMeta.value === 'owner') {
+    createForm.value.branch = null
+    return
+  }
+  if (roleMeta.unit) {
+    createForm.value.business_unit = roleMeta.unit
+    const unitBranches = (store.branches || []).filter(
+      b => (b.business_unit_id || b.business_unit) === roleMeta.unit && b.is_active !== false
+    )
+    const currentValid = unitBranches.some(b => String(b.id) === String(createForm.value.branch))
+    if (!currentValid) {
+      const activeMatch = unitBranches.find(b => String(b.id) === String(store.activeBranchId))
+      createForm.value.branch = activeMatch?.id || unitBranches[0]?.id || null
     }
-  } else if (createForm.value.role === 'stationery_manager' || createForm.value.role === 'stationery_cashier') {
-    createForm.value.business_unit = 'stationery'
-    createForm.value.branch = null
-  } else {
-    createForm.value.branch = null
   }
 }
 
-// Open creation form
+// Open creation form — defaults intelligently to the active business unit & branch!
 const openCreateDrawer = () => {
-  const defaultBranch = (store.activeBranchId && store.activeBranchId !== 'all')
-    ? parseInt(store.activeBranchId, 10)
-    : (store.branches[0]?.id || null)
+  const defaultUnit = store.activeUnit === 'bar' ? 'bar' : 'stationery'
+  const defaultRole = defaultUnit === 'stationery' ? 'stationery_cashier' : 'bartender'
+  const unitBranches = (store.branches || []).filter(
+    b => (b.business_unit_id || b.business_unit) === defaultUnit && b.is_active !== false
+  )
+  const activeMatch = unitBranches.find(b => String(b.id) === String(store.activeBranchId))
+  const defaultBranch = activeMatch?.id || unitBranches[0]?.id || null
 
   createForm.value = {
     username: '',
     first_name: '',
     last_name: '',
     email: '',
-    role: 'bartender',
-    business_unit: 'bar',
+    role: defaultRole,
+    business_unit: defaultUnit,
     branch: defaultBranch,
     password: '',
     pin: ''
   }
+  openDropdown.value = null
   showCreateDrawer.value = true
 }
 
@@ -212,8 +290,8 @@ const handleCreateStaff = async () => {
       last_name: createForm.value.last_name.trim(),
       email: createForm.value.email.trim(),
       role: createForm.value.role,
-      business_unit: createForm.value.business_unit || null,
-      branch: createForm.value.business_unit === 'bar' ? createForm.value.branch : null,
+      business_unit: createForm.value.role === 'owner' ? null : (createForm.value.business_unit || null),
+      branch: createForm.value.role === 'owner' ? null : (createForm.value.branch || null),
       password: createForm.value.password,
       pin: createForm.value.pin || undefined
     }
@@ -394,7 +472,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
+  <div class="modal-overlay" :data-theme="store.theme" @click.self="$emit('close')">
     <div class="modal-card">
       <!-- Modal Header -->
       <div class="modal-header">
@@ -460,7 +538,7 @@ onMounted(async () => {
         </div>
 
         <!-- Controls Toolbar -->
-        <div class="toolbar">
+        <div class="toolbar" @click="closeDropdowns">
           <div class="search-box">
             <Search :size="16" class="search-icon" />
             <input 
@@ -469,221 +547,326 @@ onMounted(async () => {
               :placeholder="t('staff.searchPlaceholder')"
               class="search-input"
             />
-            <button v-if="searchQuery" class="clear-btn" @click="searchQuery = ''">
+            <button v-if="searchQuery" type="button" class="clear-btn" @click="searchQuery = ''">
               <X :size="14" />
             </button>
           </div>
 
           <div class="filters">
-            <div class="filter-item">
-              <Filter :size="14" />
-              <select v-model="filterUnit" class="select-filter">
-                <option value="all">{{ t('staff.allUnits') }}</option>
-                <option value="bar">🍷 Bar & Lounge</option>
-                <option value="stationery">📚 Stationery Shop</option>
-                <option value="global">⚡ Global / Owner</option>
-              </select>
+            <!-- Unit Filter Dropdown -->
+            <div class="filter-dropdown-wrap" @click.stop>
+              <button
+                type="button"
+                class="filter-trigger"
+                :class="{ open: openDropdown === 'filter_unit', active: filterUnit !== 'all' }"
+                @click="toggleDropdown('filter_unit')"
+              >
+                <Filter :size="14" class="f-icon" />
+                <span>
+                  {{ filterUnit === 'all'
+                    ? t('staff.allUnits')
+                    : filterUnit === 'bar'
+                      ? (isSw ? 'Baa na Vinywaji' : 'Bar & Lounge')
+                      : filterUnit === 'stationery'
+                        ? (isSw ? 'Steshenari' : 'Stationery & Retail')
+                        : (isSw ? 'Biashara Zote / Mmiliki' : 'Global / Owner') }}
+                </span>
+                <ChevronDown :size="14" class="trigger-chevron" :class="{ rotated: openDropdown === 'filter_unit' }" />
+              </button>
+              <transition name="dd-pop">
+                <div v-if="openDropdown === 'filter_unit'" class="custom-select-menu filter-menu">
+                  <button type="button" class="custom-option" :class="{ selected: filterUnit === 'all' }" @click="filterUnit = 'all'; closeDropdowns()">
+                    <span class="opt-title">{{ t('staff.allUnits') }}</span>
+                    <Check v-if="filterUnit === 'all'" :size="14" class="opt-check" />
+                  </button>
+                  <button type="button" class="custom-option" :class="{ selected: filterUnit === 'stationery' }" @click="filterUnit = 'stationery'; closeDropdowns()">
+                    <BookOpen :size="14" class="sel-icon accent" />
+                    <span class="opt-title">{{ isSw ? 'Steshenari na Rejareja' : 'Stationery & Retail' }}</span>
+                    <Check v-if="filterUnit === 'stationery'" :size="14" class="opt-check" />
+                  </button>
+                  <button type="button" class="custom-option" :class="{ selected: filterUnit === 'bar' }" @click="filterUnit = 'bar'; closeDropdowns()">
+                    <Wine :size="14" class="sel-icon amber" />
+                    <span class="opt-title">{{ isSw ? 'Baa na Vinywaji' : 'Bar & Lounge' }}</span>
+                    <Check v-if="filterUnit === 'bar'" :size="14" class="opt-check" />
+                  </button>
+                  <button type="button" class="custom-option" :class="{ selected: filterUnit === 'global' }" @click="filterUnit = 'global'; closeDropdowns()">
+                    <Layers :size="14" class="sel-icon accent" />
+                    <span class="opt-title">{{ isSw ? 'Biashara Zote / Mmiliki' : 'Global / Owner' }}</span>
+                    <Check v-if="filterUnit === 'global'" :size="14" class="opt-check" />
+                  </button>
+                </div>
+              </transition>
             </div>
 
-            <div class="filter-item">
-              <select v-model="filterRole" class="select-filter">
-                <option value="all">{{ t('staff.allRoles') }}</option>
-                <option v-for="role in roleOptions" :key="role.value" :value="role.value">
-                  {{ role.label }}
-                </option>
-              </select>
+            <!-- Role Filter Dropdown -->
+            <div class="filter-dropdown-wrap" @click.stop>
+              <button
+                type="button"
+                class="filter-trigger"
+                :class="{ open: openDropdown === 'filter_role', active: filterRole !== 'all' }"
+                @click="toggleDropdown('filter_role')"
+              >
+                <span>
+                  {{ filterRole === 'all'
+                    ? t('staff.allRoles')
+                    : (isSw ? (roleOptions.find(r => r.value === filterRole)?.labelSw || filterRole) : (roleOptions.find(r => r.value === filterRole)?.label || filterRole)) }}
+                </span>
+                <ChevronDown :size="14" class="trigger-chevron" :class="{ rotated: openDropdown === 'filter_role' }" />
+              </button>
+              <transition name="dd-pop">
+                <div v-if="openDropdown === 'filter_role'" class="custom-select-menu filter-menu">
+                  <button type="button" class="custom-option" :class="{ selected: filterRole === 'all' }" @click="filterRole = 'all'; closeDropdowns()">
+                    <span class="opt-title">{{ t('staff.allRoles') }}</span>
+                    <Check v-if="filterRole === 'all'" :size="14" class="opt-check" />
+                  </button>
+                  <button
+                    v-for="role in roleOptions"
+                    :key="role.value"
+                    type="button"
+                    class="custom-option"
+                    :class="{ selected: filterRole === role.value }"
+                    @click="filterRole = role.value; closeDropdowns()"
+                  >
+                    <span class="opt-title">{{ isSw ? role.labelSw : role.label }}</span>
+                    <Check v-if="filterRole === role.value" :size="14" class="opt-check" />
+                  </button>
+                </div>
+              </transition>
             </div>
 
-            <div class="filter-item" v-if="store.branches.length">
-              <select v-model="filterBranch" class="select-filter">
-                <option value="all">{{ t('staff.allBranches') }}</option>
-                <option v-for="b in store.branches" :key="b.id" :value="String(b.id)">
-                  {{ b.name }}
-                </option>
-              </select>
+            <!-- Branch Filter Dropdown -->
+            <div class="filter-dropdown-wrap" v-if="store.branches.length" @click.stop>
+              <button
+                type="button"
+                class="filter-trigger"
+                :class="{ open: openDropdown === 'filter_branch', active: filterBranch !== 'all' }"
+                @click="toggleDropdown('filter_branch')"
+              >
+                <MapPin :size="14" class="f-icon" />
+                <span>
+                  {{ filterBranch === 'all'
+                    ? t('staff.allBranches')
+                    : (store.branches.find(b => String(b.id) === String(filterBranch))?.name || t('staff.allBranches')) }}
+                </span>
+                <ChevronDown :size="14" class="trigger-chevron" :class="{ rotated: openDropdown === 'filter_branch' }" />
+              </button>
+              <transition name="dd-pop">
+                <div v-if="openDropdown === 'filter_branch'" class="custom-select-menu filter-menu filter-menu-right">
+                  <button type="button" class="custom-option" :class="{ selected: filterBranch === 'all' }" @click="filterBranch = 'all'; closeDropdowns()">
+                    <span class="opt-title">{{ t('staff.allBranches') }}</span>
+                    <Check v-if="filterBranch === 'all'" :size="14" class="opt-check" />
+                  </button>
+                  <button
+                    v-for="b in store.branches"
+                    :key="b.id"
+                    type="button"
+                    class="custom-option"
+                    :class="{ selected: String(filterBranch) === String(b.id) }"
+                    @click="filterBranch = String(b.id); closeDropdowns()"
+                  >
+                    <span class="opt-title">{{ b.name }}</span>
+                    <Check v-if="String(filterBranch) === String(b.id)" :size="14" class="opt-check" />
+                  </button>
+                </div>
+              </transition>
             </div>
 
-            <button class="btn-refresh" @click="fetchUsers" :title="t('common.refresh')">
+            <button type="button" class="btn-refresh" @click="fetchUsers" :title="t('common.refresh')">
               <RefreshCw :size="16" :class="{ 'spin-anim': loading }" />
             </button>
 
-            <button class="btn-add-staff" @click="openCreateDrawer">
+            <button type="button" class="btn-add-staff" @click="openCreateDrawer">
               <UserPlus :size="16" />
               <span>{{ t('staff.registerNew') }}</span>
             </button>
           </div>
         </div>
 
-        <!-- Staff List Table -->
-        <div class="table-container">
-          <table class="staff-table">
-            <thead>
-              <tr>
-                <th>{{ t('staff.colMember') }}</th>
-                <th>{{ t('staff.colRole') }}</th>
-                <th>{{ t('staff.colUnit') }}</th>
-                <th>{{ t('staff.colBranch') }}</th>
-                <th>{{ t('staff.colPin') }}</th>
-                <th>{{ t('staff.colStatus') }}</th>
-                <th class="text-right">{{ t('staff.colActions') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="loading && users.length === 0">
-                <td colspan="7" class="loading-td">
-                  <RefreshCw :size="20" class="spin-anim" />
-                  <span>Loading staff records from secure ledger...</span>
-                </td>
-              </tr>
-              <tr v-else-if="filteredUsers.length === 0">
-                <td colspan="7" class="empty-td">
-                  <Users :size="32" class="empty-icon" />
-                  <p>No staff records found matching your filters.</p>
-                </td>
-              </tr>
-              <tr v-for="user in filteredUsers" :key="user.id" :class="{ 'row-inactive': !user.is_active }">
-                <!-- Staff Name & Username -->
-                <td>
-                  <div class="user-cell">
-                    <div class="user-avatar" :class="user.role === 'owner' ? 'avatar-owner' : 'avatar-staff'">
-                      <span>{{ (user.first_name?.[0] || user.username?.[0] || 'U').toUpperCase() }}</span>
-                    </div>
-                    <div class="user-name-col">
-                      <div class="user-fullname">
-                        {{ user.first_name ? `${user.first_name} ${user.last_name || ''}` : user.username }}
-                        <span v-if="user.role === 'owner'" class="crown-tag">👑 Business Owner</span>
+        <!-- Staff List Table (Desktop / Tablet) -->
+        <div class="table-container staff-table-desktop">
+          <div class="staff-table-scroll">
+            <table class="staff-table">
+              <thead>
+                <tr>
+                  <th>{{ t('staff.colMember') }}</th>
+                  <th>{{ t('staff.colRole') }}</th>
+                  <th>{{ t('staff.colUnit') }}</th>
+                  <th>{{ t('staff.colBranch') }}</th>
+                  <th>{{ t('staff.colPin') }}</th>
+                  <th>{{ t('staff.colStatus') }}</th>
+                  <th class="text-right">{{ t('staff.colActions') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="loading && users.length === 0">
+                  <td colspan="7" class="loading-td">
+                    <RefreshCw :size="20" class="spin-anim" />
+                    <span>{{ isSw ? 'Inapakia orodha ya wafanyakazi...' : 'Loading staff records from secure ledger...' }}</span>
+                  </td>
+                </tr>
+                <tr v-else-if="filteredUsers.length === 0">
+                  <td colspan="7" class="empty-td">
+                    <Users :size="32" class="empty-icon" />
+                    <p>{{ isSw ? 'Hakuna mfanyakazi aliyepatikana kwa vichujio hivi.' : 'No staff records found matching your filters.' }}</p>
+                  </td>
+                </tr>
+                <tr v-for="user in filteredUsers" :key="user.id" :class="{ 'row-inactive': !user.is_active }">
+                  <td>
+                    <div class="user-cell">
+                      <div class="user-avatar" :class="user.role === 'owner' ? 'avatar-owner' : 'avatar-staff'">
+                        <span>{{ (user.first_name?.[0] || user.username?.[0] || 'U').toUpperCase() }}</span>
                       </div>
-                      <div class="user-subtext">@{{ user.username }} &bull; {{ user.email || 'No email' }}</div>
+                      <div class="user-name-col">
+                        <div class="user-fullname">
+                          <span>{{ user.first_name ? `${user.first_name} ${user.last_name || ''}` : user.username }}</span>
+                          <span v-if="user.role === 'owner'" class="crown-tag">{{ isSw ? 'Mmiliki' : 'Owner' }}</span>
+                        </div>
+                        <div class="user-subtext">@{{ user.username }} &bull; {{ user.email || (isSw ? 'Hakuna barua pepe' : 'No email') }}</div>
+                      </div>
                     </div>
-                  </div>
-                </td>
+                  </td>
 
-                <!-- Role Badge -->
-                <td>
-                  <span class="role-pill" :class="getRoleBadgeClass(user.role)">
-                    {{ user.role_display }}
-                  </span>
-                </td>
+                  <td>
+                    <span class="role-pill" :class="getRoleBadgeClass(user.role)">
+                      {{ user.role_display }}
+                    </span>
+                  </td>
 
-                <!-- Business Unit -->
-                <td>
-                  <div class="unit-cell">
-                    <Wine v-if="user.business_unit === 'bar'" :size="14" class="text-amber" />
-                    <BookOpen v-else-if="user.business_unit === 'stationery'" :size="14" class="text-cyan" />
-                    <Layers v-else :size="14" class="text-purple" />
-                    <span>{{ user.business_unit_name || 'Global (Cross-Unit)' }}</span>
-                  </div>
-                </td>
+                  <td>
+                    <div class="unit-cell">
+                      <Wine v-if="user.business_unit === 'bar'" :size="14" class="text-amber" />
+                      <BookOpen v-else-if="user.business_unit === 'stationery'" :size="14" class="text-cyan" />
+                      <Layers v-else :size="14" class="text-purple" />
+                      <span>{{ user.business_unit_name || (isSw ? 'Biashara Zote' : 'Global (Cross-Unit)') }}</span>
+                    </div>
+                  </td>
 
-                <!-- Assigned Branch -->
-                <td>
-                  <div v-if="user.branch_name" class="branch-cell">
-                    <MapPin :size="13" class="text-emerald" />
-                    <span class="branch-name">{{ user.branch_name }}</span>
-                    <span v-if="user.branch_code" class="branch-code">({{ user.branch_code }})</span>
-                  </div>
-                  <span v-else-if="user.role === 'owner'" class="branch-all">All Locations</span>
-                  <span v-else-if="user.business_unit === 'stationery'" class="branch-na">N/A</span>
-                  <span v-else class="branch-unassigned">Unassigned</span>
-                </td>
+                  <td>
+                    <div v-if="user.branch_name" class="branch-cell">
+                      <MapPin :size="13" class="text-emerald" />
+                      <span class="branch-name">{{ user.branch_name }}</span>
+                      <span v-if="user.branch_code" class="branch-code">({{ user.branch_code }})</span>
+                    </div>
+                    <span v-else-if="user.role === 'owner'" class="branch-all">{{ isSw ? 'Matawi Yote' : 'All Locations' }}</span>
+                    <span v-else class="branch-unassigned">{{ isSw ? 'Hajapangiwa' : 'Unassigned' }}</span>
+                  </td>
 
-                <!-- PIN Status -->
-                <td>
-                  <span v-if="user.has_pin" class="badge-pin-yes">
-                    <CheckCircle2 :size="14" />
-                    <span>PIN Active</span>
-                  </span>
-                  <span v-else class="badge-pin-no">
-                    <Lock :size="14" />
-                    <span>Not Set</span>
-                  </span>
-                </td>
+                  <td>
+                    <span v-if="user.has_pin" class="badge-pin-yes">
+                      <CheckCircle2 :size="14" />
+                      <span>{{ isSw ? 'PIN Ipo' : 'PIN Active' }}</span>
+                    </span>
+                    <span v-else class="badge-pin-no">
+                      <Lock :size="14" />
+                      <span>{{ isSw ? 'Haijawekwa' : 'Not Set' }}</span>
+                    </span>
+                  </td>
 
-                <!-- Status -->
-                <td>
-                  <span class="status-pill" :class="user.is_active ? 'status-active' : 'status-suspended'">
-                    {{ user.is_active ? 'Active' : 'Suspended' }}
-                  </span>
-                </td>
+                  <td>
+                    <span class="status-pill" :class="user.is_active ? 'status-active' : 'status-suspended'">
+                      {{ user.is_active ? (isSw ? 'Hai' : 'Active') : (isSw ? 'Imesimamishwa' : 'Suspended') }}
+                    </span>
+                  </td>
 
-                <!-- Actions -->
-                <td class="text-right">
-                  <div class="actions-group">
-                    <!-- Edit Role & Unit -->
-                    <button 
-                      class="btn-action edit" 
-                      @click="openRoleModal(user)"
-                      title="Reassign Role or Business Unit"
-                    >
-                      <Edit3 :size="14" />
-                      <span>Role</span>
-                    </button>
+                  <td class="text-right">
+                    <div class="actions-group">
+                      <button class="btn-action edit" @click="openRoleModal(user)" :title="isSw ? 'Badilisha Jukumu' : 'Reassign Role or Business Unit'">
+                        <Edit3 :size="14" />
+                        <span>{{ isSw ? 'Jukumu' : 'Role' }}</span>
+                      </button>
 
-                    <!-- Set/Change PIN -->
-                    <button 
-                      class="btn-action pin" 
-                      @click="openPinModal(user)"
-                      title="Set or Reset Authorization PIN"
-                    >
-                      <Key :size="14" />
-                      <span>PIN</span>
-                    </button>
+                      <button class="btn-action pin" @click="openPinModal(user)" :title="isSw ? 'Weka PIN' : 'Set or Reset Authorization PIN'">
+                        <Key :size="14" />
+                        <span>PIN</span>
+                      </button>
 
-                    <!-- Owner-Assisted Reset Token -->
-                    <button 
-                      v-if="user.role !== 'owner'"
-                      class="btn-action token" 
-                      @click="handleGenerateResetToken(user)"
-                      title="Generate temporary Owner Reset Token for employee password recovery"
-                    >
-                      <RotateCcw :size="14" />
-                      <span>Token</span>
-                    </button>
+                      <button v-if="user.role !== 'owner'" class="btn-action token" @click="handleGenerateResetToken(user)" :title="isSw ? 'Tengeneza Tokeni' : 'Generate Reset Token'">
+                        <RotateCcw :size="14" />
+                        <span>{{ isSw ? 'Tokeni' : 'Token' }}</span>
+                      </button>
 
-                    <!-- Toggle Status -->
-                    <button 
-                      v-if="user.role !== 'owner'"
-                      class="btn-action" 
-                      :class="user.is_active ? 'suspend' : 'activate'"
-                      @click="handleToggleActive(user)"
-                      :title="user.is_active ? 'Suspend Account' : 'Reactivate Account'"
-                    >
-                      <XCircle v-if="user.is_active" :size="14" />
-                      <CheckCircle2 v-else :size="14" />
-                      <span>{{ user.is_active ? 'Suspend' : 'Activate' }}</span>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                      <button
+                        v-if="user.role !== 'owner'"
+                        class="btn-action"
+                        :class="user.is_active ? 'suspend' : 'activate'"
+                        @click="handleToggleActive(user)"
+                      >
+                        <XCircle v-if="user.is_active" :size="14" />
+                        <CheckCircle2 v-else :size="14" />
+                        <span>{{ user.is_active ? (isSw ? 'Simamisha' : 'Suspend') : (isSw ? 'Washa' : 'Activate') }}</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Mobile Staff Cards (<= 768px) -->
+        <div class="staff-mobile-cards">
+          <div v-if="filteredUsers.length === 0 && !loading" class="mobile-empty-card">
+            <Users :size="28" />
+            <p>{{ isSw ? 'Hakuna mfanyakazi aliyepatikana.' : 'No staff records found.' }}</p>
+          </div>
+          <div v-for="user in filteredUsers" :key="'m-' + user.id" class="staff-m-card" :class="{ 'row-inactive': !user.is_active }">
+            <div class="staff-m-head">
+              <div class="user-cell">
+                <div class="user-avatar" :class="user.role === 'owner' ? 'avatar-owner' : 'avatar-staff'">
+                  <span>{{ (user.first_name?.[0] || user.username?.[0] || 'U').toUpperCase() }}</span>
+                </div>
+                <div class="user-name-col">
+                  <div class="user-fullname">{{ user.first_name ? `${user.first_name} ${user.last_name || ''}` : user.username }}</div>
+                  <div class="user-subtext">@{{ user.username }}</div>
+                </div>
+              </div>
+              <span class="status-pill" :class="user.is_active ? 'status-active' : 'status-suspended'">
+                {{ user.is_active ? (isSw ? 'Hai' : 'Active') : (isSw ? 'Imesimamishwa' : 'Suspended') }}
+              </span>
+            </div>
+            <div class="staff-m-meta">
+              <span class="role-pill" :class="getRoleBadgeClass(user.role)">{{ user.role_display }}</span>
+              <span class="m-meta-chip">{{ user.business_unit_name || (isSw ? 'Biashara Zote' : 'Global') }}</span>
+              <span class="m-meta-chip">{{ user.branch_name || (user.role === 'owner' ? (isSw ? 'Matawi Yote' : 'All Locations') : (isSw ? 'Hajapangiwa' : 'Unassigned')) }}</span>
+            </div>
+            <div class="staff-m-actions">
+              <button class="btn-action edit" @click="openRoleModal(user)"><Edit3 :size="13" /><span>{{ isSw ? 'Jukumu' : 'Role' }}</span></button>
+              <button class="btn-action pin" @click="openPinModal(user)"><Key :size="13" /><span>PIN</span></button>
+              <button v-if="user.role !== 'owner'" class="btn-action token" @click="handleGenerateResetToken(user)"><RotateCcw :size="13" /><span>{{ isSw ? 'Tokeni' : 'Token' }}</span></button>
+              <button v-if="user.role !== 'owner'" class="btn-action" :class="user.is_active ? 'suspend' : 'activate'" @click="handleToggleActive(user)">
+                <span>{{ user.is_active ? (isSw ? 'Simamisha' : 'Suspend') : (isSw ? 'Washa' : 'Activate') }}</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- Slide-over Drawer: Register New Staff -->
       <transition name="drawer-slide">
         <div v-if="showCreateDrawer" class="drawer-overlay" @click.self="showCreateDrawer = false">
-          <div class="drawer-card">
+          <div class="drawer-card" @click="closeDropdowns">
             <div class="drawer-header">
               <div class="drawer-title-group">
-                <UserPlus :size="20" class="drawer-icon" />
+                <div class="drawer-icon-badge">
+                  <UserPlus :size="18" />
+                </div>
                 <div>
-                  <h4 class="drawer-title">Register New Staff Account</h4>
-                  <p class="drawer-sub">Business Owner Authorization: Assign role, credentials, and business unit.</p>
+                  <h4 class="drawer-title">{{ isSw ? 'Sajili Akaunti Mpya ya Mfanyakazi' : 'Register New Staff Account' }}</h4>
+                  <p class="drawer-sub">{{ isSw ? 'Mamlaka ya Mmiliki: Panga jukumu, taarifa za kuingia na tawi.' : 'Business Owner Authorization: Assign role, credentials, and branch.' }}</p>
                 </div>
               </div>
-              <button class="btn-close" @click="showCreateDrawer = false"><X :size="18" /></button>
+              <button type="button" class="btn-close-drawer" @click="showCreateDrawer = false"><X :size="18" /></button>
             </div>
 
             <form class="drawer-body" @submit.prevent="handleCreateStaff">
               <!-- Name Fields -->
               <div class="form-row">
                 <div class="form-group">
-                  <label>First Name</label>
+                  <label>{{ isSw ? 'Jina la Kwanza' : 'First Name' }}</label>
                   <input v-model="createForm.first_name" type="text" placeholder="e.g. John" class="form-input" />
                 </div>
                 <div class="form-group">
-                  <label>Last Name</label>
+                  <label>{{ isSw ? 'Jina la Mwisho' : 'Last Name' }}</label>
                   <input v-model="createForm.last_name" type="text" placeholder="e.g. Banda" class="form-input" />
                 </div>
               </div>
@@ -691,46 +874,153 @@ onMounted(async () => {
               <!-- Username & Email -->
               <div class="form-row">
                 <div class="form-group">
-                  <label>Username <span class="req">*</span></label>
+                  <label>{{ isSw ? 'Jina la Mtumiaji' : 'Username' }} <span class="req">*</span></label>
                   <input v-model="createForm.username" type="text" required placeholder="e.g. jbanda" class="form-input" />
                 </div>
                 <div class="form-group">
-                  <label>Email Address</label>
+                  <label>{{ isSw ? 'Barua Pepe' : 'Email Address' }}</label>
                   <input v-model="createForm.email" type="email" placeholder="e.g. john@fringe.local" class="form-input" />
                 </div>
               </div>
 
-              <!-- Role & Business Unit -->
+              <!-- Custom Attractive Dropdowns: Business Unit & Role -->
               <div class="form-row">
-                <div class="form-group">
-                  <label>Assigned Role <span class="req">*</span></label>
-                  <select v-model="createForm.role" class="form-select" @change="onRoleChange">
-                    <option v-for="r in roleOptions" :key="r.value" :value="r.value">
-                      {{ r.label }}
-                    </option>
-                  </select>
+                <!-- Assigned Business Unit -->
+                <div class="form-group" @click.stop>
+                  <label>{{ isSw ? 'Kitengo cha Biashara' : 'Assigned Business Unit' }} <span class="req">*</span></label>
+                  <div class="custom-select-wrap">
+                    <button
+                      type="button"
+                      class="custom-select-trigger"
+                      :class="{ open: openDropdown === 'unit' }"
+                      @click="toggleDropdown('unit')"
+                    >
+                      <span class="trigger-left">
+                        <BookOpen v-if="createForm.business_unit === 'stationery'" :size="15" class="sel-icon accent" />
+                        <Wine v-else :size="15" class="sel-icon amber" />
+                        <span class="trigger-text">{{ isSw ? selectedUnitObj.labelSw : selectedUnitObj.label }}</span>
+                      </span>
+                      <ChevronDown :size="15" class="trigger-chevron" :class="{ rotated: openDropdown === 'unit' }" />
+                    </button>
+
+                    <transition name="dd-pop">
+                      <div v-if="openDropdown === 'unit'" class="custom-select-menu">
+                        <button
+                          v-for="u in unitOptions"
+                          :key="u.value"
+                          type="button"
+                          class="custom-option"
+                          :class="{ selected: createForm.business_unit === u.value }"
+                          @click="selectDrawerUnit(u.value)"
+                        >
+                          <div class="opt-icon-box" :class="u.value === 'stationery' ? 'opt-stat' : 'opt-bar'">
+                            <BookOpen v-if="u.value === 'stationery'" :size="15" />
+                            <Wine v-else :size="15" />
+                          </div>
+                          <div class="opt-text-col">
+                            <span class="opt-title">{{ isSw ? u.labelSw : u.label }}</span>
+                            <span class="opt-desc">{{ isSw ? u.descSw : u.desc }}</span>
+                          </div>
+                          <Check v-if="createForm.business_unit === u.value" :size="15" class="opt-check" />
+                        </button>
+                      </div>
+                    </transition>
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>Assigned Business Unit <span class="req">*</span></label>
-                  <select v-model="createForm.business_unit" class="form-select">
-                    <option value="bar">🍷 Bar & Lounge</option>
-                    <option value="stationery">📚 Stationery & Retail</option>
-                  </select>
+
+                <!-- Assigned Role -->
+                <div class="form-group" @click.stop>
+                  <label>{{ isSw ? 'Jukumu la Mfanyakazi' : 'Assigned Role' }} <span class="req">*</span></label>
+                  <div class="custom-select-wrap">
+                    <button
+                      type="button"
+                      class="custom-select-trigger"
+                      :class="{ open: openDropdown === 'role' }"
+                      @click="toggleDropdown('role')"
+                    >
+                      <span class="trigger-left">
+                        <Shield :size="15" class="sel-icon accent" />
+                        <span class="trigger-text">{{ isSw ? selectedRoleObj.labelSw : selectedRoleObj.label }}</span>
+                      </span>
+                      <ChevronDown :size="15" class="trigger-chevron" :class="{ rotated: openDropdown === 'role' }" />
+                    </button>
+
+                    <transition name="dd-pop">
+                      <div v-if="openDropdown === 'role'" class="custom-select-menu">
+                        <button
+                          v-for="r in prioritizedRoleOptions"
+                          :key="r.value"
+                          type="button"
+                          class="custom-option"
+                          :class="{ selected: createForm.role === r.value }"
+                          @click="selectDrawerRole(r.value)"
+                        >
+                          <div class="opt-icon-box" :class="r.unit === 'stationery' ? 'opt-stat' : (r.unit === 'bar' ? 'opt-bar' : 'opt-owner')">
+                            <BookOpen v-if="r.unit === 'stationery'" :size="14" />
+                            <Wine v-else-if="r.unit === 'bar'" :size="14" />
+                            <Shield v-else :size="14" />
+                          </div>
+                          <div class="opt-text-col">
+                            <span class="opt-title">{{ isSw ? r.labelSw : r.label }}</span>
+                            <span class="opt-desc">{{ isSw ? r.descSw : r.desc }}</span>
+                          </div>
+                          <Check v-if="createForm.role === r.value" :size="15" class="opt-check" />
+                        </button>
+                      </div>
+                    </transition>
+                  </div>
                 </div>
               </div>
 
-              <!-- Permanent Branch Assignment (Bar & Lounge) -->
-              <div class="form-group" v-if="createForm.business_unit === 'bar'">
+              <!-- Permanent Branch Assignment -->
+              <div class="form-group" v-if="createForm.role !== 'owner'" @click.stop>
                 <label>
-                  Permanent Branch Location <span class="req" v-if="createForm.role === 'bartender'">*</span>
+                  {{ isSw ? 'Tawi Analofanyia Kazi' : 'Assigned Branch Location' }}
+                  <span class="req" v-if="createForm.role === 'bartender' || createForm.role === 'stationery_cashier'">*</span>
                 </label>
-                <select v-model="createForm.branch" class="form-select" :required="createForm.role === 'bartender'">
-                  <option :value="null">-- Select Branch Location --</option>
-                  <option v-for="b in store.branches" :key="b.id" :value="b.id">
-                    📍 {{ b.name }} ({{ b.code }}) {{ b.is_active ? '' : '[Inactive]' }}
-                  </option>
-                </select>
-                <span class="field-hint">Frontline staff operate permanently from a single branch (no roaming). Owner can dynamically reassign when needed.</span>
+                <div class="custom-select-wrap">
+                  <button
+                    type="button"
+                    class="custom-select-trigger"
+                    :class="{ open: openDropdown === 'branch' }"
+                    @click="toggleDropdown('branch')"
+                  >
+                    <span class="trigger-left">
+                      <MapPin :size="15" class="sel-icon emerald" />
+                      <span class="trigger-text">
+                        {{ selectedBranchObj ? `${selectedBranchObj.name} (${selectedBranchObj.code})` : (isSw ? 'Chagua Tawi...' : 'Select Branch Location...') }}
+                      </span>
+                    </span>
+                    <ChevronDown :size="15" class="trigger-chevron" :class="{ rotated: openDropdown === 'branch' }" />
+                  </button>
+
+                  <transition name="dd-pop">
+                    <div v-if="openDropdown === 'branch'" class="custom-select-menu">
+                      <button
+                        v-for="b in drawerBranches"
+                        :key="b.id"
+                        type="button"
+                        class="custom-option"
+                        :class="{ selected: String(createForm.branch) === String(b.id) }"
+                        @click="selectDrawerBranch(b.id)"
+                      >
+                        <div class="opt-icon-box opt-branch">
+                          <MapPin :size="14" />
+                        </div>
+                        <div class="opt-text-col">
+                          <span class="opt-title">{{ b.name }}</span>
+                          <span class="opt-desc">{{ b.code }}{{ b.is_active === false ? ' · Inactive' : '' }}</span>
+                        </div>
+                        <Check v-if="String(createForm.branch) === String(b.id)" :size="15" class="opt-check" />
+                      </button>
+                    </div>
+                  </transition>
+                </div>
+                <span class="field-hint">
+                  {{ isSw
+                    ? 'Wafanyakazi hufanya kazi kwenye tawi walilopangiwa. Mmiliki anaweza kubadilisha muda wowote.'
+                    : 'Frontline staff operate from their assigned branch. Owner can reassign at any time.' }}
+                </span>
               </div>
 
               <!-- Password -->
@@ -1052,11 +1342,11 @@ onMounted(async () => {
 }
 
 .modal-content {
-  padding: 1.25rem 1.75rem 1.5rem;
-  overflow: hidden;
+  padding: 20px 24px 56px;
+  overflow: visible;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 18px;
   flex: 1;
   min-height: 0;
 }
@@ -1064,19 +1354,20 @@ onMounted(async () => {
 /* Stats Row */
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
   flex-shrink: 0;
 }
 
 .stat-card {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 1rem 1.25rem;
+  border-radius: 14px;
+  padding: 18px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .stat-info {
@@ -1120,76 +1411,150 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 12px;
   flex-wrap: wrap;
   flex-shrink: 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .search-box {
   position: relative;
   flex: 1;
-  min-width: 260px;
+  min-width: 240px;
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
+
+.search-box:focus-within {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
 .search-icon {
   position: absolute;
-  left: 0.9rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #6b7280;
+  left: 12px;
+  color: #64748b;
+  pointer-events: none;
 }
+
 .search-input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 0.6rem 2.2rem 0.6rem 2.4rem;
-  color: #f3f4f6;
-  font-size: 0.85rem;
-  outline: none;
-  transition: border-color 0.2s;
-}
-.search-input:focus {
-  border-color: #a855f7;
-}
-.clear-btn {
-  position: absolute;
-  right: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
   background: transparent;
   border: none;
-  color: #9ca3af;
+  border-radius: 10px;
+  padding: 9px 34px 9px 38px;
+  color: #f3f4f6;
+  font-size: 0.86rem;
+  outline: none;
+}
+
+.clear-btn {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
 }
 
 .filters {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.filter-item {
-  display: flex;
+.filter-dropdown-wrap {
+  position: relative;
+}
+
+.filter-trigger {
+  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 7px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.83rem;
+  font-weight: 600;
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 0.4rem 0.6rem;
-  color: #9ca3af;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  color: #e2e8f0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
 }
 
-.select-filter {
-  background: transparent;
-  border: none;
-  color: #f3f4f6;
-  font-size: 0.82rem;
-  outline: none;
-  cursor: pointer;
+.filter-trigger:hover {
+  border-color: #6366f1;
 }
-.select-filter option {
-  background: #1f2937;
-  color: #f9fafb;
+
+.filter-trigger.open,
+.filter-trigger.active {
+  border-color: #4f46e5;
+  background: rgba(79, 70, 229, 0.14);
+  color: #a5b4fc;
+}
+
+.modal-overlay[data-theme="light"] .filter-trigger {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+.modal-overlay[data-theme="light"] .filter-trigger:hover {
+  background: #ffffff;
+  border-color: #4f46e5;
+}
+
+.modal-overlay[data-theme="light"] .filter-trigger.open,
+.modal-overlay[data-theme="light"] .filter-trigger.active {
+  background: #eef2ff;
+  border-color: #4f46e5;
+  color: #4f46e5;
+}
+
+.f-icon {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.filter-trigger.active .f-icon,
+.filter-trigger.open .f-icon {
+  color: currentColor;
+}
+
+.filter-menu {
+  --dr-menu-bg: #0f172a;
+  --dr-menu-hover: rgba(255, 255, 255, 0.06);
+  --dr-border-strong: rgba(148, 163, 184, 0.28);
+  --dr-text: #f8fafc;
+  --dr-accent: #6366f1;
+  --dr-accent-soft: rgba(99, 102, 241, 0.16);
+  min-width: 200px;
+}
+
+.modal-overlay[data-theme="light"] .filter-menu {
+  --dr-menu-bg: #ffffff;
+  --dr-menu-hover: #f8fafc;
+  --dr-border-strong: #cbd5e1;
+  --dr-text: #0f172a;
+  --dr-accent: #4f46e5;
+  --dr-accent-soft: #eef2ff;
+}
+
+.filter-menu-right {
+  left: auto;
+  right: 0;
 }
 
 .btn-refresh {
@@ -1467,102 +1832,424 @@ onMounted(async () => {
 
 /* Slide Drawer */
 .drawer-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(15, 23, 42, 0.58);
   backdrop-filter: blur(4px);
   display: flex;
   justify-content: flex-end;
-  z-index: 50;
+  z-index: 2100;
 }
 
 .drawer-card {
-  width: 480px;
+  --dr-bg: #111827;
+  --dr-surface: #1e293b;
+  --dr-border: rgba(148, 163, 184, 0.18);
+  --dr-border-strong: rgba(148, 163, 184, 0.3);
+  --dr-text: #f8fafc;
+  --dr-text-sec: #cbd5e1;
+  --dr-text-muted: #94a3b8;
+  --dr-accent: #6366f1;
+  --dr-accent-soft: rgba(99, 102, 241, 0.16);
+  --dr-menu-bg: #0f172a;
+  --dr-menu-hover: rgba(255, 255, 255, 0.06);
+
+  width: 500px;
+  max-width: 100vw;
   height: 100%;
-  background: #131c2e;
-  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--dr-bg);
+  border-left: 1px solid var(--dr-border);
   display: flex;
   flex-direction: column;
-  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+  box-shadow: -12px 0 36px rgba(0, 0, 0, 0.45);
+  box-sizing: border-box;
+}
+
+.modal-overlay[data-theme="light"] .drawer-card {
+  --dr-bg: #ffffff;
+  --dr-surface: #f8fafc;
+  --dr-border: #e2e8f0;
+  --dr-border-strong: #cbd5e1;
+  --dr-text: #0f172a;
+  --dr-text-sec: #334155;
+  --dr-text-muted: #64748b;
+  --dr-accent: #4f46e5;
+  --dr-accent-soft: #eef2ff;
+  --dr-menu-bg: #ffffff;
+  --dr-menu-hover: #f8fafc;
+  box-shadow: -12px 0 36px rgba(15, 23, 42, 0.14);
 }
 
 .drawer-header {
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--dr-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .drawer-title-group {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 12px;
+  min-width: 0;
 }
 
-.drawer-icon {
-  color: #c084fc;
+.drawer-icon-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--dr-accent-soft);
+  color: var(--dr-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .drawer-title {
   margin: 0;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #f9fafb;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--dr-text);
 }
 
 .drawer-sub {
-  margin: 0.2rem 0 0;
-  font-size: 0.75rem;
-  color: #9ca3af;
+  margin: 3px 0 0;
+  font-size: 0.78rem;
+  color: var(--dr-text-muted);
+}
+
+.btn-close-drawer {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--dr-border);
+  background: var(--dr-surface);
+  color: var(--dr-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.btn-close-drawer:hover {
+  color: var(--dr-text);
+  border-color: var(--dr-border-strong);
 }
 
 .drawer-body {
-  padding: 1.5rem;
+  padding: 22px 24px 28px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
+  gap: 16px;
   flex: 1;
+  box-sizing: border-box;
 }
 
 .form-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 6px;
+  min-width: 0;
 }
 
 .form-group label {
   font-size: 0.78rem;
-  font-weight: 600;
-  color: #d1d5db;
+  font-weight: 700;
+  color: var(--dr-text-sec);
 }
 
-.req { color: #f87171; }
-.optional { font-size: 0.72rem; color: #9ca3af; font-weight: normal; }
+.req { color: #ef4444; }
+.optional { font-size: 0.72rem; color: var(--dr-text-muted); font-weight: 500; }
 
 .form-input, .form-select {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  padding: 0.6rem 0.8rem;
-  color: #f9fafb;
-  font-size: 0.85rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: var(--dr-surface);
+  border: 1px solid var(--dr-border-strong);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--dr-text);
+  font-size: 0.86rem;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
+
 .form-input:focus, .form-select:focus {
-  border-color: #a855f7;
+  border-color: var(--dr-accent);
+  box-shadow: 0 0 0 3px var(--dr-accent-soft);
 }
-.form-select option {
-  background: #1f2937;
-  color: #fff;
+
+/* Custom Attractive Dropdowns inside Drawer */
+.custom-select-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--dr-surface);
+  border: 1px solid var(--dr-border-strong);
+  color: var(--dr-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.16s ease;
+}
+
+.custom-select-trigger:hover {
+  border-color: var(--dr-accent);
+}
+
+.custom-select-trigger.open {
+  border-color: var(--dr-accent);
+  box-shadow: 0 0 0 3px var(--dr-accent-soft);
+}
+
+.trigger-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.trigger-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sel-icon { flex-shrink: 0; }
+.sel-icon.accent { color: var(--dr-accent); }
+.sel-icon.amber { color: #d97706; }
+.sel-icon.emerald { color: #059669; }
+
+.trigger-chevron {
+  flex-shrink: 0;
+  color: var(--dr-text-muted);
+  transition: transform 0.18s ease;
+}
+
+.trigger-chevron.rotated {
+  transform: rotate(180deg);
+  color: var(--dr-accent);
+}
+
+.custom-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  min-width: 220px;
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 60;
+  background: var(--dr-menu-bg);
+  border: 1px solid var(--dr-border-strong);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.custom-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--dr-text);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.14s ease;
+}
+
+.custom-option:hover {
+  background: var(--dr-menu-hover);
+}
+
+.custom-option.selected {
+  background: var(--dr-accent-soft);
+  border-color: rgba(79, 70, 229, 0.28);
+}
+
+.opt-icon-box {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.opt-icon-box.opt-stat { background: rgba(79, 70, 229, 0.14); color: #4f46e5; }
+.opt-icon-box.opt-bar { background: rgba(245, 158, 11, 0.15); color: #d97706; }
+.opt-icon-box.opt-owner { background: rgba(139, 92, 246, 0.15); color: #7c3aed; }
+.opt-icon-box.opt-branch { background: rgba(16, 185, 129, 0.14); color: #059669; }
+
+.opt-text-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.opt-title {
+  font-size: 0.83rem;
+  font-weight: 700;
+  color: var(--dr-text);
+}
+
+.opt-desc {
+  font-size: 0.71rem;
+  color: var(--dr-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.opt-check {
+  color: var(--dr-accent);
+  flex-shrink: 0;
+}
+
+.dd-pop-enter-active,
+.dd-pop-leave-active {
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+.dd-pop-enter-from,
+.dd-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+}
+
+/* Responsive Table & Mobile Staff Cards */
+.staff-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.staff-table {
+  min-width: 820px;
+}
+
+.staff-mobile-cards {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.staff-m-card {
+  background: var(--bg-card, #111827);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-overlay[data-theme="light"] .staff-m-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.staff-m-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.staff-m-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.m-meta-chip {
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.14);
+  color: #64748b;
+}
+
+.staff-m-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.mobile-empty-card {
+  text-align: center;
+  padding: 36px 20px;
+  border-radius: 14px;
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+  color: #64748b;
+}
+
+@media (max-width: 1024px) {
+  .stats-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .modal-content {
+    padding: 14px 14px 48px;
+  }
+  .staff-table-desktop {
+    display: none;
+  }
+  .staff-mobile-cards {
+    display: flex;
+  }
+  .filters {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .stats-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .input-with-action {
@@ -1610,21 +2297,21 @@ onMounted(async () => {
 .btn-cancel:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
 
 .btn-submit {
-  background: linear-gradient(135deg, #9333ea, #7e22ce);
-  border: 1px solid rgba(168, 85, 247, 0.5);
+  background: #4f46e5;
+  border: 1px solid #4f46e5;
   color: #fff;
-  border-radius: 8px;
-  padding: 0.6rem 1.3rem;
+  border-radius: 10px;
+  padding: 10px 18px;
   font-size: 0.85rem;
-  font-weight: 600;
-  display: flex;
+  font-weight: 700;
+  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 6px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(147, 51, 234, 0.3);
+  transition: background 0.16s ease;
 }
 .btn-submit:hover:not(:disabled) {
-  background: linear-gradient(135deg, #a855f7, #9333ea);
+  background: #4338ca;
 }
 .btn-submit:disabled {
   opacity: 0.6;
