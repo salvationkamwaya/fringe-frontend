@@ -668,7 +668,10 @@ watch(() => store.activeModal, (nextModal) => {
   --d-shadow: 0 2px 14px rgba(0, 0, 0, 0.25);
 
   width: 100%;
-  min-height: 100vh;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--d-bg);
   color: var(--d-text);
 }
@@ -696,7 +699,7 @@ watch(() => store.activeModal, (nextModal) => {
 .dash-inner {
   max-width: 1480px;
   margin: 0 auto;
-  padding: 28px 28px 40px;
+  padding: 28px 28px 80px;
   display: flex;
   flex-direction: column;
   gap: 22px;

@@ -440,10 +440,14 @@ watch(() => store.activeModal, (nextModal) => {
   --d-danger: #fb7185;
   --d-shadow: 0 2px 10px rgba(0, 0, 0, 0.24);
 
-  min-height: 100vh;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--d-bg);
   color: var(--d-text);
-  padding: 24px 28px 64px;
+  padding: 24px 28px 80px;
 }
 
 .dash-page[data-theme="light"] {
