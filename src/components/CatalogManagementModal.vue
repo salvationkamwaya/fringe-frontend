@@ -7,7 +7,8 @@ import {
   Wine, BookOpen, Layers, Plus, Search, Edit3, Trash2, 
   X, CheckCircle2, AlertTriangle, ShieldAlert, Sparkles, 
   DollarSign, Package, Tag, RefreshCw, BarChart2, ShieldCheck,
-  Percent, ArrowRight, MapPin, ChevronLeft, ChevronRight
+  Percent, ArrowRight, MapPin, ChevronLeft, ChevronRight,
+  ChevronDown, Check, Zap
 } from 'lucide-vue-next'
 
 const emit = defineEmits(['close'])
@@ -25,6 +26,23 @@ const showCategoryDrawer = ref(false)
 const isEditing = ref(false)
 const selectedProductId = ref(null)
 const selectedCategoryId = ref(null)
+
+// Custom Dropdown State
+const openDropdown = ref(null) // 'toolbar_cat' | 'drawer_branch' | 'drawer_cat' | 'cat_branch' | null
+
+const toggleDropdown = (name) => {
+  openDropdown.value = openDropdown.value === name ? null : name
+}
+
+const closeDropdowns = () => {
+  openDropdown.value = null
+}
+
+const handleDocumentClick = (e) => {
+  if (!e.target.closest('.custom-select-wrap')) {
+    openDropdown.value = null
+  }
+}
 
 // Product Form
 const productForm = ref({
@@ -75,6 +93,60 @@ const canManage = computed(() => {
   if (isBar.value) return store.user?.role === 'bar_manager'
   return store.user?.role === 'stationery_manager'
 })
+
+// Unit-scoped branches for dropdowns
+const drawerBranches = computed(() => {
+  const unitKey = isBar.value ? 'bar' : 'stationery'
+  const filtered = store.branches.filter(b => {
+    const bu = b.business_unit_id || b.business_unit || ''
+    return !bu || bu === unitKey
+  })
+  return filtered.length > 0 ? filtered : store.branches
+})
+
+const selectedToolbarCat = computed(() => {
+  if (categoryFilter.value === 'all') return null
+  return categories.value.find(c => String(c.id) === String(categoryFilter.value)) || null
+})
+
+const selectedDrawerBranch = computed(() => {
+  if (!productForm.value.branch) return null
+  return drawerBranches.value.find(b => String(b.id) === String(productForm.value.branch))
+    || store.branches.find(b => String(b.id) === String(productForm.value.branch))
+    || null
+})
+
+const selectedDrawerCat = computed(() => {
+  if (!productForm.value.category) return null
+  return categories.value.find(c => String(c.id) === String(productForm.value.category)) || null
+})
+
+const selectedCatModalBranch = computed(() => {
+  if (!categoryForm.value.branch) return null
+  return drawerBranches.value.find(b => String(b.id) === String(categoryForm.value.branch))
+    || store.branches.find(b => String(b.id) === String(categoryForm.value.branch))
+    || null
+})
+
+const selectToolbarCategory = (val) => {
+  categoryFilter.value = val
+  openDropdown.value = null
+}
+
+const selectDrawerBranch = (branchId) => {
+  productForm.value.branch = branchId
+  openDropdown.value = null
+}
+
+const selectDrawerCategory = (catId) => {
+  productForm.value.category = catId
+  openDropdown.value = null
+}
+
+const selectCatModalBranch = (branchId) => {
+  categoryForm.value.branch = branchId
+  openDropdown.value = null
+}
 
 // Drink & Grocery Packaging Presets (Standard for Tanzania & East African Groceries / Bars)
 const drinkPackagePresets = [
@@ -293,10 +365,12 @@ onMounted(() => {
   store.fetchBranches()
   fetchData()
   window.addEventListener('fringe-branch-changed', onBranchChanged)
+  document.addEventListener('click', handleDocumentClick)
 })
 
 onUnmounted(() => {
   window.removeEventListener('fringe-branch-changed', onBranchChanged)
+  document.removeEventListener('click', handleDocumentClick)
 })
 
 // Filtered products list
@@ -385,7 +459,7 @@ const openCreateProduct = () => {
 
   const defaultBranch = (store.activeBranchId && store.activeBranchId !== 'all')
     ? parseInt(store.activeBranchId, 10)
-    : (store.branches[0]?.id || null)
+    : (drawerBranches.value[0]?.id || store.branches[0]?.id || null)
 
   productForm.value = {
     name: '',
@@ -468,8 +542,12 @@ const handleSaveProduct = async () => {
     productError.value = 'Selling price must be greater than zero.'
     return
   }
-  if (isBar.value && store.branches.length > 0 && !productForm.value.branch) {
+  if (isBar.value && drawerBranches.value.length > 0 && !productForm.value.branch) {
     productError.value = 'Please assign this drink to a specific branch location.'
+    return
+  }
+  if (!productForm.value.category) {
+    productError.value = 'Please select a category for this item.'
     return
   }
 
@@ -542,7 +620,7 @@ const handleDeactivateProduct = async (prod) => {
 const openCreateCategory = () => {
   const defaultBranch = (store.activeBranchId && store.activeBranchId !== 'all')
     ? parseInt(store.activeBranchId, 10)
-    : (store.branches[0]?.id || null)
+    : (drawerBranches.value[0]?.id || store.branches[0]?.id || null)
 
   categoryForm.value = {
     name: '',
@@ -606,7 +684,7 @@ const handleSaveCategory = async () => {
 </script>
 
 <template>
-  <div class="catalog-page">
+  <div class="catalog-page" :data-theme="store.theme">
     <div class="catalog-window">
       <!-- Window Header -->
       <div class="window-header">
@@ -681,10 +759,51 @@ const handleSaveCategory = async () => {
           </div>
 
           <div class="toolbar-right">
-            <select v-model="categoryFilter" class="filter-select">
-              <option value="all">{{ t('cat.allCategories') }}</option>
-              <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select>
+            <div class="custom-select-wrap toolbar-select-wrap" :class="{ open: openDropdown === 'toolbar_cat' }">
+              <button
+                type="button"
+                class="custom-select-trigger toolbar-trigger"
+                @click.stop="toggleDropdown('toolbar_cat')"
+              >
+                <span class="cs-left">
+                  <Tag :size="14" class="cs-lead-icon" />
+                  <span class="cs-value">{{ selectedToolbarCat ? selectedToolbarCat.name : t('cat.allCategories') }}</span>
+                </span>
+                <ChevronDown :size="15" class="cs-chevron" :class="{ rotated: openDropdown === 'toolbar_cat' }" />
+              </button>
+
+              <transition name="dd-pop">
+                <div v-if="openDropdown === 'toolbar_cat'" class="custom-select-menu align-right">
+                  <button
+                    type="button"
+                    class="custom-option"
+                    :class="{ selected: categoryFilter === 'all' }"
+                    @click="selectToolbarCategory('all')"
+                  >
+                    <span class="co-main">
+                      <Layers :size="14" class="co-icon" />
+                      <span class="co-label">{{ t('cat.allCategories') }}</span>
+                    </span>
+                    <Check v-if="categoryFilter === 'all'" :size="14" class="co-check" />
+                  </button>
+                  <div v-if="categories.length" class="co-divider"></div>
+                  <button
+                    v-for="c in categories"
+                    :key="c.id"
+                    type="button"
+                    class="custom-option"
+                    :class="{ selected: String(categoryFilter) === String(c.id) }"
+                    @click="selectToolbarCategory(c.id)"
+                  >
+                    <span class="co-main">
+                      <Tag :size="13" class="co-icon" />
+                      <span class="co-label">{{ c.name }}</span>
+                    </span>
+                    <Check v-if="String(categoryFilter) === String(c.id)" :size="14" class="co-check" />
+                  </button>
+                </div>
+              </transition>
+            </div>
           </div>
         </div>
 
@@ -978,27 +1097,96 @@ const handleSaveCategory = async () => {
                 </div>
 
                 <!-- Physical Branch Location (Bar & Lounge) -->
-                <div class="form-group" v-if="isBar && store.branches.length > 0">
-                  <label>Physical Branch Location <span class="req">*</span></label>
-                  <select v-model="productForm.branch" class="form-select" required>
-                    <option :value="null" disabled>Select Branch Location...</option>
-                    <option v-for="b in store.branches" :key="b.id" :value="b.id">
-                      📍 {{ b.name }} ({{ b.code }}) {{ b.is_active ? '' : '[Inactive]' }}
-                    </option>
-                  </select>
-                  <span class="field-hint">Drink catalogs and stock are strictly isolated per branch location.</span>
+                <div class="form-group" v-if="isBar && drawerBranches.length > 0">
+                  <label>{{ store.locale === 'sw' ? 'Tawi la Biashara' : 'Physical Branch Location' }} <span class="req">*</span></label>
+                  <div class="custom-select-wrap" :class="{ open: openDropdown === 'drawer_branch' }">
+                    <button
+                      type="button"
+                      class="custom-select-trigger"
+                      :class="{ placeholder: !selectedDrawerBranch }"
+                      @click.stop="toggleDropdown('drawer_branch')"
+                    >
+                      <span class="cs-left">
+                        <MapPin :size="15" class="cs-lead-icon" />
+                        <span v-if="selectedDrawerBranch" class="cs-value-group">
+                          <span class="cs-value">{{ selectedDrawerBranch.name }}</span>
+                          <span class="cs-code-pill">{{ selectedDrawerBranch.code }}</span>
+                        </span>
+                        <span v-else class="cs-placeholder">{{ store.locale === 'sw' ? 'Chagua Tawi...' : 'Select Branch Location...' }}</span>
+                      </span>
+                      <ChevronDown :size="15" class="cs-chevron" :class="{ rotated: openDropdown === 'drawer_branch' }" />
+                    </button>
+
+                    <transition name="dd-pop">
+                      <div v-if="openDropdown === 'drawer_branch'" class="custom-select-menu">
+                        <button
+                          v-for="b in drawerBranches"
+                          :key="b.id"
+                          type="button"
+                          class="custom-option"
+                          :class="{ selected: String(productForm.branch) === String(b.id) }"
+                          @click="selectDrawerBranch(b.id)"
+                        >
+                          <span class="co-main">
+                            <span class="co-status-dot" :class="{ inactive: !b.is_active }"></span>
+                            <span class="co-text-col">
+                              <span class="co-label">{{ b.name }}</span>
+                              <span class="co-sub">{{ b.code }}{{ b.is_active ? '' : ' • Inactive' }}</span>
+                            </span>
+                          </span>
+                          <Check v-if="String(productForm.branch) === String(b.id)" :size="14" class="co-check" />
+                        </button>
+                      </div>
+                    </transition>
+                  </div>
+                  <span class="field-hint">{{ store.locale === 'sw' ? 'Orodha ya vinywaji na stoo hutenganishwa kwa kila tawi.' : 'Drink catalogs and stock are strictly isolated per branch location.' }}</span>
                 </div>
 
                 <!-- Category -->
                 <div class="form-group">
                   <div class="label-with-action">
-                    <label>Category <span class="req">*</span></label>
-                    <button type="button" class="btn-inline-link" @click="openCreateCategory">+ Add New Category</button>
+                    <label>{{ store.locale === 'sw' ? 'Kundi la Bidhaa' : 'Category' }} <span class="req">*</span></label>
+                    <button type="button" class="btn-inline-link" @click="openCreateCategory">
+                      {{ store.locale === 'sw' ? '+ Ongeza Kundi Jipya' : '+ Add New Category' }}
+                    </button>
                   </div>
-                  <select v-model="productForm.category" class="form-select" required>
-                    <option value="" disabled>Select category...</option>
-                    <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-                  </select>
+                  <div class="custom-select-wrap" :class="{ open: openDropdown === 'drawer_cat' }">
+                    <button
+                      type="button"
+                      class="custom-select-trigger"
+                      :class="{ placeholder: !selectedDrawerCat }"
+                      @click.stop="toggleDropdown('drawer_cat')"
+                    >
+                      <span class="cs-left">
+                        <Tag :size="15" class="cs-lead-icon" />
+                        <span v-if="selectedDrawerCat" class="cs-value">{{ selectedDrawerCat.name }}</span>
+                        <span v-else class="cs-placeholder">{{ store.locale === 'sw' ? 'Chagua kundi...' : 'Select category...' }}</span>
+                      </span>
+                      <ChevronDown :size="15" class="cs-chevron" :class="{ rotated: openDropdown === 'drawer_cat' }" />
+                    </button>
+
+                    <transition name="dd-pop">
+                      <div v-if="openDropdown === 'drawer_cat'" class="custom-select-menu">
+                        <div v-if="categories.length === 0" class="co-empty">
+                          {{ store.locale === 'sw' ? 'Hakuna makundi bado. Bonyeza + Ongeza Kundi Jipya.' : 'No categories yet. Click + Add New Category.' }}
+                        </div>
+                        <button
+                          v-for="c in categories"
+                          :key="c.id"
+                          type="button"
+                          class="custom-option"
+                          :class="{ selected: String(productForm.category) === String(c.id) }"
+                          @click="selectDrawerCategory(c.id)"
+                        >
+                          <span class="co-main">
+                            <Tag :size="13" class="co-icon" />
+                            <span class="co-label">{{ c.name }}</span>
+                          </span>
+                          <Check v-if="String(productForm.category) === String(c.id)" :size="14" class="co-check" />
+                        </button>
+                      </div>
+                    </transition>
+                  </div>
                 </div>
 
                 <!-- SKU & Barcode (Optional) -->
@@ -1062,7 +1250,13 @@ const handleSaveCategory = async () => {
                 <div v-if="productForm.is_pack" class="pack-config-details mt-3">
                   <!-- Quick Presets for Drinks (Tanzania Bar & Grocery Domain) -->
                   <div v-if="isBar" class="package-presets-section">
-                    <span class="presets-title">⚡ Quick Grocery & Bar Packaging Presets:</span>
+                    <div class="presets-header-row">
+                      <span class="presets-title">
+                        <Zap :size="13" class="presets-title-icon" />
+                        <span>{{ store.locale === 'sw' ? 'Mipangilio ya Haraka ya Vifungashio' : 'Quick Grocery & Bar Packaging Presets' }}</span>
+                      </span>
+                      <span class="presets-count-pill">{{ drinkPackagePresets.length }}</span>
+                    </div>
                     <div class="presets-grid">
                       <button 
                         v-for="preset in drinkPackagePresets" 
@@ -1072,7 +1266,12 @@ const handleSaveCategory = async () => {
                         :class="{ active: activePreset === preset.id }"
                         @click="applyPackagePreset(preset)"
                       >
-                        <span class="preset-name">{{ preset.label }}</span>
+                        <div class="preset-chip-top">
+                          <span class="preset-name">{{ preset.label }}</span>
+                          <span v-if="activePreset === preset.id" class="preset-check-badge">
+                            <Check :size="11" />
+                          </span>
+                        </div>
                         <span class="preset-desc">{{ preset.pack_name }} of {{ preset.capacity }} {{ preset.unit_name }}s</span>
                       </button>
                     </div>
@@ -1160,55 +1359,65 @@ const handleSaveCategory = async () => {
 
                 <div class="pricing-dual-grid" v-if="productForm.is_pack && productForm.allow_split_sale">
                   <!-- Package / Crate Price Card -->
-                  <div class="price-input-card">
+                  <div class="price-input-card wholesale-card">
                     <div class="price-card-header">
-                      <Package :size="13" />
-                      <span>Full {{ productForm.pack_name || 'Crate' }} Wholesale Price</span>
+                      <span class="price-card-icon wholesale-icon">
+                        <Package :size="13" />
+                      </span>
+                      <span class="price-card-title">Full {{ productForm.pack_name || 'Crate' }} Wholesale Price</span>
                     </div>
                     <div class="form-group">
                       <label>Selling Price per {{ productForm.pack_name || 'Crate' }} (TSH) <span class="req">*</span></label>
-                      <input 
-                        v-model="productForm.selling_price" 
-                        type="number" 
-                        step="0.01" 
-                        min="0" 
-                        placeholder="e.g. 62,500.00" 
-                        class="form-input font-bold text-accent"
-                        required
-                        @input="onCratePriceChange"
-                      />
+                      <div class="price-input-shell">
+                        <span class="price-currency-tag">TSH</span>
+                        <input 
+                          v-model="productForm.selling_price" 
+                          type="number" 
+                          step="0.01" 
+                          min="0" 
+                          placeholder="e.g. 62,500" 
+                          class="form-input price-num-input"
+                          required
+                          @input="onCratePriceChange"
+                        />
+                      </div>
                     </div>
                     <div class="price-card-summary">
-                      <span>Package Profit:</span>
-                      <strong class="text-emerald">
+                      <span>{{ store.locale === 'sw' ? 'Faida ya Pakiti:' : 'Package Profit:' }}</span>
+                      <strong class="profit-val" :class="{ positive: getPackageProfit > 0 }">
                         TSH {{ getPackageProfit > 0 ? getPackageProfit.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00' }}
                       </strong>
                     </div>
                   </div>
 
                   <!-- Single Unit / Bottle Price Card -->
-                  <div class="price-input-card">
+                  <div class="price-input-card retail-card">
                     <div class="price-card-header">
-                      <Wine v-if="isBar" :size="13" />
-                      <Tag v-else :size="13" />
-                      <span>Single {{ productForm.unit_name || 'Bottle' }} Retail Price</span>
+                      <span class="price-card-icon retail-icon">
+                        <Wine v-if="isBar" :size="13" />
+                        <Tag v-else :size="13" />
+                      </span>
+                      <span class="price-card-title">Single {{ productForm.unit_name || 'Bottle' }} Retail Price</span>
                     </div>
                     <div class="form-group">
                       <label>Selling Price per {{ productForm.unit_name || 'Bottle' }} (TSH) <span class="req">*</span></label>
-                      <input 
-                        v-model="productForm.split_unit_price" 
-                        type="number" 
-                        step="0.01" 
-                        min="0" 
-                        placeholder="e.g. 2,500.00" 
-                        class="form-input font-bold text-cyan"
-                        required
-                        @input="onSinglePriceChange"
-                      />
+                      <div class="price-input-shell">
+                        <span class="price-currency-tag">TSH</span>
+                        <input 
+                          v-model="productForm.split_unit_price" 
+                          type="number" 
+                          step="0.01" 
+                          min="0" 
+                          placeholder="e.g. 2,500" 
+                          class="form-input price-num-input"
+                          required
+                          @input="onSinglePriceChange"
+                        />
+                      </div>
                     </div>
                     <div class="price-card-summary">
-                      <span>Profit per {{ productForm.unit_name || 'Bottle' }}:</span>
-                      <strong class="text-cyan">
+                      <span>{{ store.locale === 'sw' ? `Faida kwa ${productForm.unit_name || 'Chupa'}:` : `Profit per ${productForm.unit_name || 'Bottle'}:` }}</span>
+                      <strong class="profit-val" :class="{ positive: getSingleProfit > 0 }">
                         TSH {{ getSingleProfit > 0 ? getSingleProfit.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00' }}
                       </strong>
                     </div>
@@ -1366,14 +1575,48 @@ const handleSaveCategory = async () => {
           </div>
 
           <form class="submodal-body" @submit.prevent="handleSaveCategory">
-            <div class="form-group" v-if="isBar && store.branches.length > 0">
-              <label>Branch Location <span class="req">*</span></label>
-              <select v-model="categoryForm.branch" class="form-select" required>
-                <option :value="null" disabled>Select Branch Location...</option>
-                <option v-for="b in store.branches" :key="b.id" :value="b.id">
-                  📍 {{ b.name }} ({{ b.code }})
-                </option>
-              </select>
+            <div class="form-group" v-if="isBar && drawerBranches.length > 0">
+              <label>{{ store.locale === 'sw' ? 'Tawi la Biashara' : 'Branch Location' }} <span class="req">*</span></label>
+              <div class="custom-select-wrap" :class="{ open: openDropdown === 'cat_branch' }">
+                <button
+                  type="button"
+                  class="custom-select-trigger"
+                  :class="{ placeholder: !selectedCatModalBranch }"
+                  @click.stop="toggleDropdown('cat_branch')"
+                >
+                  <span class="cs-left">
+                    <MapPin :size="15" class="cs-lead-icon" />
+                    <span v-if="selectedCatModalBranch" class="cs-value-group">
+                      <span class="cs-value">{{ selectedCatModalBranch.name }}</span>
+                      <span class="cs-code-pill">{{ selectedCatModalBranch.code }}</span>
+                    </span>
+                    <span v-else class="cs-placeholder">{{ store.locale === 'sw' ? 'Chagua Tawi...' : 'Select Branch Location...' }}</span>
+                  </span>
+                  <ChevronDown :size="15" class="cs-chevron" :class="{ rotated: openDropdown === 'cat_branch' }" />
+                </button>
+
+                <transition name="dd-pop">
+                  <div v-if="openDropdown === 'cat_branch'" class="custom-select-menu">
+                    <button
+                      v-for="b in drawerBranches"
+                      :key="b.id"
+                      type="button"
+                      class="custom-option"
+                      :class="{ selected: String(categoryForm.branch) === String(b.id) }"
+                      @click="selectCatModalBranch(b.id)"
+                    >
+                      <span class="co-main">
+                        <span class="co-status-dot" :class="{ inactive: !b.is_active }"></span>
+                        <span class="co-text-col">
+                          <span class="co-label">{{ b.name }}</span>
+                          <span class="co-sub">{{ b.code }}</span>
+                        </span>
+                      </span>
+                      <Check v-if="String(categoryForm.branch) === String(b.id)" :size="14" class="co-check" />
+                    </button>
+                  </div>
+                </transition>
+              </div>
             </div>
 
             <div class="form-group">
@@ -2078,13 +2321,15 @@ const handleSaveCategory = async () => {
   background: #1e293b;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 14px;
-  overflow: hidden;
+  overflow: visible;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
 }
 
 .submodal-header {
   padding: 16px 20px;
   background: rgba(15, 23, 42, 0.85);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px 14px 0 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2112,87 +2357,367 @@ const handleSaveCategory = async () => {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Packaging & Presets Styles */
+/* ============================================================
+   CUSTOM ANIMATED DROPDOWNS (DARK + LIGHT MODE)
+   ============================================================ */
+.custom-select-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.toolbar-select-wrap {
+  min-width: 210px;
+  width: auto;
+}
+
+.custom-select-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  text-align: left;
+}
+
+.custom-select-trigger:hover {
+  border-color: rgba(99, 102, 241, 0.55);
+  background: rgba(30, 41, 59, 0.9);
+}
+
+.custom-select-wrap.open .custom-select-trigger {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
+}
+
+.toolbar-trigger {
+  padding: 8px 13px;
+  border-radius: 9px;
+}
+
+.cs-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cs-lead-icon {
+  color: #818cf8;
+  flex-shrink: 0;
+}
+
+.cs-value-group {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cs-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.cs-placeholder {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.cs-code-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(99, 102, 241, 0.18);
+  color: #a5b4fc;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+
+.cs-chevron {
+  color: #94a3b8;
+  flex-shrink: 0;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cs-chevron.rotated {
+  transform: rotate(180deg);
+  color: #818cf8;
+}
+
+.custom-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  min-width: 220px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #0f172a;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  padding: 6px;
+  z-index: 250;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45), 0 4px 10px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.custom-select-menu.align-right {
+  left: auto;
+  right: 0;
+  min-width: 230px;
+}
+
+.custom-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.custom-option:hover {
+  background: rgba(99, 102, 241, 0.14);
+  color: #ffffff;
+}
+
+.custom-option.selected {
+  background: rgba(99, 102, 241, 0.22);
+  color: #c7d2fe;
+}
+
+.co-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.co-icon {
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.custom-option.selected .co-icon {
+  color: #818cf8;
+}
+
+.co-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+}
+
+.co-status-dot.inactive {
+  background: #94a3b8;
+  box-shadow: none;
+}
+
+.co-text-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.co-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.co-sub {
+  font-size: 10.5px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.co-check {
+  color: #818cf8;
+  flex-shrink: 0;
+}
+
+.co-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 4px 6px;
+}
+
+.co-empty {
+  padding: 12px 10px;
+  font-size: 11.5px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.dd-pop-enter-active,
+.dd-pop-leave-active {
+  transition: opacity 0.16s ease, transform 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dd-pop-enter-from,
+.dd-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+}
+
+/* ============================================================
+   STEP 5: PACKAGING & QUICK PRESETS (REDESIGNED)
+   ============================================================ */
 .highlight-packaging-card {
-  border: 1px solid rgba(245, 158, 11, 0.3) !important;
-  background: rgba(245, 158, 11, 0.04) !important;
+  border: 1px solid rgba(99, 102, 241, 0.28) !important;
+  background: rgba(99, 102, 241, 0.05) !important;
 }
 
 .packaging-badge-text {
-  color: #fbbf24;
+  color: #c7d2fe;
 }
 
 .package-presets-section {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 12px;
-  margin-bottom: 12px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.presets-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
 .presets-title {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
-  font-weight: 700;
-  color: #fbbf24;
-  margin-bottom: 8px;
+  font-weight: 800;
+  color: #a5b4fc;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.05em;
+}
+
+.presets-title-icon {
+  color: #818cf8;
+  flex-shrink: 0;
+}
+
+.presets-count-pill {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.18);
+  color: #a5b4fc;
 }
 
 .presets-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
 .preset-chip {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 8px 10px;
+  background: rgba(30, 41, 59, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 10px;
+  padding: 10px 11px;
   text-align: left;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
   display: flex;
   flex-direction: column;
+  gap: 3px;
 }
 
 .preset-chip:hover {
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(99, 102, 241, 0.14);
+  border-color: rgba(129, 140, 248, 0.55);
+  transform: translateY(-1px);
 }
 
 .preset-chip.active {
-  background: rgba(245, 158, 11, 0.2);
-  border-color: #f59e0b;
+  background: rgba(99, 102, 241, 0.22);
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.22);
+}
+
+.preset-chip-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.preset-check-badge {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #4f46e5;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .preset-name {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 800;
   color: #f8fafc;
+  line-height: 1.25;
 }
 
 .preset-desc {
-  font-size: 10px;
+  font-size: 10.5px;
   color: #94a3b8;
-  margin-top: 2px;
+  line-height: 1.25;
 }
 
 .packaging-rule-banner {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px dashed rgba(245, 158, 11, 0.4);
-  border-radius: 10px;
-  padding: 12px 14px;
-  margin-bottom: 12px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px dashed rgba(129, 140, 248, 0.4);
+  border-radius: 11px;
+  padding: 11px 14px;
+  margin-bottom: 14px;
 }
 
 .rule-icon {
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .rule-equation {
@@ -2205,50 +2730,352 @@ const handleSaveCategory = async () => {
 }
 
 .pill-unit-large {
-  background: #f59e0b;
-  color: #0f172a;
-  font-size: 13px;
+  background: #4f46e5;
+  color: #ffffff;
+  font-size: 12.5px;
   font-weight: 900;
-  padding: 2px 8px;
+  padding: 2px 9px;
   border-radius: 6px;
 }
 
+/* ============================================================
+   STEP 6: DUAL PRICING CARDS (REDESIGNED)
+   ============================================================ */
 .pricing-dual-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .price-input-card {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 12px;
+  background: rgba(15, 23, 42, 0.68);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 12px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.price-input-card:focus-within {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16);
 }
 
 .price-card-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 8px;
+}
+
+.price-card-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wholesale-icon {
+  background: rgba(99, 102, 241, 0.18);
+  color: #a5b4fc;
+}
+
+.retail-icon {
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+}
+
+.price-card-title {
+  font-size: 10.5px;
   font-weight: 800;
-  color: #cbd5e1;
+  color: #e2e8f0;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+}
+
+.price-input-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.price-currency-tag {
+  position: absolute;
+  left: 11px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #94a3b8;
+  pointer-events: none;
+  letter-spacing: 0.03em;
+}
+
+.price-num-input {
+  padding-left: 44px !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  font-variant-numeric: tabular-nums;
 }
 
 .price-card-summary {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   font-size: 11px;
   color: #94a3b8;
-  padding-top: 6px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.profit-val {
+  font-size: 11.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #94a3b8;
+}
+
+.profit-val.positive {
+  color: #34d399;
+}
+
+/* ============================================================
+   LIGHT MODE OVERRIDES (HIGH-CONTRAST, ZERO DARK GREY BOXES)
+   ============================================================ */
+.catalog-page[data-theme="light"] .custom-select-trigger {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.catalog-page[data-theme="light"] .custom-select-trigger:hover {
+  border-color: #6366f1 !important;
+  background: #f8fafc !important;
+}
+
+.catalog-page[data-theme="light"] .custom-select-wrap.open .custom-select-trigger {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.14) !important;
+}
+
+.catalog-page[data-theme="light"] .cs-lead-icon {
+  color: #4f46e5;
+}
+
+.catalog-page[data-theme="light"] .cs-value {
+  color: #0f172a;
+}
+
+.catalog-page[data-theme="light"] .cs-placeholder {
+  color: #64748b;
+}
+
+.catalog-page[data-theme="light"] .cs-code-pill {
+  background: #eef2ff;
+  color: #4338ca;
+  border: 1px solid #c7d2fe;
+}
+
+.catalog-page[data-theme="light"] .cs-chevron {
+  color: #64748b;
+}
+
+.catalog-page[data-theme="light"] .cs-chevron.rotated {
+  color: #4f46e5;
+}
+
+.catalog-page[data-theme="light"] .custom-select-menu {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12), 0 4px 10px rgba(15, 23, 42, 0.05) !important;
+}
+
+.catalog-page[data-theme="light"] .custom-option {
+  color: #1e293b !important;
+}
+
+.catalog-page[data-theme="light"] .custom-option:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.catalog-page[data-theme="light"] .custom-option.selected {
+  background: #eef2ff !important;
+  color: #4338ca !important;
+}
+
+.catalog-page[data-theme="light"] .co-icon {
+  color: #64748b;
+}
+
+.catalog-page[data-theme="light"] .custom-option.selected .co-icon,
+.catalog-page[data-theme="light"] .co-check {
+  color: #4f46e5;
+}
+
+.catalog-page[data-theme="light"] .co-sub {
+  color: #64748b;
+}
+
+.catalog-page[data-theme="light"] .co-divider {
+  background: #e2e8f0;
+}
+
+.catalog-page[data-theme="light"] .highlight-packaging-card {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.catalog-page[data-theme="light"] .packaging-badge-text {
+  color: #0f172a !important;
+}
+
+.catalog-page[data-theme="light"] .package-presets-section {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.catalog-page[data-theme="light"] .presets-title {
+  color: #4338ca !important;
+}
+
+.catalog-page[data-theme="light"] .presets-title-icon {
+  color: #4f46e5 !important;
+}
+
+.catalog-page[data-theme="light"] .presets-count-pill {
+  background: #eef2ff;
+  color: #4338ca;
+  border: 1px solid #c7d2fe;
+}
+
+.catalog-page[data-theme="light"] .preset-chip {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.catalog-page[data-theme="light"] .preset-chip:hover {
+  background: #eef2ff !important;
+  border-color: #a5b4fc !important;
+}
+
+.catalog-page[data-theme="light"] .preset-chip.active {
+  background: #eef2ff !important;
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.14);
+}
+
+.catalog-page[data-theme="light"] .preset-name {
+  color: #0f172a !important;
+}
+
+.catalog-page[data-theme="light"] .preset-chip.active .preset-name {
+  color: #312e81 !important;
+}
+
+.catalog-page[data-theme="light"] .preset-desc {
+  color: #64748b !important;
+}
+
+.catalog-page[data-theme="light"] .packaging-rule-banner {
+  background: #eef2ff !important;
+  border: 1px dashed #a5b4fc !important;
+}
+
+.catalog-page[data-theme="light"] .rule-equation {
+  color: #1e293b !important;
+}
+
+.catalog-page[data-theme="light"] .price-input-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+.catalog-page[data-theme="light"] .price-input-card:focus-within {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12) !important;
+}
+
+.catalog-page[data-theme="light"] .wholesale-icon {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.catalog-page[data-theme="light"] .retail-icon {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.catalog-page[data-theme="light"] .price-card-title {
+  color: #1e293b !important;
+}
+
+.catalog-page[data-theme="light"] .price-currency-tag {
+  color: #64748b;
+}
+
+.catalog-page[data-theme="light"] .price-num-input {
+  color: #0f172a !important;
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.catalog-page[data-theme="light"] .price-num-input:focus {
+  background: #ffffff !important;
+  border-color: #4f46e5 !important;
+}
+
+.catalog-page[data-theme="light"] .price-card-summary {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+.catalog-page[data-theme="light"] .profit-val {
+  color: #64748b;
+}
+
+.catalog-page[data-theme="light"] .profit-val.positive {
+  color: #059669 !important;
+}
+
+.catalog-page[data-theme="light"] .btn-inline-link {
+  color: #4f46e5 !important;
+}
+
+.catalog-page[data-theme="light"] .form-checkbox {
+  accent-color: #4f46e5;
+}
+
+.catalog-page[data-theme="light"] .submodal-header {
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.catalog-page[data-theme="light"] .submodal-header h4 {
+  color: #0f172a !important;
+}
+
+@media (max-width: 600px) {
+  .presets-grid,
+  .pricing-dual-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar-select-wrap {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 .margin-readonly-display {

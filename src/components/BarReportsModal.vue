@@ -15,6 +15,23 @@ const emit = defineEmits(['close'])
 
 const isSw = computed(() => store.locale === 'sw')
 const activeTab = ref(store.activeUnit === 'all' && store.isOwner ? 'consolidated' : 'summary') // 'summary' | 'sales' | 'stock' | 'shifts' | 'consolidated'
+
+const totalBranchRevenue = computed(() => {
+  const list = reportData.value?.branch_breakdown || []
+  return list.reduce((sum, b) => sum + parseFloat(b.total_revenue ?? b.total_sales ?? 0), 0)
+})
+
+const getBranchShare = (b) => {
+  const rev = parseFloat(b.total_revenue ?? b.total_sales ?? 0)
+  if (totalBranchRevenue.value <= 0) return 0
+  return Math.min(100, Math.round((rev / totalBranchRevenue.value) * 1000) / 10)
+}
+
+const getBranchAvgOrder = (b) => {
+  const rev = parseFloat(b.total_revenue ?? b.total_sales ?? 0)
+  const orders = parseInt(b.total_orders ?? b.order_count ?? 0, 10)
+  return orders > 0 ? rev / orders : 0
+}
 const loading = ref(true)
 const downloadingPdf = ref(false)
 const downloadingCsv = ref(false)
@@ -28,15 +45,15 @@ const selectedRange = ref('all') // 'all' | 'today' | 'this_month' | 'last_month
 const customStartDate = ref('')
 const customEndDate = ref('')
 
-const rangePresets = [
-  { id: 'all', label: 'All Time' },
-  { id: 'today', label: 'Today' },
-  { id: 'this_month', label: 'This Month' },
-  { id: 'last_month', label: 'Last Month' },
-  { id: 'this_year', label: 'This Year' },
-  { id: 'last_year', label: 'Last Year' },
-  { id: 'custom', label: 'Custom Range' },
-]
+const rangePresets = computed(() => [
+  { id: 'all', label: isSw.value ? 'Muda Wote' : 'All Time' },
+  { id: 'today', label: isSw.value ? 'Leo' : 'Today' },
+  { id: 'this_month', label: isSw.value ? 'Mwezi Huu' : 'This Month' },
+  { id: 'last_month', label: isSw.value ? 'Mwezi Uliopita' : 'Last Month' },
+  { id: 'this_year', label: isSw.value ? 'Mwaka Huu' : 'This Year' },
+  { id: 'last_year', label: isSw.value ? 'Mwaka Uliopita' : 'Last Year' },
+  { id: 'custom', label: isSw.value ? 'Tarehe Maalum' : 'Custom Range' },
+])
 
 const setRange = (rangeId) => {
   selectedRange.value = rangeId
@@ -207,7 +224,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
+  <div class="modal-overlay" :data-theme="store.theme" @click.self="$emit('close')">
     <div class="modal-card print-report-card">
       <!-- Modal Header -->
       <div class="modal-header">
@@ -223,28 +240,28 @@ onUnmounted(() => {
                 <span>{{ store.activeBranchName }}</span>
               </span>
             </div>
-            <h3 class="title">Bar Management & Executive Reports</h3>
-            <p class="subtitle">Real-time revenue, gross margins, stock valuation & shift reconciliation</p>
+            <h3 class="title">{{ isSw ? 'Ripoti za Biashara ya Baa' : 'Bar Management & Executive Reports' }}</h3>
+            <p class="subtitle">{{ isSw ? 'Mapato halisi, faida, thamani ya stoo na usawazishaji wa zamu' : 'Real-time revenue, gross margins, stock valuation & shift reconciliation' }}</p>
           </div>
         </div>
 
         <div class="header-actions">
           <button class="btn-action-icon btn-pdf" @click="downloadPDF" :disabled="downloadingPdf" title="Download Official PDF Report">
             <FileDown :size="16" :class="{ 'spin-anim': downloadingPdf }" />
-            <span>{{ downloadingPdf ? 'Generating...' : 'Export PDF' }}</span>
+            <span>{{ downloadingPdf ? '...' : (isSw ? 'Pakua PDF' : 'Export PDF') }}</span>
           </button>
 
           <button class="btn-action-icon btn-download" @click="downloadCSV" :disabled="downloadingCsv" title="Download Report as CSV">
             <Download :size="16" :class="{ 'spin-anim': downloadingCsv }" />
-            <span>{{ downloadingCsv ? 'Exporting...' : 'Export CSV' }}</span>
+            <span>{{ downloadingCsv ? '...' : (isSw ? 'Pakua CSV' : 'Export CSV') }}</span>
           </button>
 
           <button class="btn-action-icon btn-print" @click="printReport" title="Print or Save as PDF">
             <Printer :size="16" />
-            <span>Print</span>
+            <span>{{ isSw ? 'Chapisha' : 'Print' }}</span>
           </button>
 
-          <button class="btn-action-icon btn-refresh" @click="fetchReports" title="Refresh Live Data">
+          <button class="btn-action-icon btn-refresh" @click="fetchReports" :title="isSw ? 'Onyesha upya' : 'Refresh Live Data'">
             <RefreshCw :size="16" :class="{ 'spin-anim': loading }" />
           </button>
 
@@ -307,7 +324,7 @@ onUnmounted(() => {
           @click="activeTab = 'summary'"
         >
           <DollarSign :size="16" />
-          <span>Financials & Tenders</span>
+          <span>{{ isSw ? 'Fedha na Malipo' : 'Financials & Tenders' }}</span>
         </button>
         <button 
           class="tab-btn" 
@@ -315,7 +332,7 @@ onUnmounted(() => {
           @click="activeTab = 'sales'"
         >
           <TrendingUp :size="16" />
-          <span>Product Sales</span>
+          <span>{{ isSw ? 'Mauzo ya Vinywaji' : 'Product Sales' }}</span>
         </button>
         <button 
           class="tab-btn" 
@@ -323,7 +340,7 @@ onUnmounted(() => {
           @click="activeTab = 'stock'"
         >
           <Layers :size="16" />
-          <span>Stock & Valuation</span>
+          <span>{{ isSw ? 'Stoo na Thamani' : 'Stock & Valuation' }}</span>
         </button>
         <button 
           class="tab-btn" 
@@ -331,7 +348,7 @@ onUnmounted(() => {
           @click="activeTab = 'shifts'"
         >
           <Clock :size="16" />
-          <span>Cashier Shifts</span>
+          <span>{{ isSw ? 'Zamu za Wahudumu' : 'Cashier Shifts' }}</span>
         </button>
         <button 
           v-if="store.isOwner"
@@ -340,7 +357,7 @@ onUnmounted(() => {
           @click="activeTab = 'consolidated'"
         >
           <Building :size="16" />
-          <span>Consolidated (Owner)</span>
+          <span>{{ isSw ? 'Muhtasari (Mmiliki)' : 'Consolidated (Owner)' }}</span>
         </button>
       </div>
 
@@ -381,93 +398,130 @@ onUnmounted(() => {
 
           <!-- Section: Branch Location Performance Breakdown (When viewing All Branches as Owner) -->
           <div v-if="reportData.branch_breakdown && reportData.branch_breakdown.length > 0" class="content-section">
-            <div class="section-title-row">
-              <Building :size="18" class="text-emerald" />
-              <h4>Branch Performance Comparison (Multi-Location)</h4>
+            <div class="section-title-row br-section-head-split">
+              <div class="br-section-head-left">
+                <div class="section-icon-pill"><Building :size="16" /></div>
+                <div>
+                  <h4>{{ isSw ? 'Utendaji wa Matawi ya Baa' : 'Branch Performance Comparison' }}</h4>
+                  <span class="section-sub">{{ isSw ? 'Mauzo, oda zilizokamilika na wastani wa oda kwa kila tawi' : 'Sales, completed orders & average ticket per Bar location' }}</span>
+                </div>
+              </div>
+              <span class="br-branch-count-pill">
+                {{ reportData.branch_breakdown.length }}
+                {{ isSw ? (reportData.branch_breakdown.length === 1 ? 'tawi' : 'matawi') : (reportData.branch_breakdown.length === 1 ? 'branch' : 'branches') }}
+              </span>
             </div>
 
-            <div class="branch-breakdown-grid">
+            <div class="br-branch-grid">
               <div 
                 v-for="b in reportData.branch_breakdown" 
-                :key="b.branch_id"
-                class="branch-breakdown-card"
-                :class="{ 'inactive-branch-card': !b.is_active }"
+                :key="b.id || b.branch_id"
+                class="br-branch-card"
+                :class="{ 'is-inactive': b.is_active === false }"
               >
-                <div class="branch-card-header">
-                  <div class="branch-card-title">
-                    <span class="branch-card-name">{{ b.branch_name }}</span>
-                    <span class="branch-card-code">{{ b.branch_code }}</span>
+                <div class="br-branch-top">
+                  <div class="br-branch-identity">
+                    <span class="br-branch-pin"><MapPin :size="15" /></span>
+                    <div class="br-branch-name-row">
+                      <span class="br-branch-name">{{ b.name || b.branch_name }}</span>
+                      <span class="br-branch-code">{{ b.code || b.branch_code }}</span>
+                    </div>
                   </div>
-                  <span class="branch-card-status" :class="b.is_active ? 'active' : 'inactive'">
-                    {{ b.is_active ? 'Active' : 'Deactivated' }}
-                  </span>
+                  <div class="br-branch-badges">
+                    <span class="br-branch-share-pill">{{ getBranchShare(b) }}% {{ isSw ? 'ya mauzo' : 'share' }}</span>
+                    <span class="br-branch-status" :class="b.is_active !== false ? 'active' : 'inactive'">
+                      <span class="br-status-dot"></span>
+                      <span>{{ b.is_active !== false ? (isSw ? 'Hai' : 'Active') : (isSw ? 'Imezimwa' : 'Inactive') }}</span>
+                    </span>
+                  </div>
                 </div>
-                <div class="branch-card-metrics">
-                  <div class="metric-item">
-                    <span class="metric-lbl">Total Sales:</span>
-                    <strong class="metric-val text-accent">TSH {{ parseFloat(b.total_sales || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+
+                <div class="br-branch-stats">
+                  <div class="br-stat-tile is-primary">
+                    <span class="br-stat-label">{{ isSw ? 'Jumla ya Mauzo' : 'Total Sales' }}</span>
+                    <strong class="br-stat-value">
+                      TSH {{ parseFloat(b.total_revenue ?? b.total_sales ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}
+                    </strong>
                   </div>
-                  <div class="metric-item">
-                    <span class="metric-lbl">Orders:</span>
-                    <span class="metric-val">{{ b.order_count || 0 }} completed</span>
+                  <div class="br-stat-tile">
+                    <span class="br-stat-label">{{ isSw ? 'Oda Zilizokamilika' : 'Completed Orders' }}</span>
+                    <strong class="br-stat-value">
+                      {{ b.total_orders ?? b.order_count ?? 0 }}
+                      <span class="br-stat-unit">{{ isSw ? 'oda' : ((b.total_orders ?? b.order_count ?? 0) === 1 ? 'order' : 'orders') }}</span>
+                    </strong>
+                  </div>
+                  <div class="br-stat-tile">
+                    <span class="br-stat-label">{{ isSw ? 'Wastani wa Oda' : 'Avg. Order Value' }}</span>
+                    <strong class="br-stat-value">
+                      TSH {{ getBranchAvgOrder(b).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                    </strong>
+                  </div>
+                </div>
+
+                <div class="br-branch-progress-wrap">
+                  <div class="br-branch-progress-track">
+                    <div class="br-branch-progress-fill" :style="{ width: `${Math.max(getBranchShare(b), getBranchShare(b) > 0 ? 3 : 0)}%` }"></div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Section: Payment Tenders Breakdown -->
-          <div class="content-section">
-            <div class="section-title-row">
-              <Banknote :size="18" class="text-amber" />
-              <h4>Payment Tenders Breakdown</h4>
-            </div>
-
-            <div class="tenders-grid">
-              <div class="tender-card">
-                <div class="tender-icon-box cash">
-                  <Banknote :size="20" />
-                </div>
-                <div class="tender-details">
-                  <span class="tender-type">Cash Collected</span>
-                  <strong class="tender-amount">TSH {{ parseFloat(reportData.payment_tenders?.cash_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                  <span class="tender-sub">{{ reportData.payment_tenders?.cash_count || 0 }} transactions</span>
-                </div>
+          <!-- Two-Column Insights: Payment Tenders & Statutory Category Split -->
+          <div class="bar-insights-grid">
+            <!-- Section: Payment Tenders Breakdown -->
+            <div class="content-section">
+              <div class="section-title-row">
+                <div class="section-icon-pill"><Banknote :size="16" /></div>
+                <h4>{{ isSw ? 'Mapato kwa Njia ya Malipo' : 'Payment Tenders Breakdown' }}</h4>
               </div>
 
-              <div class="tender-card">
-                <div class="tender-icon-box momo">
-                  <Smartphone :size="20" />
+              <div class="tenders-grid">
+                <div class="tender-card">
+                  <div class="tender-icon-box cash">
+                    <Banknote :size="18" />
+                  </div>
+                  <div class="tender-details">
+                    <span class="tender-type">{{ isSw ? 'Taslimu' : 'Cash Collected' }}</span>
+                    <strong class="tender-amount">TSH {{ parseFloat(reportData.payment_tenders?.cash_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                    <span class="tender-sub">{{ reportData.payment_tenders?.cash_count || 0 }} {{ isSw ? 'miamala' : 'transactions' }}</span>
+                  </div>
                 </div>
-                <div class="tender-details">
-                  <span class="tender-type">Mobile Money (M-Pesa / Airtel)</span>
-                  <strong class="tender-amount">TSH {{ parseFloat(reportData.payment_tenders?.mobile_money_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                  <span class="tender-sub">{{ reportData.payment_tenders?.mobile_money_count || 0 }} transactions</span>
+
+                <div class="tender-card">
+                  <div class="tender-icon-box momo">
+                    <Smartphone :size="18" />
+                  </div>
+                  <div class="tender-details">
+                    <span class="tender-type">{{ isSw ? 'Pesa za Simu' : 'Mobile Money' }}</span>
+                    <strong class="tender-amount">TSH {{ parseFloat(reportData.payment_tenders?.mobile_money_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                    <span class="tender-sub">{{ reportData.payment_tenders?.mobile_money_count || 0 }} {{ isSw ? 'miamala' : 'transactions' }}</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Section: Alcohol vs Soft Drinks Statutory Split -->
-          <div class="content-section">
-            <div class="section-title-row">
-              <ShieldCheck :size="18" class="text-blue" />
-              <h4>Tanzania Statutory Category Split</h4>
-            </div>
-
-            <div class="split-cards-grid">
-              <div class="split-card alcoholic-card">
-                <div class="split-badge">18+ RESTRICTED</div>
-                <span class="split-label">Alcoholic Beverages</span>
-                <strong class="split-val">TSH {{ parseFloat(reportData.summary?.alcoholic_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="split-desc">{{ reportData.summary?.alcoholic_count || 0 }} drinks sold with statutory age verification</span>
+            <!-- Section: Alcohol vs Soft Drinks Statutory Split -->
+            <div class="content-section">
+              <div class="section-title-row">
+                <div class="section-icon-pill"><ShieldCheck :size="16" /></div>
+                <h4>{{ isSw ? 'Mchanganuo wa Vinywaji (Kisheria)' : 'Tanzania Statutory Category Split' }}</h4>
               </div>
 
-              <div class="split-card soft-card">
-                <div class="split-badge soft">STANDARD</div>
-                <span class="split-label">Non-Alcoholic Beverages</span>
-                <strong class="split-val">TSH {{ parseFloat(reportData.summary?.non_alcoholic_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
-                <span class="split-desc">{{ reportData.summary?.non_alcoholic_count || 0 }} juices, sodas, and waters sold</span>
+              <div class="split-cards-grid">
+                <div class="split-card">
+                  <span class="split-badge">{{ isSw ? '18+ VILEVI' : '18+ RESTRICTED' }}</span>
+                  <span class="split-label">{{ isSw ? 'Vinywaji Vyenye Kilevi' : 'Alcoholic Beverages' }}</span>
+                  <strong class="split-val">TSH {{ parseFloat(reportData.summary?.alcoholic_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                  <span class="split-desc">{{ reportData.summary?.alcoholic_count || 0 }} {{ isSw ? 'vimeuzwa kwa uthibitisho wa umri' : 'drinks sold with age check' }}</span>
+                </div>
+
+                <div class="split-card">
+                  <span class="split-badge soft">{{ isSw ? 'KAWAIDA' : 'STANDARD' }}</span>
+                  <span class="split-label">{{ isSw ? 'Vinywaji Baridi (Bila Kilevi)' : 'Non-Alcoholic Beverages' }}</span>
+                  <strong class="split-val">TSH {{ parseFloat(reportData.summary?.non_alcoholic_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</strong>
+                  <span class="split-desc">{{ reportData.summary?.non_alcoholic_count || 0 }} {{ isSw ? 'juisi, soda na maji' : 'juices, sodas & waters' }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -500,8 +554,15 @@ onUnmounted(() => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in filteredProductSales" :key="item.product__id">
-                  <td class="bold">{{ item.product__name }}</td>
+                <tr v-for="item in filteredProductSales" :key="`${item.product__id}_${item.is_pack_sale}`">
+                  <td class="bold">
+                    <div class="prod-sale-name-cell">
+                      <span>{{ item.product__name }}</span>
+                      <span v-if="item.sale_type" class="sale-unit-pill" :class="{ 'is-pack': item.is_pack_sale }">
+                        {{ item.sale_type }}
+                      </span>
+                    </div>
+                  </td>
                   <td>
                     <span class="badge" :class="item.product__is_alcoholic ? 'badge-alcohol' : 'badge-soft'">
                       {{ item.product__is_alcoholic ? 'Alcoholic (18+)' : 'Non-Alcoholic' }}
@@ -1067,144 +1128,269 @@ onUnmounted(() => {
 
 /* Tabs */
 .report-tabs {
-  display: flex;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.04);
-  padding: 4px;
-  border-radius: 12px;
-  margin-bottom: 16px;
-  overflow-x: auto;
-}
-
-.tab-btn {
-  flex: 1;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
+  gap: 8px;
+  background: var(--br-card) !important;
+  border: 1px solid var(--br-border) !important;
+  padding: 8px 10px !important;
+  border-radius: 14px !important;
+  margin: 12px 24px 4px !important;
+  overflow-x: auto;
+  box-shadow: var(--br-shadow);
+}
+
+.report-tabs .tab-btn {
+  flex: 1 0 auto;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 9px 12px;
-  border-radius: 8px;
+  gap: 8px;
+  padding: 11px 18px !important;
+  min-height: 42px;
+  border-radius: 10px !important;
+  border: 1px solid transparent;
   background: transparent;
-  color: #94a3b8;
-  font-size: 12.5px;
+  color: var(--br-muted);
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
 }
 
-.tab-btn:hover {
-  color: #f8fafc;
-  background: rgba(255, 255, 255, 0.04);
+.report-tabs .tab-btn:hover {
+  color: var(--br-text);
+  background: var(--br-elevated);
+  border-color: var(--br-border);
 }
 
-.tab-btn.active {
-  background: #f59e0b;
-  color: #0f172a;
+.modal-overlay .report-tabs .tab-btn.active,
+.modal-overlay .report-tabs .tab-btn.tab-consolidated.active {
+  background: #4f46e5 !important;
+  color: #ffffff !important;
+  border-color: #4f46e5 !important;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.28);
 }
 
-.tab-btn.tab-consolidated.active {
-  background: #3b82f6;
-  color: #fff;
+.prod-sale-name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-/* Content Area */
+.sale-unit-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--br-accent-soft);
+  color: var(--br-accent);
+  border: 1px solid var(--br-border);
+}
+
+.sale-unit-pill.is-pack {
+  background: var(--br-emerald-soft);
+  color: var(--br-emerald);
+}
+
+/* Content Area & Theme Tokens */
+.modal-overlay {
+  --br-card: #111827;
+  --br-elevated: #1e293b;
+  --br-border: rgba(148, 163, 184, 0.16);
+  --br-border-strong: rgba(148, 163, 184, 0.28);
+  --br-text: #f8fafc;
+  --br-text-sec: #cbd5e1;
+  --br-muted: #94a3b8;
+  --br-accent: #818cf8;
+  --br-accent-soft: rgba(99, 102, 241, 0.16);
+  --br-emerald: #34d399;
+  --br-emerald-soft: rgba(16, 185, 129, 0.14);
+  --br-rose: #fb7185;
+  --br-rose-soft: rgba(239, 68, 68, 0.14);
+  --br-shadow: 0 2px 10px rgba(0, 0, 0, 0.24);
+}
+
+.modal-overlay[data-theme="light"] {
+  --br-card: #ffffff;
+  --br-elevated: #f8fafc;
+  --br-border: #e2e8f0;
+  --br-border-strong: #cbd5e1;
+  --br-text: #0f172a;
+  --br-text-sec: #334155;
+  --br-muted: #64748b;
+  --br-accent: #4f46e5;
+  --br-accent-soft: #eef2ff;
+  --br-emerald: #059669;
+  --br-emerald-soft: #ecfdf5;
+  --br-rose: #dc2626;
+  --br-rose-soft: #fef2f2;
+  --br-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 4px 12px rgba(15, 23, 42, 0.03);
+}
+
 .report-body {
   overflow-y: auto;
-  padding-right: 4px;
+  padding: 20px 24px 72px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .tab-pane {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-}
-
-/* KPI Cards */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-
-.kpi-card {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.kpi-card.highlight {
-  border-color: rgba(245, 158, 11, 0.35);
-  background: rgba(245, 158, 11, 0.05);
-}
-
-.kpi-card.success-card {
-  border-color: rgba(16, 185, 129, 0.35);
-  background: rgba(16, 185, 129, 0.05);
-}
-
-.kpi-label {
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  color: #94a3b8;
-  letter-spacing: 0.05em;
-}
-
-.kpi-value {
-  font-size: 22px;
-  font-weight: 900;
-  color: #f8fafc;
-}
-
-.text-accent { color: #fbbf24; }
-.text-muted { color: #94a3b8; }
-.text-success { color: #34d399; }
-.text-danger { color: #f87171; }
-.text-amber { color: #f59e0b; }
-.text-cyan { color: #38bdf8; }
-.text-blue { color: #60a5fa; }
-
-.kpi-desc {
-  font-size: 11.5px;
-  color: #64748b;
+  gap: 18px;
 }
 
 /* Content Sections */
 .content-section {
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--br-card);
+  border: 1px solid var(--br-border);
   border-radius: 16px;
-  padding: 16px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+  box-shadow: var(--br-shadow);
 }
 
 .section-title-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+}
+
+.section-icon-pill {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--br-accent-soft);
+  color: var(--br-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .section-title-row h4 {
-  font-size: 13.5px;
+  font-size: 0.94rem;
   font-weight: 800;
-  color: #e2e8f0;
+  color: var(--br-text);
   margin: 0;
+}
+
+.section-sub {
+  display: block;
+  font-size: 0.77rem;
+  color: var(--br-muted);
+  margin-top: 2px;
+}
+
+/* Branch Breakdown Grid */
+.branch-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.branch-breakdown-card {
+  background: var(--br-elevated);
+  border: 1px solid var(--br-border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.branch-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.branch-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.branch-card-name {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--br-text);
+}
+
+.branch-card-code {
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--br-accent-soft);
+  color: var(--br-accent);
+}
+
+.branch-card-status {
+  font-size: 0.69rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+.branch-card-status.active {
+  background: var(--br-emerald-soft);
+  color: var(--br-emerald);
+}
+
+.branch-card-status.inactive {
+  background: var(--br-rose-soft);
+  color: var(--br-rose);
+}
+
+.branch-card-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--br-border);
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metric-lbl {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--br-muted);
+}
+
+.metric-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--br-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Two-Column Insights Row */
+.bar-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 /* Tenders Grid */
 .tenders-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -1212,15 +1398,15 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 12px;
+  background: var(--br-elevated);
+  border: 1px solid var(--br-border);
+  border-radius: 14px;
+  padding: 14px 16px;
 }
 
 .tender-icon-box {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -1229,93 +1415,106 @@ onUnmounted(() => {
 }
 
 .tender-icon-box.cash {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
+  background: var(--br-emerald-soft);
+  color: var(--br-emerald);
 }
 
 .tender-icon-box.momo {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
+  background: var(--br-accent-soft);
+  color: var(--br-accent);
 }
 
 .tender-details {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .tender-type {
-  font-size: 11px;
-  font-weight: 700;
-  color: #94a3b8;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--br-muted);
 }
 
 .tender-amount {
-  font-size: 16px;
-  color: #f8fafc;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--br-text);
+  font-variant-numeric: tabular-nums;
 }
 
 .tender-sub {
-  font-size: 11px;
-  color: #64748b;
+  font-size: 0.72rem;
+  color: var(--br-muted);
 }
 
 /* Split Cards */
 .split-cards-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
 .split-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 14px;
+  background: var(--br-elevated);
+  border: 1px solid var(--br-border);
+  border-radius: 14px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.split-card.alcoholic-card {
-  border-left: 4px solid #ef4444;
-}
-
-.split-card.soft-card {
-  border-left: 4px solid #10b981;
+  gap: 6px;
 }
 
 .split-badge {
   display: inline-block;
   align-self: flex-start;
-  font-size: 9px;
+  font-size: 0.66rem;
   font-weight: 800;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(239, 68, 68, 0.2);
-  color: #f87171;
-  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--br-rose-soft);
+  color: var(--br-rose);
+  letter-spacing: 0.04em;
 }
 
 .split-badge.soft {
-  background: rgba(16, 185, 129, 0.2);
-  color: #34d399;
+  background: var(--br-emerald-soft);
+  color: var(--br-emerald);
 }
 
 .split-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--br-text-sec);
 }
 
 .split-val {
-  font-size: 18px;
-  font-weight: 900;
-  color: #f8fafc;
+  font-size: 1.12rem;
+  font-weight: 800;
+  color: var(--br-text);
+  font-variant-numeric: tabular-nums;
 }
 
 .split-desc {
-  font-size: 11px;
-  color: #64748b;
+  font-size: 0.73rem;
+  color: var(--br-muted);
+}
+
+@media (max-width: 1100px) {
+  .bar-insights-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .report-body {
+    padding: 14px 14px 64px;
+  }
+  .tenders-grid,
+  .split-cards-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Table */
@@ -1537,93 +1736,228 @@ onUnmounted(() => {
   font-weight: 700;
 }
 
-.branch-breakdown-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
-  margin-top: 10px;
-}
-
-.branch-breakdown-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
+.br-section-head-split {
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
-.branch-breakdown-card.inactive-branch-card {
-  opacity: 0.55;
-}
-
-.branch-card-header {
+.br-section-head-left {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
 }
 
-.branch-card-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.br-branch-count-pill {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--br-elevated);
+  border: 1px solid var(--br-border);
+  color: var(--br-muted);
 }
 
-.branch-card-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: #f1f5f9;
+.br-branch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
 }
 
-.branch-card-code {
-  font-family: monospace;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-}
-
-.branch-card-status {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 9999px;
-  text-transform: uppercase;
-}
-
-.branch-card-status.active {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-}
-
-.branch-card-status.inactive {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-}
-
-.branch-card-metrics {
+.br-branch-card {
+  background: var(--br-elevated);
+  border: 1px solid var(--br-border);
+  border-radius: 14px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 14px;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
-.metric-item {
+.br-branch-card:hover {
+  border-color: var(--br-border-strong);
+  box-shadow: var(--br-shadow);
+}
+
+.br-branch-card.is-inactive {
+  opacity: 0.6;
+}
+
+.br-branch-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.metric-lbl {
-  color: #94a3b8;
+.br-branch-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
-.metric-val {
+.br-branch-pin {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--br-accent-soft);
+  color: var(--br-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.br-branch-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.br-branch-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--br-text);
+  letter-spacing: -0.01em;
+}
+
+.br-branch-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
   font-weight: 700;
-  color: #e2e8f0;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--br-accent-soft);
+  color: var(--br-accent);
+}
+
+.br-branch-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.br-branch-share-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--br-card);
+  border: 1px solid var(--br-border);
+  color: var(--br-text-sec);
+  font-variant-numeric: tabular-nums;
+}
+
+.br-branch-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.br-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.br-branch-status.active {
+  background: var(--br-emerald-soft);
+  color: var(--br-emerald);
+}
+
+.br-branch-status.inactive {
+  background: var(--br-rose-soft);
+  color: var(--br-rose);
+}
+
+.br-branch-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.br-stat-tile {
+  background: var(--br-card);
+  border: 1px solid var(--br-border);
+  border-radius: 11px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+}
+
+.br-stat-tile.is-primary {
+  border-color: var(--br-border-strong);
+}
+
+.br-stat-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--br-muted);
+}
+
+.br-stat-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--br-text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.br-stat-tile.is-primary .br-stat-value {
+  color: var(--br-accent);
+}
+
+.br-stat-unit {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--br-muted);
+}
+
+.br-branch-progress-wrap {
+  padding-top: 2px;
+}
+
+.br-branch-progress-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--br-border);
+  overflow: hidden;
+}
+
+.br-branch-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4f46e5 0%, #6366f1 100%);
+  transition: width 0.35s ease;
+}
+
+@media (max-width: 640px) {
+  .br-branch-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .br-branch-stats {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Print Styles */

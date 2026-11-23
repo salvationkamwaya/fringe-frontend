@@ -791,7 +791,8 @@ onMounted(() => {
   --s-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
 
   width: 100%;
-  min-height: 100vh;
+  min-height: 100%;
+  flex: 1 0 auto;
   background: var(--s-bg);
   color: var(--s-text);
   display: flex;
@@ -829,10 +830,10 @@ onMounted(() => {
 
 .sales-window {
   width: 100%;
-  flex: 1;
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
-  padding: 20px 24px 28px;
+  padding: 20px 24px 64px;
   gap: 18px;
   max-width: 1600px;
   margin: 0 auto;
@@ -1172,7 +1173,8 @@ onMounted(() => {
   border-radius: 16px;
   overflow-x: auto;
   box-shadow: var(--s-shadow);
-  flex: 1;
+  flex: 0 0 auto;
+  min-height: 220px;
 }
 
 .sales-table {

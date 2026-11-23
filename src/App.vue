@@ -6,6 +6,7 @@ import api from './api'
 import SidebarNav from './components/SidebarNav.vue'
 import WorkspaceContextBar from './components/WorkspaceContextBar.vue'
 import BarPos from './components/BarPos.vue'
+import BarDashboard from './components/BarDashboard.vue'
 import StationeryPos from './components/StationeryPos.vue'
 import StationeryDashboard from './components/StationeryDashboard.vue'
 import LoginModal from './components/LoginModal.vue'
@@ -112,7 +113,7 @@ onMounted(() => {
           'account_settings',
           'shift'
         ].includes(store.activeModal)"
-        :key="`${store.activeUnit}-${store.activeBranchId}`"
+        :key="`${store.activeUnit}-${store.activeBranchId}-${store.contextVersion}`"
         class="workspace-page-wrap"
       >
         <CatalogManagementModal
@@ -186,13 +187,16 @@ onMounted(() => {
       </div>
 
       <!-- Stationery POS Counter View -->
-      <StationeryPos v-else-if="store.activeUnit === 'stationery' && store.activeModal === 'stationery_pos'" :key="`pos-${store.activeBranchId}`" />
+      <StationeryPos v-else-if="store.activeUnit === 'stationery' && store.activeModal === 'stationery_pos'" :key="`pos-${store.activeUnit}-${store.activeBranchId}-${store.contextVersion}`" />
 
       <!-- Stationery Role-Aware Dashboard (Default Landing Page for Stationery) -->
-      <StationeryDashboard v-else-if="store.activeUnit === 'stationery'" :key="`dash-${store.activeBranchId}`" />
+      <StationeryDashboard v-else-if="store.activeUnit === 'stationery'" :key="`dash-${store.activeUnit}-${store.activeBranchId}-${store.contextVersion}`" />
 
-      <!-- Bar & Lounge POS View -->
-      <BarPos v-else :key="`bar-${store.activeBranchId}`" />
+      <!-- Bar & Lounge POS Counter View -->
+      <BarPos v-else-if="store.activeModal === 'bar_pos'" :key="`bar-pos-${store.activeUnit}-${store.activeBranchId}-${store.contextVersion}`" />
+
+      <!-- Bar & Lounge Role-Aware Dashboard (Default Landing Page for Bar & Combined) -->
+      <BarDashboard v-else :key="`bar-dash-${store.activeUnit}-${store.activeBranchId}-${store.contextVersion}`" />
     </main>
 
     <!-- Modals & Overlays -->

@@ -61,6 +61,22 @@ const stationeryUnitName = computed(() => store.businessUnits.find(u => u.id ===
 const isUnitDropdownOpen = ref(false)
 const unitDropdownRef = ref(null)
 
+const isBranchDropdownOpen = ref(false)
+const branchDropdownRef = ref(null)
+
+const unitScopedBranches = computed(() => {
+  const all = (store.branches || []).filter(b => b.is_active !== false)
+  if (store.activeUnit === 'all') return all
+  return all.filter(b => (b.business_unit_id || b.business_unit) === store.activeUnit)
+})
+
+const selectBranch = (branchId) => {
+  isBranchDropdownOpen.value = false
+  if (String(store.activeBranchId) !== String(branchId)) {
+    store.switchBranch(String(branchId))
+  }
+}
+
 const unitOptions = computed(() => [
   { id: 'bar', label: barUnitName.value, desc: t('nav.barDesc'), icon: Wine },
   { id: 'stationery', label: stationeryUnitName.value, desc: t('nav.stationeryDesc'), icon: BookOpen },
@@ -81,6 +97,9 @@ const selectBusinessUnit = (unitId) => {
 const handleOutsideClick = (e) => {
   if (unitDropdownRef.value && !unitDropdownRef.value.contains(e.target)) {
     isUnitDropdownOpen.value = false
+  }
+  if (branchDropdownRef.value && !branchDropdownRef.value.contains(e.target)) {
+    isBranchDropdownOpen.value = false
   }
 }
 
@@ -193,24 +212,65 @@ const toggleCollapse = () => {
         </div>
       </div>
 
-      <!-- Owner Branch Switcher (Bar & Lounge / Combined) -->
-      <div v-if="store.isOwner && (store.activeUnit === 'bar' || store.activeUnit === 'all')" class="owner-branch-switcher">
+      <!-- Owner Branch Switcher (Custom Styled Dropdown) -->
+      <div v-if="store.isOwner && unitScopedBranches.length > 0" class="owner-branch-switcher" ref="branchDropdownRef">
         <label class="switcher-label branch-label">
-          <span>Active Branch:</span>
-          <span class="branch-count-tag" v-if="store.branches.length">{{ store.branches.length }}</span>
+          <span>{{ store.locale === 'sw' ? 'TAWI LINALOTUMIKA' : 'ACTIVE BRANCH' }}</span>
+          <span class="branch-count-tag">{{ unitScopedBranches.length }}</span>
         </label>
-        <div class="select-wrapper">
-          <select 
-            :value="store.activeBranchId" 
-            @change="store.switchBranch($event.target.value)"
-            class="switcher-select branch-select"
+        <div class="custom-dropdown" :class="{ open: isBranchDropdownOpen }" :data-theme="store.theme">
+          <button
+            type="button"
+            class="dropdown-trigger"
+            @click.stop="isBranchDropdownOpen = !isBranchDropdownOpen"
+            :aria-expanded="isBranchDropdownOpen"
           >
-            <option value="all">⚡ All Branches</option>
-            <option v-for="b in store.branches" :key="b.id" :value="String(b.id)">
-              📍 {{ b.name }} ({{ b.code }})
-            </option>
-          </select>
-          <ChevronDown class="select-arrow" :size="13" />
+            <span class="trigger-icon-tile">
+              <MapPin :size="15" />
+            </span>
+            <span class="trigger-text">
+              <strong>{{ store.activeBranchId === 'all' ? (store.locale === 'sw' ? 'Matawi Yote' : 'All Branches') : store.activeBranchName }}</strong>
+            </span>
+            <ChevronDown class="trigger-chevron" :class="{ rotated: isBranchDropdownOpen }" :size="15" />
+          </button>
+
+          <transition name="dd-pop">
+            <div v-if="isBranchDropdownOpen" class="dropdown-menu" role="listbox">
+              <button
+                type="button"
+                class="dropdown-option"
+                :class="{ active: store.activeBranchId === 'all' }"
+                @click="selectBranch('all')"
+              >
+                <span class="option-icon-tile">
+                  <Layers :size="14" />
+                </span>
+                <span class="option-copy">
+                  <strong>{{ store.locale === 'sw' ? 'Matawi Yote' : 'All Branches' }}</strong>
+                  <span>{{ store.locale === 'sw' ? 'Jumla ya matawi yote' : 'Combined branch view' }}</span>
+                </span>
+                <Check v-if="store.activeBranchId === 'all'" :size="15" class="option-check" />
+              </button>
+
+              <button
+                v-for="b in unitScopedBranches"
+                :key="b.id"
+                type="button"
+                class="dropdown-option"
+                :class="{ active: String(store.activeBranchId) === String(b.id) }"
+                @click="selectBranch(b.id)"
+              >
+                <span class="option-icon-tile">
+                  <MapPin :size="14" />
+                </span>
+                <span class="option-copy">
+                  <strong>{{ b.name }}</strong>
+                  <span>{{ b.code }}</span>
+                </span>
+                <Check v-if="String(store.activeBranchId) === String(b.id)" :size="15" class="option-check" />
+              </button>
+            </div>
+          </transition>
         </div>
       </div>
 
@@ -234,9 +294,8 @@ const toggleCollapse = () => {
         </button>
 
         <template v-if="isCollapsed || openGroups.pos">
-          <!-- STATIONERY: Dashboard Landing Page -->
+          <!-- Dashboard Landing Page (All Business Units) -->
           <button
-            v-if="store.activeUnit === 'stationery'"
             class="nav-item"
             :class="{ active: store.activeModal === null }"
             @click="store.activeModal = null"
@@ -249,8 +308,8 @@ const toggleCollapse = () => {
           <!-- POS Counter Main Screen -->
           <button 
             class="nav-item" 
-            :class="{ active: store.activeUnit === 'stationery' ? store.activeModal === 'stationery_pos' : store.activeModal === null }"
-            @click="store.activeModal = store.activeUnit === 'stationery' ? 'stationery_pos' : null"
+            :class="{ active: store.activeUnit === 'stationery' ? store.activeModal === 'stationery_pos' : store.activeModal === 'bar_pos' }"
+            @click="store.activeModal = store.activeUnit === 'stationery' ? 'stationery_pos' : 'bar_pos'"
             :title="isCollapsed ? t('nav.posCounter') : ''"
           >
             <Wine v-if="store.activeUnit === 'bar'" :size="18" class="nav-icon" />

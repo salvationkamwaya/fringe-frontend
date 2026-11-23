@@ -791,7 +791,10 @@ button {
    ============================================================ */
 .workspace-page-wrap {
   width: 100%;
-  min-height: 100vh;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
 }

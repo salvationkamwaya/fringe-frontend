@@ -20,6 +20,7 @@ const PERSISTABLE_PAGES = new Set([
   'account_settings',
   'shift',
   'stationery_pos',
+  'bar_pos',
 ])
 
 // Initialize state from storage
@@ -83,6 +84,7 @@ export const store = reactive({
   stationeryMode: 'RETAIL', // 'RETAIL' | 'WHOLESALE'
   heldSales: JSON.parse(localStorage.getItem('fringe_held_sales') || '[]'),
   lastSaleAt: 0,
+  contextVersion: 0,
   idleTimeoutMinutes: parseInt(localStorage.getItem('fringe_idle_timeout') ?? '10', 10), // default 10 minutes
   isIdleWarningActive: false,
   idleCountdownSeconds: 30,
@@ -334,6 +336,7 @@ export const store = reactive({
         return true
       }
 
+      localStorage.removeItem('fringe_active_page')
       store.activeModal = null
       store.showToast(`Welcome back, ${user.first_name || user.username}!`, 'success')
       await store.fetchBranches()
@@ -417,6 +420,7 @@ export const store = reactive({
     if (store.user?.role !== 'owner') return
     store.activeBranchId = branchId
     localStorage.setItem('fringe_active_branch', branchId)
+    store.contextVersion += 1
     store.clearCart()
     store.fetchActiveShift()
     window.dispatchEvent(new CustomEvent('fringe-branch-changed', { detail: { branchId } }))
@@ -451,9 +455,38 @@ export const store = reactive({
       }
     }
     localStorage.setItem('fringe_active_branch', store.activeBranchId || 'all')
+
+    // Automatically adapt unit-specific pages when switching businesses
+    const stationeryOnlyPages = ['quotations', 'wholesale_docs', 'stationery_returns', 'barcode_labels', 'customers', 'suppliers']
+    if (unitId === 'bar') {
+      if (store.activeModal === 'stationery_reports') {
+        store.activeModal = 'reports'
+      } else if (store.activeModal === 'stationery_pos') {
+        store.activeModal = 'bar_pos'
+      } else if (stationeryOnlyPages.includes(store.activeModal)) {
+        store.activeModal = null
+      }
+    } else if (unitId === 'stationery') {
+      if (store.activeModal === 'reports') {
+        store.activeModal = 'stationery_reports'
+      } else if (store.activeModal === 'bar_pos') {
+        store.activeModal = 'stationery_pos'
+      }
+    }
+
+    store.contextVersion += 1
     store.clearCart()
     store.fetchActiveShift()
-    store.showToast(`Switched view to ${unitId.toUpperCase()}`, 'info')
+    window.dispatchEvent(new CustomEvent('fringe-unit-changed', {
+      detail: { unitId, branchId: store.activeBranchId }
+    }))
+    window.dispatchEvent(new CustomEvent('fringe-branch-changed', {
+      detail: { branchId: store.activeBranchId }
+    }))
+
+    const unitObj = (store.businessUnits || []).find(u => u.id === unitId)
+    const label = unitId === 'all' ? 'Combined View' : (unitObj?.name || unitId.toUpperCase())
+    store.showToast(`Switched view to ${label}`, 'info')
   },
 
   async fetchActiveShift() {
