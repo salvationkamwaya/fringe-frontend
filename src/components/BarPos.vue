@@ -70,6 +70,11 @@ watch(() => store.activeBranchId, () => {
   fetchProducts()
 })
 
+// Auto-refresh drink stock immediately after any sale completes
+watch(() => store.lastSaleAt, () => {
+  fetchProducts()
+})
+
 // Voiding a line item from current cart
 const requestVoidItem = (item) => {
   if (store.isBarManager || store.isOwner) {

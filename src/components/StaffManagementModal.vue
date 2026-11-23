@@ -1814,6 +1814,129 @@ onMounted(async () => {
 .btn-action.suspend:hover { border-color: #ef4444; color: #f87171; background: rgba(239, 68, 68, 0.1); }
 .btn-action.activate:hover { border-color: #10b981; color: #34d399; background: rgba(16, 185, 129, 0.1); }
 
+/* Light Mode High-Contrast Table Cells, Badges & Action Buttons */
+.modal-overlay[data-theme="light"] .user-fullname {
+  color: #0f172a;
+}
+
+.modal-overlay[data-theme="light"] .user-subtext {
+  color: #475569;
+}
+
+.modal-overlay[data-theme="light"] .crown-tag {
+  background: #fef3c7;
+  color: #b45309;
+  border-color: #fcd34d;
+  font-weight: 700;
+}
+
+.modal-overlay[data-theme="light"] .role-owner {
+  background: #f3e8ff;
+  color: #6b21a8;
+  border-color: #d8b4fe;
+}
+
+.modal-overlay[data-theme="light"] .role-bar-mgr {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
+.modal-overlay[data-theme="light"] .role-bartender {
+  background: #ffedd5;
+  color: #9a3412;
+  border-color: #fdba74;
+}
+
+.modal-overlay[data-theme="light"] .role-stat-mgr {
+  background: #e0f2fe;
+  color: #075985;
+  border-color: #7dd3fc;
+}
+
+.modal-overlay[data-theme="light"] .role-stat-cashier {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+
+.modal-overlay[data-theme="light"] .role-clerk {
+  background: #eef2ff;
+  color: #3730a3;
+  border-color: #c7d2fe;
+}
+
+.modal-overlay[data-theme="light"] .branch-name {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.modal-overlay[data-theme="light"] .branch-code {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.modal-overlay[data-theme="light"] .branch-all {
+  background: #f3e8ff;
+  color: #6b21a8;
+}
+
+.modal-overlay[data-theme="light"] .branch-unassigned {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.modal-overlay[data-theme="light"] .badge-pin-yes {
+  color: #047857;
+}
+
+.modal-overlay[data-theme="light"] .badge-pin-no {
+  color: #475569;
+}
+
+.modal-overlay[data-theme="light"] .status-active {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.modal-overlay[data-theme="light"] .status-suspended {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.modal-overlay[data-theme="light"] .btn-action {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.modal-overlay[data-theme="light"] .btn-action:hover {
+  background: #eef2ff;
+  border-color: #4f46e5;
+  color: #4f46e5;
+}
+
+.modal-overlay[data-theme="light"] .btn-action.pin:hover,
+.modal-overlay[data-theme="light"] .btn-action.token:hover {
+  background: #fffbeb;
+  border-color: #d97706;
+  color: #b45309;
+}
+
+.modal-overlay[data-theme="light"] .btn-action.suspend:hover {
+  background: #fef2f2;
+  border-color: #dc2626;
+  color: #b91c1c;
+}
+
+.modal-overlay[data-theme="light"] .btn-action.activate:hover {
+  background: #ecfdf5;
+  border-color: #059669;
+  color: #047857;
+}
+
 .loading-td, .empty-td {
   padding: 3rem !important;
   text-align: center;

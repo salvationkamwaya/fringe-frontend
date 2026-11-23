@@ -1,7 +1,9 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { store } from '../store'
 import api from '../api'
+import StockValuationPanel from './StockValuationPanel.vue'
+import RevenueSummaryStrip from './RevenueSummaryStrip.vue'
 import { 
   FileText, TrendingUp, Layers, DollarSign, X, Download, 
   Printer, Clock, Banknote, Smartphone, ShieldAlert, 
@@ -11,7 +13,8 @@ import {
 
 const emit = defineEmits(['close'])
 
-const activeTab = ref('summary') // 'summary' | 'sales' | 'stock' | 'shifts' | 'consolidated'
+const isSw = computed(() => store.locale === 'sw')
+const activeTab = ref(store.activeUnit === 'all' && store.isOwner ? 'consolidated' : 'summary') // 'summary' | 'sales' | 'stock' | 'shifts' | 'consolidated'
 const loading = ref(true)
 const downloadingPdf = ref(false)
 const downloadingCsv = ref(false)
@@ -58,7 +61,7 @@ const fetchReports = async () => {
   loading.value = true
   errorMessage.value = ''
   try {
-    const params = { range: selectedRange.value }
+    const params = { range: selectedRange.value, _t: Date.now() }
     if (selectedRange.value === 'custom') {
       if (customStartDate.value) params.start_date = customStartDate.value
       if (customEndDate.value) params.end_date = customEndDate.value
@@ -173,8 +176,33 @@ const printReport = () => {
   window.print()
 }
 
+const onBranchChanged = () => {
+  fetchReports()
+}
+
+const onVisibilityChange = () => {
+  if (document.visibilityState === 'visible') {
+    fetchReports()
+  }
+}
+
+watch(() => [store.activeUnit, store.activeBranchId], () => {
+  fetchReports()
+})
+
+watch(activeTab, () => {
+  fetchReports()
+})
+
 onMounted(() => {
   fetchReports()
+  window.addEventListener('fringe-branch-changed', onBranchChanged)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('fringe-branch-changed', onBranchChanged)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 </script>
 
@@ -332,26 +360,24 @@ onMounted(() => {
         
         <!-- 1. FINANCIAL SUMMARY & TENDERS TAB -->
         <div v-if="activeTab === 'summary'" class="tab-pane">
-          <!-- Executive KPI Grid -->
-          <div class="kpi-grid">
-            <div class="kpi-card highlight">
-              <span class="kpi-label">Total Bar Revenue</span>
-              <span class="kpi-value text-accent">TSH {{ parseFloat(reportData.summary?.total_revenue || reportData.profit_snapshot?.total_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
-              <span class="kpi-desc">{{ reportData.summary?.total_orders || 0 }} completed orders (Avg: TSH {{ reportData.summary?.avg_order_value || '0.00' }})</span>
-            </div>
+          <!-- Bar Actual Revenue & True Net Profit (Income - Refunds - COGS - Bar Expenses) -->
+          <RevenueSummaryStrip
+            :gross-sales="reportData.summary?.total_revenue || reportData.profit_snapshot?.total_revenue || 0"
+            :refunds="reportData.summary?.total_refunds || 0"
+            :actual-revenue="reportData.summary?.actual_revenue ?? reportData.summary?.total_revenue ?? 0"
+            :cogs="reportData.summary?.cogs || reportData.profit_snapshot?.cogs || 0"
+            :expenses="reportData.summary?.total_expenses || reportData.expenses?.total_expenses || 0"
+            :net-profit="reportData.summary?.net_profit ?? reportData.profit_snapshot?.net_profit ?? reportData.summary?.gross_profit ?? 0"
+            :net-margin="reportData.summary?.net_margin_percent || reportData.summary?.gross_margin_percent || '0.0%'"
+            :orders-count="reportData.summary?.total_orders || 0"
+            :title="isSw ? 'Mapato Halisi na Faida ya Baa (Ukitoa Marejesho na Matumizi)' : 'Bar Actual Revenue & True Net Profit'"
+          />
 
-            <div class="kpi-card">
-              <span class="kpi-label">Cost of Goods Sold (COGS)</span>
-              <span class="kpi-value text-muted">TSH {{ parseFloat(reportData.summary?.cogs || reportData.profit_snapshot?.cogs || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
-              <span class="kpi-desc">Total drink inventory cost</span>
-            </div>
-
-            <div class="kpi-card success-card">
-              <span class="kpi-label">Gross Profit</span>
-              <span class="kpi-value text-success">TSH {{ parseFloat(reportData.summary?.gross_profit || reportData.profit_snapshot?.gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
-              <span class="kpi-desc">Profit Margin: <strong>{{ reportData.summary?.gross_margin_percent || reportData.profit_snapshot?.gross_margin_percent }}</strong></span>
-            </div>
-          </div>
+          <!-- Bar Separated Business Worth (Crates/Cartons vs Single Bottles) -->
+          <StockValuationPanel
+            :valuation="reportData.inventory_valuation"
+            :title="isSw ? 'Thamani ya Biashara ya Baa (Stoo ya Vinywaji)' : 'Bar Business Worth & Drink Stock Valuation'"
+          />
 
           <!-- Section: Branch Location Performance Breakdown (When viewing All Branches as Owner) -->
           <div v-if="reportData.branch_breakdown && reportData.branch_breakdown.length > 0" class="content-section">
@@ -498,24 +524,10 @@ onMounted(() => {
 
         <!-- 3. STOCK-ON-HAND & VALUATION TAB -->
         <div v-else-if="activeTab === 'stock'" class="tab-pane">
-          <!-- Stock Valuation KPIs -->
-          <div class="kpi-grid">
-            <div class="kpi-card">
-              <span class="kpi-label">Total Stock Units</span>
-              <span class="kpi-value text-accent">{{ reportData.inventory_valuation?.total_units || 0 }}</span>
-              <span class="kpi-desc">{{ reportData.inventory_valuation?.total_items || 0 }} catalog items</span>
-            </div>
-            <div class="kpi-card">
-              <span class="kpi-label">Inventory Valuation (Cost)</span>
-              <span class="kpi-value text-muted">TSH {{ parseFloat(reportData.inventory_valuation?.valuation_at_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
-              <span class="kpi-desc">Working capital tied up</span>
-            </div>
-            <div class="kpi-card">
-              <span class="kpi-label">Inventory Value (Retail)</span>
-              <span class="kpi-value text-success">TSH {{ parseFloat(reportData.inventory_valuation?.valuation_at_retail || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
-              <span class="kpi-desc">Potential Profit: TSH {{ parseFloat(reportData.inventory_valuation?.potential_gross_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
-            </div>
-          </div>
+          <StockValuationPanel
+            :valuation="reportData.inventory_valuation"
+            :title="isSw ? 'Thamani ya Stoo ya Vinywaji (Kreti/Katoni dhidi ya Chupa)' : 'Bar Stock Valuation (Crates/Cartons vs Single Items)'"
+          />
 
           <div class="pane-toolbar">
             <input 
@@ -626,22 +638,56 @@ onMounted(() => {
             </button>
           </div>
 
-          <!-- Group Financial Totals Grid -->
-          <div class="kpi-grid">
-            <div class="kpi-card highlight">
-              <span class="kpi-label">Total Group Revenue</span>
-              <span class="kpi-value text-accent">TSH {{ parseFloat(consolidatedData.group_summary?.group_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
-              <span class="kpi-desc">Gross sales across all units</span>
+          <!-- Combined Actual Revenue & True Net Profit (Bar + Stationery across all branches) -->
+          <RevenueSummaryStrip
+            :gross-sales="consolidatedData.group_summary?.group_revenue"
+            :refunds="consolidatedData.group_summary?.group_refunds || 0"
+            :actual-revenue="consolidatedData.group_summary?.group_actual_revenue ?? consolidatedData.group_summary?.group_revenue"
+            :cogs="consolidatedData.group_summary?.group_cogs || 0"
+            :expenses="consolidatedData.group_summary?.group_expenses || 0"
+            :net-profit="consolidatedData.group_summary?.group_net_profit ?? consolidatedData.group_summary?.group_profit"
+            :net-margin="consolidatedData.group_summary?.group_net_margin_percent || consolidatedData.group_summary?.group_margin_percent || '0.0%'"
+            :orders-count="(consolidatedData.units?.bar?.orders_count || 0) + (consolidatedData.units?.stationery?.orders_count || 0)"
+            :title="isSw ? 'Mapato Halisi na Faida ya Pamoja (Baa + Steshenari)' : 'Combined Actual Revenue & True Net Profit (Bar + Stationery)'"
+          />
+
+          <!-- Combined Business Worth (All Branches: Pack/Bulk vs Single-Item Only) -->
+          <StockValuationPanel
+            :valuation="consolidatedData.inventory_valuation"
+            :title="isSw ? 'Thamani ya Pamoja ya Biashara Zote (Matawi Yote)' : 'Combined Enterprise Stock Worth (All Branches)'"
+          />
+
+          <!-- All Branches Performance Table -->
+          <div v-if="consolidatedData.branches && consolidatedData.branches.length > 0" class="content-section">
+            <div class="section-title-row">
+              <Building :size="18" class="text-accent" />
+              <h4>{{ isSw ? 'Utendaji wa Kila Tawi (Baa na Steshenari)' : 'All-Branch Performance Breakdown' }}</h4>
             </div>
-            <div class="kpi-card success-card">
-              <span class="kpi-label">Group Gross Profit</span>
-              <span class="kpi-value text-success">TSH {{ parseFloat(consolidatedData.group_summary?.group_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
-              <span class="kpi-desc">Group Margin: <strong>{{ consolidatedData.group_summary?.group_margin_percent }}</strong></span>
-            </div>
-            <div class="kpi-card">
-              <span class="kpi-label">Total Drawer Cash</span>
-              <span class="kpi-value text-amber">TSH {{ parseFloat(consolidatedData.group_summary?.group_drawer_cash || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</span>
-              <span class="kpi-desc">Expected cash across registers</span>
+            <div class="table-container">
+              <table class="report-table">
+                <thead>
+                  <tr>
+                    <th>{{ isSw ? 'Tawi' : 'Branch' }}</th>
+                    <th>{{ isSw ? 'Biashara' : 'Unit' }}</th>
+                    <th class="text-right">{{ isSw ? 'Oda' : 'Orders' }}</th>
+                    <th class="text-right">{{ isSw ? 'Mapato Halisi' : 'Actual Revenue' }}</th>
+                    <th class="text-right">{{ isSw ? 'Matumizi' : 'Expenses' }}</th>
+                    <th class="text-right">{{ isSw ? 'Stoo (Kununua)' : 'Stock (Buying)' }}</th>
+                    <th class="text-right">{{ isSw ? 'Stoo (Kuuza)' : 'Stock (Selling)' }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="br in consolidatedData.branches" :key="br.id">
+                    <td class="bold">{{ br.name }} ({{ br.code }})</td>
+                    <td>{{ br.business_unit === 'bar' ? 'Bar & Lounge' : 'Stationery' }}</td>
+                    <td class="text-right">{{ br.orders_count }}</td>
+                    <td class="text-right bold">TSH {{ parseFloat(br.actual_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right text-danger">TSH {{ parseFloat(br.expenses || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right">TSH {{ parseFloat(br.valuation?.valuation_at_cost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="text-right text-success bold">TSH {{ parseFloat(br.valuation?.valuation_at_retail || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 

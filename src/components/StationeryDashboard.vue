@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { store } from '../store'
 import { t } from '../i18n'
 import api from '../api'
@@ -296,24 +296,25 @@ const quickActions = computed(() => {
 const fetchDashboardData = async () => {
   loading.value = true
   try {
-    const orderParams = { range: 'today', page_size: 6 }
+    const bust = Date.now()
+    const orderParams = { range: 'today', page_size: 6, _t: bust }
     if (isCashier.value) {
       orderParams.my_sales = 'true'
     }
 
     const tasks = [
-      api.get('/catalog/products/'),
+      api.get('/catalog/products/', { params: { _t: bust } }),
       api.get('/pos/orders/', { params: orderParams }),
     ]
 
     if (isOwner.value || isManager.value) {
-      tasks.push(api.get('/pos/expenses/', { params: { range: 'this_month' } }))
+      tasks.push(api.get('/pos/expenses/', { params: { range: 'this_month', _t: bust } }))
     } else {
       tasks.push(Promise.resolve(null))
     }
 
     if (isStockClerk.value || isOwner.value || isManager.value) {
-      tasks.push(api.get('/pos/suppliers/'))
+      tasks.push(api.get('/pos/suppliers/', { params: { _t: bust } }))
     } else {
       tasks.push(Promise.resolve(null))
     }
@@ -346,12 +347,38 @@ const fetchDashboardData = async () => {
   }
 }
 
+const onLiveRefresh = () => {
+  fetchDashboardData()
+  store.fetchActiveShift()
+}
+
+const onVisibilityChange = () => {
+  if (document.visibilityState === 'visible') {
+    onLiveRefresh()
+  }
+}
+
 onMounted(() => {
+  fetchDashboardData()
+  window.addEventListener('fringe-sale-completed', onLiveRefresh)
+  window.addEventListener('fringe-branch-changed', onLiveRefresh)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('fringe-sale-completed', onLiveRefresh)
+  window.removeEventListener('fringe-branch-changed', onLiveRefresh)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+})
+
+watch(() => [store.activeBranchId, store.lastSaleAt], () => {
   fetchDashboardData()
 })
 
-watch(() => store.activeBranchId, () => {
-  fetchDashboardData()
+watch(() => store.activeModal, (nextModal) => {
+  if (nextModal === null) {
+    onLiveRefresh()
+  }
 })
 </script>
 

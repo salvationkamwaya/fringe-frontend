@@ -82,6 +82,7 @@ export const store = reactive({
   locale: localStorage.getItem('fringe_locale') || 'en', // 'en' | 'sw'
   stationeryMode: 'RETAIL', // 'RETAIL' | 'WHOLESALE'
   heldSales: JSON.parse(localStorage.getItem('fringe_held_sales') || '[]'),
+  lastSaleAt: 0,
   idleTimeoutMinutes: parseInt(localStorage.getItem('fringe_idle_timeout') ?? '10', 10), // default 10 minutes
   isIdleWarningActive: false,
   idleCountdownSeconds: 30,
@@ -608,6 +609,12 @@ export const store = reactive({
 
   closeModal() {
     store.activeModal = null
+  },
+
+  notifySaleCompleted(order = null) {
+    store.lastSaleAt = Date.now()
+    store.fetchActiveShift()
+    window.dispatchEvent(new CustomEvent('fringe-sale-completed', { detail: order }))
   }
 })
 

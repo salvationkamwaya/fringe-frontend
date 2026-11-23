@@ -122,6 +122,13 @@ watch(() => store.isAuthenticated, (auth) => {
   }
 })
 
+watch(() => store.lastSaleAt, () => {
+  if (store.isAuthenticated) {
+    fetchCatalog()
+    fetchCustomers()
+  }
+})
+
 // Filtered products
 const filteredProducts = computed(() => {
   return products.value.filter(item => {
